@@ -914,7 +914,98 @@ details is always a JSON string with at least:
 - WARN = non-fatal (e.g., 1 job skipped).
 - ERROR = fatal for that operation (e.g., API key missing, fetch failed).
 
-### 11.4 Debug Panel & Health Check
+### 11.4 Logs Export (Pretty Ops View)
+
+The canonical 📓 Logs sheet is for raw data storage. A separate **Logs Export** Google Sheet provides a visually readable ops dashboard.
+
+#### 11.4.1 Logs Export Sheet Setup
+
+- **Location:** Separate Google Sheet (not in the Engine workbook)
+- **Purpose:** Human-readable, color-coded activity log for admin review
+- **Write trigger:** `logEvent_()` writes to both 📓 Logs (canonical) AND Logs Export (if configured)
+- **Config:** `CONFIG.LOGS_EXPORT_SPREADSHEET_ID` stores the Sheet ID
+
+#### 11.4.2 Column Schema
+
+| Col | Header | Width | Notes |
+|-----|--------|-------|-------|
+| A | 🕐 Time | 140px | Formatted datetime (e.g., "Jan 15, 2:34 PM") |
+| B | 👤 Profile | 120px | displayName or profileId |
+| C | ⚡ Action | 100px | fetch / enrich / promote / error / admin |
+| D | 📡 Source | 100px | remotive, remoteok, web_app, manual, etc. |
+| E | 📊 Result | 80px | Emoji + short status (see below) |
+| F | 📝 Details | 300px+ | Human-readable summary (not raw JSON) |
+| G | 🔗 Batch | 100px | batchId for grouping multi-step flows |
+
+#### 11.4.3 Result Column Emoji Legend
+
+| Outcome | Emoji | Color (Row BG) | Example |
+|---------|-------|----------------|---------|
+| Success | ✅ | Light green `#d4edda` | "17 jobs fetched" |
+| Partial/Warn | ⚠️ | Light yellow `#fff3cd` | "14 enriched, 2 skipped" |
+| Error | ❌ | Light red `#f8d7da` | "API timeout" |
+| Info/Neutral | ℹ️ | Light gray `#e9ecef` | "Health check started" |
+| Promote | ⭐ | Light gold `#fef3c7` | "Added to Tracker" |
+| Admin Action | 🔧 | Light purple `#e9d5ff` | "Profile unlocked" |
+
+#### 11.4.4 Visual Formatting Rules
+
+**Row height:** 28–32px (comfortable reading)
+
+**Cell formatting:**
+- Text wrap enabled on Details column
+- Vertical align: middle
+- Font: 11–12px, consistent with Sheets defaults
+- Header row: Bold, dark background (`#1f2937`), white text
+
+**Conditional formatting:**
+- Entire row gets background color based on Result column value
+- Use Apps Script `setBackground()` on write, or Sheets conditional formatting rules
+
+**Freeze:**
+- Row 1 (headers) frozen
+- Column A (Time) frozen for horizontal scroll
+
+#### 11.4.5 Details Column Formatting
+
+The Details column should be human-readable, not raw JSON.
+
+**Good examples:**
+- `Fetched 17 jobs from remotive for "customer success"`
+- `Enriched 14/16 jobs (2 skipped: API error)`
+- `Promoted "Senior CSM at Acme" to Tracker`
+- `Profile "Joshua" soft-locked: "On vacation"`
+
+**Bad examples:**
+- `{"count":17,"source":"remotive","term":"customer success"}`
+- Raw error stack traces
+
+#### 11.4.6 Implementation Notes
+
+```javascript
+function writeLogsExport_(event) {
+  const exportId = CONFIG.LOGS_EXPORT_SPREADSHEET_ID;
+  if (!exportId) return; // Skip if not configured
+  
+  const ss = SpreadsheetApp.openById(exportId);
+  const sheet = ss.getSheetByName("Logs") || ss.insertSheet("Logs");
+  
+  const row = [
+    formatTimestamp_(event.timestamp),
+    event.profileId || "—",
+    event.action,
+    event.source || "—",
+    getResultEmoji_(event),
+    formatDetailsHuman_(event.details),
+    event.batchId || "—"
+  ];
+  
+  sheet.appendRow(row);
+  applyRowFormatting_(sheet, sheet.getLastRow(), event);
+}
+```
+
+### 11.5 Debug Panel & Health Check
 
 Debug block on 📊 Admin_Analytics:
 
