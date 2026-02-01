@@ -115,16 +115,23 @@ function createProfileStub_() {
     }
   });
 
-  // Show success with the portal URL
-  const msg = webAppUrl
-    ? "✅ Created profile: " + profileId + "\n\n" +
-      "Portal URL (copy this):\n" + webAppUrl + "\n\n" +
-      "Next: Fill in displayName + email + roleTracksJSON in Admin_Profiles."
-    : "✅ Created profile: " + profileId + "\n\n" +
-      "⚠️ WEB_APP_URL not set in config.js - set it to generate portal links.\n\n" +
-      "Next: Fill in displayName + email + roleTracksJSON in Admin_Profiles.";
+  // Show success dialog with copyable URL
+  showProfileCreatedDialog_(profileId, webAppUrl);
+}
+
+/**
+ * Show a dialog with the profile URL that's easy to copy.
+ */
+function showProfileCreatedDialog_(profileId, portalUrl) {
+  const tpl = HtmlService.createTemplateFromFile("dialog_profile_created");
+  tpl.profileId = profileId;
+  tpl.portalUrl = portalUrl || "(URL not available - set WEB_APP_URL in config.js)";
   
-  ui.alert(msg);
+  const html = tpl.evaluate()
+    .setWidth(420)
+    .setHeight(380);
+  
+  SpreadsheetApp.getUi().showModalDialog(html, "✅ Profile Created");
 }
 
 function setByHeader_(headers, row, key, value) {

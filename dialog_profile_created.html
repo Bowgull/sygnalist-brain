@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        padding: 20px;
+        margin: 0;
+        background: #0D1117;
+        color: #F9FAFB;
+      }
+      
+      h2 {
+        margin: 0 0 16px 0;
+        font-size: 20px;
+        color: #6AD7A3;
+      }
+      
+      .success-icon {
+        font-size: 48px;
+        text-align: center;
+        margin-bottom: 16px;
+      }
+      
+      .field {
+        margin-bottom: 16px;
+      }
+      
+      .label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #9CA3AF;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+      }
+      
+      .value {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      
+      .url-box {
+        background: #05060A;
+        border: 1px solid #1F2933;
+        border-radius: 8px;
+        padding: 12px;
+        font-family: monospace;
+        font-size: 12px;
+        word-break: break-all;
+        line-height: 1.5;
+        margin-bottom: 10px;
+        color: #A9F2C4;
+      }
+      
+      .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 150ms ease;
+      }
+      
+      .btn.primary {
+        background: linear-gradient(135deg, #6AD7A3 0%, #2F8A63 100%);
+        color: #07110A;
+      }
+      
+      .btn.primary:hover {
+        filter: brightness(1.1);
+      }
+      
+      .btn.secondary {
+        background: transparent;
+        border: 1px solid #1F2933;
+        color: #9CA3AF;
+        margin-left: 8px;
+      }
+      
+      .btn.secondary:hover {
+        border-color: #6AD7A3;
+        color: #6AD7A3;
+      }
+      
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+      
+      .note {
+        font-size: 12px;
+        color: #6B7280;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #1F2933;
+      }
+      
+      .copied {
+        color: #6AD7A3;
+        font-size: 12px;
+        margin-left: 10px;
+        opacity: 0;
+        transition: opacity 200ms ease;
+      }
+      
+      .copied.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  
+  <body>
+    <div class="success-icon">✅</div>
+    <h2>Profile Created</h2>
+    
+    <div class="field">
+      <div class="label">Profile ID</div>
+      <div class="value"><?= profileId ?></div>
+    </div>
+    
+    <div class="field">
+      <div class="label">Portal URL</div>
+      <div class="url-box" id="urlBox"><?= portalUrl ?></div>
+      <button class="btn primary" onclick="copyUrl()">📋 Copy URL</button>
+      <span class="copied" id="copiedMsg">Copied!</span>
+    </div>
+    
+    <div class="note">
+      <strong>Next steps:</strong><br>
+      1. Fill in <code>displayName</code>, <code>email</code>, and <code>roleTracksJSON</code> in Admin_Profiles<br>
+      2. Use 🧬 Build Skill Profile to parse their resume<br>
+      3. Share the portal URL with the client
+    </div>
+    
+    <div class="btn-row">
+      <button class="btn secondary" onclick="google.script.host.close()">Close</button>
+    </div>
+    
+    <script>
+      function copyUrl() {
+        const url = document.getElementById('urlBox').textContent;
+        
+        // Try modern clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function() {
+            showCopied();
+          }).catch(function() {
+            fallbackCopy(url);
+          });
+        } else {
+          fallbackCopy(url);
+        }
+      }
+      
+      function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          showCopied();
+        } catch (e) {
+          alert('Copy failed. Please select and copy manually.');
+        }
+        document.body.removeChild(textarea);
+      }
+      
+      function showCopied() {
+        const msg = document.getElementById('copiedMsg');
+        msg.classList.add('show');
+        setTimeout(function() {
+          msg.classList.remove('show');
+        }, 2000);
+      }
+    </script>
+  </body>
+</html>
