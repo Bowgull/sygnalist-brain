@@ -11,6 +11,30 @@ function debugListProfiles_() {
   SpreadsheetApp.getUi().alert(msg);
 }
 
+/**
+ * List all profiles with their portal URLs.
+ * Makes it easy to copy/share links with clients.
+ */
+function listProfileUrls_() {
+  const profiles = loadProfiles_();
+  const ui = SpreadsheetApp.getUi();
+  
+  if (!profiles.length) {
+    ui.alert("No profiles yet.");
+    return;
+  }
+  
+  const baseUrl = CONFIG.WEB_APP_URL || "";
+  
+  const lines = profiles.map(p => {
+    const url = p.webAppUrl || (baseUrl ? baseUrl + "?profile=" + p.profileId : "(no URL)");
+    const status = p.status === "active" ? "✅" : "🔒";
+    return `${status} ${p.profileId}\n   ${url}`;
+  });
+  
+  ui.alert("📡 Profile Portal URLs\n\n" + lines.join("\n\n"));
+}
+
 function debugOpenSkillProfileBuilder_() {
   openSkillProfileBuilder_();
 }
@@ -59,7 +83,10 @@ function createProfileStub_() {
     return;
   }
   
-  const webAppUrl = ""; // fill after deploy
+  // Auto-generate the portal URL
+  const webAppUrl = CONFIG.WEB_APP_URL 
+    ? CONFIG.WEB_APP_URL + "?profile=" + profileId
+    : "";
 
   const row = new Array(headers.length).fill("");
 
@@ -83,12 +110,21 @@ function createProfileStub_() {
     details: {
       level: "INFO",
       message: "Created profile stub",
-      meta: { profileId },
+      meta: { profileId, webAppUrl },
       version: Sygnalist_VERSION
     }
   });
 
-  ui.alert("✅ Created profile: " + profileId + "\n\nGo fill in displayName + email + roleTracksJSON.");
+  // Show success with the portal URL
+  const msg = webAppUrl
+    ? "✅ Created profile: " + profileId + "\n\n" +
+      "Portal URL (copy this):\n" + webAppUrl + "\n\n" +
+      "Next: Fill in displayName + email + roleTracksJSON in Admin_Profiles."
+    : "✅ Created profile: " + profileId + "\n\n" +
+      "⚠️ WEB_APP_URL not set in config.js - set it to generate portal links.\n\n" +
+      "Next: Fill in displayName + email + roleTracksJSON in Admin_Profiles.";
+  
+  ui.alert(msg);
 }
 
 function setByHeader_(headers, row, key, value) {

@@ -68,6 +68,25 @@ function portal_api_(profileId, req) {
       case "ping":
         return { ok: true, version: Sygnalist_VERSION, message: "pong" };
 
+      case "fetch": {
+        // Fetch new jobs for this profile (with enrichment)
+        const result = fetchForProfileWithEnrichment_(profile.profileId);
+        if (!result || !result.ok) {
+          return { 
+            ok: false, 
+            version: Sygnalist_VERSION,
+            message: result && result.message ? result.message : "Fetch failed"
+          };
+        }
+        return { 
+          ok: true, 
+          version: Sygnalist_VERSION, 
+          count: result.written || 0,
+          batchId: result.batchId,
+          message: "Fetched " + (result.written || 0) + " enriched jobs"
+        };
+      }
+
       case "getInbox": {
         const rows = readEngineSheetForProfile_("Engine_Inbox", profile.profileId);
         return { ok: true, version: Sygnalist_VERSION, inbox: rows.map(inboxRowToDto_) };

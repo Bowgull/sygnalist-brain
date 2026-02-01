@@ -13,6 +13,9 @@ const CONFIG = {
 
   ENGINE_ONLY_MODE: true,
 
+  // Web App base URL (from Apps Script Deploy > Manage deployments)
+  WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzyhZiI06NnO8vUu7MeVDSVYjkHc99-F0wg9fYMbJ7LdNs6AGUCe-AfaQTZR6cl8nQN/exec",
+
   // Logs Export - set this to your Logs Export Google Sheet ID
   // Leave empty to be prompted each time
   LOGS_EXPORT_SPREADSHEET_ID: ""
