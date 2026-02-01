@@ -363,7 +363,7 @@ interface RoleTrack {
 }
 
 interface Profile {
-  profileId: string;
+  profileId: string;           // Simple human-readable ID (see format rules below)
   displayName: string;         // "Joshua — CS/Impl"
   email: string;
 
@@ -406,6 +406,28 @@ interface Profile {
 - If `status !== "active"`, any attempt to fetch/enrich/promote for that profile must be blocked with:
   - Toast / UI error
   - Log entry (LogEvent with action="error")
+
+#### Profile ID Format Rules
+
+Profile IDs are simple, human-readable identifiers chosen by the admin when creating a profile.
+
+| Rule | Detail |
+|------|--------|
+| Length | 2–20 characters |
+| Case | Lowercase only |
+| Allowed chars | Letters (a-z), numbers (0-9), underscores (_), hyphens (-) |
+| Uniqueness | Must be unique across all profiles |
+
+**Examples:**
+- `josh` — personal profile
+- `sarah` — client name
+- `client1` — generic client
+- `acme_corp` — company name
+
+**NOT allowed:**
+- `p_a1b2c3d4` — random UUIDs are confusing
+- `Josh` — must be lowercase
+- `my profile` — no spaces
 
 ### 6.2 Job Models
 
@@ -894,6 +916,20 @@ All core flows must write to 📓 Logs using LogEvent:
 - Logs Export sheet (pretty ops view) if enabled / configured
 
 Any multi-step run generates a batchId once and threads it through all logs.
+
+#### Batch ID Format
+
+Batch IDs are short, human-readable timestamps for grouping related log entries.
+
+| Format | Example | Meaning |
+|--------|---------|---------|
+| `b_MMDD_HHMM` | `b_0201_1432` | Feb 1st, 2:32pm |
+
+**Why this format:**
+- Easy to read and understand at a glance
+- Tells you when the batch happened
+- Short enough to scan in logs
+- No random UUIDs
 
 - fetch: on every `fetchFromSource_` call
 - enrich: on enrichment batches (start/end, counts)
