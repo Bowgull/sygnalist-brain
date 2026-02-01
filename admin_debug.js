@@ -16,14 +16,49 @@ function debugOpenSkillProfileBuilder_() {
 }
 
 function createProfileStub_() {
+  const ui = SpreadsheetApp.getUi();
   const sheet = assertSheetExists_("Admin_Profiles");
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  
   if (!headers || headers.length < 5) {
-    SpreadsheetApp.getUi().alert("Admin_Profiles headers missing. Paste row 1 first.");
+    ui.alert("Admin_Profiles headers missing. Paste row 1 first.");
     return;
   }
 
-  const profileId = "p_" + Utilities.getUuid().slice(0, 8);
+  // Prompt for a simple profile ID
+  const response = ui.prompt(
+    "➕ Create Profile",
+    "Enter a simple profile ID (lowercase, no spaces):\n\n" +
+    "Examples: josh, sarah, client1, acme_corp",
+    ui.ButtonSet.OK_CANCEL
+  );
+  
+  if (response.getSelectedButton() !== ui.Button.OK) {
+    ui.alert("Cancelled.");
+    return;
+  }
+  
+  // Clean and validate the profile ID
+  let profileId = String(response.getResponseText() || "").trim().toLowerCase();
+  profileId = profileId.replace(/[^a-z0-9_-]/g, "_"); // Replace invalid chars with underscore
+  
+  if (!profileId || profileId.length < 2) {
+    ui.alert("Profile ID must be at least 2 characters.");
+    return;
+  }
+  
+  if (profileId.length > 20) {
+    ui.alert("Profile ID must be 20 characters or less.");
+    return;
+  }
+  
+  // Check for duplicates
+  const existingProfiles = loadProfiles_();
+  if (existingProfiles.some(p => p.profileId === profileId)) {
+    ui.alert("Profile ID '" + profileId + "' already exists. Choose a different one.");
+    return;
+  }
+  
   const webAppUrl = ""; // fill after deploy
 
   const row = new Array(headers.length).fill("");
@@ -53,7 +88,7 @@ function createProfileStub_() {
     }
   });
 
-  SpreadsheetApp.getUi().alert(`✅ Created profile: ${profileId}\nGo fill in displayName + email + roleTracksJSON.`);
+  ui.alert("✅ Created profile: " + profileId + "\n\nGo fill in displayName + email + roleTracksJSON.");
 }
 
 function setByHeader_(headers, row, key, value) {
@@ -68,7 +103,7 @@ function setByHeader_(headers, row, key, value) {
  */
 function debugInspectProfileRow_() {
   const ui = SpreadsheetApp.getUi();
-  const res = ui.prompt("Inspect Profile", "Enter profileId (e.g., p_1234abcd)", ui.ButtonSet.OK_CANCEL);
+  const res = ui.prompt("Inspect Profile", "Enter profileId (e.g., josh, client1)", ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;
 
   const pid = String(res.getResponseText() || "").trim();
@@ -110,7 +145,7 @@ function debugInspectProfileRow_() {
 
 function debugBootstrap_() {
   const ui = SpreadsheetApp.getUi();
-  const res = ui.prompt("Enter profileId", "Example: p_91917494", ui.ButtonSet.OK_CANCEL);
+  const res = ui.prompt("Enter profileId", "Example: josh, client1", ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;
 
   const profileId = res.getResponseText().trim();

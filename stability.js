@@ -29,6 +29,14 @@ function assertNotThrottled_(profileId, op, cooldownMs) {
   props.setProperty(k, String(now));
 }
 
+/**
+ * Generate a short, readable batch ID.
+ * Format: b_0201_1432 (b_MMDD_HHMM)
+ * Easy to read, tells you when it happened.
+ */
 function newBatchId_() {
-  return "b_" + Utilities.getUuid().slice(0, 12);
+  const now = new Date();
+  const tz = Session.getScriptTimeZone();
+  const stamp = Utilities.formatDate(now, tz, "MMdd_HHmm");
+  return "b_" + stamp;
 }
