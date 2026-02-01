@@ -11,7 +11,11 @@ const CONFIG = {
 
   HEALTHCHECK_TIMEOUT_MS: 8000,
 
-  ENGINE_ONLY_MODE: true
+  ENGINE_ONLY_MODE: true,
+
+  // Logs Export - set this to your Logs Export Google Sheet ID
+  // Leave empty to be prompted each time
+  LOGS_EXPORT_SPREADSHEET_ID: ""
 };
 
 const FLAGS = {
