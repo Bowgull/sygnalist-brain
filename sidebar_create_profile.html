@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg: #0D1117;
+        --bg-elevated: #161B22;
+        --border: #30363D;
+        --text: #F0F6FC;
+        --text-muted: #8B949E;
+        --green: #6AD7A3;
+        --green-dark: #2F8A63;
+        --gold: #FAD76A;
+      }
+      
+      * { box-sizing: border-box; }
+      
+      body {
+        font-family: 'Inter', -apple-system, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 16px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      
+      h3 {
+        margin: 0 0 4px 0;
+        font-size: 18px;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      
+      .subtitle {
+        color: var(--text-muted);
+        font-size: 12px;
+        margin-bottom: 20px;
+      }
+      
+      .version {
+        font-size: 11px;
+        color: var(--text-muted);
+        opacity: 0.6;
+      }
+      
+      .section {
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      
+      .section:last-of-type {
+        border-bottom: none;
+      }
+      
+      .section-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 12px;
+      }
+      
+      .field {
+        margin-bottom: 14px;
+      }
+      
+      label {
+        display: block;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      
+      .hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+      
+      input[type="text"],
+      input[type="email"],
+      input[type="number"],
+      select {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 13px;
+        padding: 10px 12px;
+        outline: none;
+        transition: border-color 150ms ease;
+      }
+      
+      input:focus, select:focus {
+        border-color: var(--green);
+      }
+      
+      input::placeholder {
+        color: var(--text-muted);
+        opacity: 0.6;
+      }
+      
+      .checkbox-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      
+      .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 150ms ease;
+        font-size: 12px;
+      }
+      
+      .checkbox-item:hover {
+        border-color: var(--green-dark);
+      }
+      
+      .checkbox-item.checked {
+        border-color: var(--green);
+        background: rgba(106, 215, 163, 0.1);
+      }
+      
+      .checkbox-item input {
+        display: none;
+      }
+      
+      .checkbox-icon {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        transition: all 150ms ease;
+      }
+      
+      .checkbox-item.checked .checkbox-icon {
+        background: var(--green);
+        border-color: var(--green);
+        color: #000;
+      }
+      
+      .btn {
+        width: 100%;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 10px;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 150ms ease;
+      }
+      
+      .btn.primary {
+        background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+        color: #000;
+      }
+      
+      .btn.primary:hover {
+        filter: brightness(1.1);
+        transform: translateY(-1px);
+      }
+      
+      .btn.primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      .status {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        display: none;
+      }
+      
+      .status.visible {
+        display: block;
+      }
+      
+      .status.error {
+        background: rgba(220, 38, 38, 0.15);
+        border: 1px solid rgba(220, 38, 38, 0.3);
+        color: #FCA5A5;
+      }
+      
+      .status.success {
+        background: rgba(106, 215, 163, 0.15);
+        border: 1px solid rgba(106, 215, 163, 0.3);
+        color: var(--green);
+      }
+      
+      .url-box {
+        margin-top: 12px;
+        padding: 10px 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 11px;
+        word-break: break-all;
+        color: var(--green);
+      }
+      
+      .copy-btn {
+        margin-top: 8px;
+        padding: 8px 16px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      
+      .copy-btn:hover {
+        border-color: var(--green);
+      }
+    </style>
+  </head>
+  
+  <body>
+    <h3>➕ Create Profile</h3>
+    <div class="subtitle">
+      Set up a new client profile for job hunting.
+      <div class="version">Engine v<?= version ?></div>
+    </div>
+    
+    <!-- BASIC INFO -->
+    <div class="section">
+      <div class="section-title">Basic Info</div>
+      
+      <div class="field">
+        <label>Profile ID *</label>
+        <input type="text" id="profileId" placeholder="e.g. sarah, client1, acme_corp">
+        <div class="hint">Lowercase, no spaces. This is the URL identifier.</div>
+      </div>
+      
+      <div class="field">
+        <label>Display Name *</label>
+        <input type="text" id="displayName" placeholder="e.g. Sarah Chen">
+      </div>
+      
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="e.g. sarah@email.com">
+      </div>
+    </div>
+    
+    <!-- ROLE TARGETS -->
+    <div class="section">
+      <div class="section-title">What roles are they targeting?</div>
+      <div class="hint" style="margin-bottom: 10px;">Select all that apply. This determines what jobs to fetch.</div>
+      
+      <div class="checkbox-group" id="roleGroup">
+        <label class="checkbox-item" data-role="cs">
+          <input type="checkbox" value="cs">
+          <span class="checkbox-icon">✓</span>
+          <span>Customer Success</span>
+        </label>
+        <label class="checkbox-item" data-role="impl">
+          <input type="checkbox" value="impl">
+          <span class="checkbox-icon">✓</span>
+          <span>Implementation</span>
+        </label>
+        <label class="checkbox-item" data-role="support">
+          <input type="checkbox" value="support">
+          <span class="checkbox-icon">✓</span>
+          <span>Support</span>
+        </label>
+        <label class="checkbox-item" data-role="am">
+          <input type="checkbox" value="am">
+          <span class="checkbox-icon">✓</span>
+          <span>Account Management</span>
+        </label>
+        <label class="checkbox-item" data-role="ops">
+          <input type="checkbox" value="ops">
+          <span class="checkbox-icon">✓</span>
+          <span>Operations</span>
+        </label>
+        <label class="checkbox-item" data-role="pm">
+          <input type="checkbox" value="pm">
+          <span class="checkbox-icon">✓</span>
+          <span>Project Management</span>
+        </label>
+      </div>
+    </div>
+    
+    <!-- PREFERENCES -->
+    <div class="section">
+      <div class="section-title">Preferences</div>
+      
+      <div class="field">
+        <label>Remote Preference</label>
+        <select id="remotePreference">
+          <option value="remote_only">Remote Only</option>
+          <option value="remote_or_hybrid">Remote or Hybrid</option>
+          <option value="onsite_ok">Onsite OK</option>
+        </select>
+      </div>
+      
+      <div class="field">
+        <label>Minimum Salary (USD)</label>
+        <input type="number" id="salaryMin" placeholder="e.g. 80000">
+      </div>
+      
+      <div class="field">
+        <label>Preferred Locations</label>
+        <input type="text" id="preferredLocations" placeholder="e.g. New York, Remote, USA">
+        <div class="hint">Comma-separated. Leave blank for any.</div>
+      </div>
+    </div>
+    
+    <!-- SUBMIT -->
+    <button class="btn primary" id="createBtn" onclick="createProfile()">
+      ✨ Create Profile
+    </button>
+    
+    <div class="status" id="status"></div>
+    <div class="url-box" id="urlBox" style="display: none;"></div>
+    <button class="copy-btn" id="copyBtn" style="display: none;" onclick="copyUrl()">📋 Copy Portal URL</button>
+    
+    <script>
+      // Checkbox toggle
+      document.querySelectorAll('.checkbox-item').forEach(function(item) {
+        item.addEventListener('click', function() {
+          const checkbox = this.querySelector('input[type="checkbox"]');
+          checkbox.checked = !checkbox.checked;
+          this.classList.toggle('checked', checkbox.checked);
+        });
+      });
+      
+      function $(id) { return document.getElementById(id); }
+      
+      function showStatus(msg, type) {
+        const el = $('status');
+        el.textContent = msg;
+        el.className = 'status visible ' + type;
+      }
+      
+      function setBusy(busy) {
+        $('createBtn').disabled = busy;
+      }
+      
+      function getSelectedRoles() {
+        const roles = [];
+        document.querySelectorAll('.checkbox-item.checked').forEach(function(item) {
+          roles.push(item.dataset.role);
+        });
+        return roles;
+      }
+      
+      function createProfile() {
+        const profileId = $('profileId').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+        const displayName = $('displayName').value.trim();
+        const email = $('email').value.trim();
+        const remotePreference = $('remotePreference').value;
+        const salaryMin = parseInt($('salaryMin').value) || 0;
+        const preferredLocations = $('preferredLocations').value.trim();
+        const roles = getSelectedRoles();
+        
+        // Validation
+        if (!profileId || profileId.length < 2) {
+          return showStatus('Profile ID must be at least 2 characters.', 'error');
+        }
+        if (!displayName) {
+          return showStatus('Display Name is required.', 'error');
+        }
+        if (roles.length === 0) {
+          return showStatus('Select at least one target role.', 'error');
+        }
+        
+        setBusy(true);
+        showStatus('Creating profile...', '');
+        
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.ok) {
+              showStatus('✅ Profile created successfully!', 'success');
+              if (res.portalUrl) {
+                $('urlBox').textContent = res.portalUrl;
+                $('urlBox').style.display = 'block';
+                $('copyBtn').style.display = 'inline-block';
+              }
+            } else {
+              showStatus('❌ ' + (res && res.error ? res.error : 'Creation failed'), 'error');
+            }
+            setBusy(false);
+          })
+          .withFailureHandler(function(err) {
+            showStatus('❌ ' + (err && err.message ? err.message : String(err)), 'error');
+            setBusy(false);
+          })
+          .createProfileFromForm_({
+            profileId: profileId,
+            displayName: displayName,
+            email: email,
+            remotePreference: remotePreference,
+            salaryMin: salaryMin,
+            preferredLocations: preferredLocations,
+            roles: roles
+          });
+      }
+      
+      function copyUrl() {
+        const url = $('urlBox').textContent;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(url).then(function() {
+            $('copyBtn').textContent = '✅ Copied!';
+            setTimeout(function() { $('copyBtn').textContent = '📋 Copy Portal URL'; }, 2000);
+          });
+        } else {
+          // Fallback
+          const textarea = document.createElement('textarea');
+          textarea.value = url;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          $('copyBtn').textContent = '✅ Copied!';
+          setTimeout(function() { $('copyBtn').textContent = '📋 Copy Portal URL'; }, 2000);
+        }
+      }
+    </script>
+  </body>
+</html>

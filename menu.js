@@ -22,9 +22,9 @@ function onOpen() {
     // ═══════════════════════════════════════════════════
     // PROFILE MANAGEMENT
     // ═══════════════════════════════════════════════════
-    .addItem("➕ Create New Profile", "createProfileStub_")
-    .addItem("🔗 List Profile URLs", "listProfileUrls_")
+    .addItem("➕ Create New Profile", "openCreateProfileSidebar_")
     .addItem("🧬 Build Skill Profile", "openSkillProfileBuilder_")
+    .addItem("🔗 List Profile URLs", "listProfileUrls_")
     .addItem("🔒 Lock Profile", "adminPromptSoftLockProfile_")
     .addItem("🔓 Unlock Profile", "adminPromptUnlockProfile_")
     .addSeparator()
