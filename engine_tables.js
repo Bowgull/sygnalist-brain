@@ -45,15 +45,11 @@ function ensureEngineTrackerSheet_() {
 
 /****************************************************
  * helpers
+ * Note: getOrCreateSheet_ is an alias for ensureSheet_ in core_utils.js
  ****************************************************/
 
 function getOrCreateSheet_(name) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) throw new Error("No active spreadsheet.");
-
-  let sh = ss.getSheetByName(name);
-  if (!sh) sh = ss.insertSheet(name);
-  return sh;
+  return ensureSheet_(name);
 }
 
 /**

@@ -1,45 +1,62 @@
 /****************************************************
- * menu.gs
- * Sygnalist menu (Admin)
+ * menu.js
+ * Sygnalist Admin Menu
+ * 
+ * Organized for production use:
+ * - Core actions at top
+ * - Admin tools in middle
+ * - Debug/test items at bottom
  ****************************************************/
 
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu("📡 Sygnalist")
-
-    // Health / Ops
-    .addItem("🧪 Health Check", "runHealthCheck_")
-    .addItem("📊 Refresh Admin Analytics", "refreshAdminAnalytics_")
-    .addItem("📤 Export Logs ", "exportLogsToPrettySheet_")
-    .addSeparator()
-
-    // Profile admin
-    .addItem("🧬 Build Skill Profile from Resume", "openSkillProfileBuilder_")
-    .addSeparator()
-    .addItem("🔒 Soft-lock Profile", "adminPromptSoftLockProfile_")
-    .addItem("🔓 Unlock Profile", "adminPromptUnlockProfile_")
-    .addSeparator()
-
-    // Fetch / pipeline
+  const ui = SpreadsheetApp.getUi();
+  
+  ui.createMenu("📡 Sygnalist")
+  
+    // ═══════════════════════════════════════════════════
+    // CORE ACTIONS (daily use)
+    // ═══════════════════════════════════════════════════
     .addItem("✨ Fetch Jobs (Enriched)", "adminFetchJobsEnriched_")
     .addSeparator()
-
-    // Debug / utilities (keep your existing stuff)
-    .addItem("👤 List Profiles (Debug)", "debugListProfiles_")
-    .addItem("➕ Create Profile (Stub)", "createProfileStub_")
+    
+    // ═══════════════════════════════════════════════════
+    // PROFILE MANAGEMENT
+    // ═══════════════════════════════════════════════════
+    .addItem("➕ Create New Profile", "createProfileStub_")
+    .addItem("🧬 Build Skill Profile", "openSkillProfileBuilder_")
+    .addItem("🔒 Lock Profile", "adminPromptSoftLockProfile_")
+    .addItem("🔓 Unlock Profile", "adminPromptUnlockProfile_")
     .addSeparator()
-    .addItem("🧬 Load Profile Bootstrap (Test)", "debugBootstrap_")
+    
+    // ═══════════════════════════════════════════════════
+    // ADMIN & OPS
+    // ═══════════════════════════════════════════════════
+    .addItem("🧪 Health Check", "runHealthCheck_")
+    .addItem("📊 Refresh Analytics", "refreshAdminAnalytics_")
+    .addItem("📤 Export Logs (Pretty)", "exportLogsToPrettySheet_")
     .addItem("🧱 Init Engine Tables", "adminInitEngineTables_")
-    .addItem("⭐ Test Tracker Write (Admin)", "adminTestTrackerWrite_")
     .addSeparator()
-    .addItem("📥 Fetch Jobs Raw (Test)", "adminFetchJobsRawTest_")
-    .addItem("🧹 Clear Engine Inbox (Profile)", "adminClearInboxForProfile_")
-    .addItem("🧾 Debug Scores (Top 10)", "adminDebugScoresTop10_")
+    
+    // ═══════════════════════════════════════════════════
+    // DEBUG & TESTING (can remove later)
+    // ═══════════════════════════════════════════════════
+    .addItem("👤 List Profiles", "debugListProfiles_")
+    .addItem("🔍 Inspect Profile", "debugInspectProfileRow_")
+    .addItem("🧪 Test Bootstrap", "debugBootstrap_")
+    .addItem("⭐ Test Tracker Write", "adminTestTrackerWrite_")
+    .addItem("📥 Fetch Jobs (Raw)", "adminFetchJobsRawTest_")
+    .addItem("🧹 Clear Inbox", "adminClearInboxForProfile_")
+    .addItem("🧾 Debug Scores", "adminDebugScoresTop10_")
     .addSeparator()
-
-    // Footer
-    .addItem("🧠 Version: " + Sygnalist_VERSION, "noop_")
+    
+    // ═══════════════════════════════════════════════════
+    // VERSION
+    // ═══════════════════════════════════════════════════
+    .addItem("v" + Sygnalist_VERSION, "noop_")
+    
     .addToUi();
 }
 
-function noop_() {}
+function noop_() {
+  // No-op for version display
+}

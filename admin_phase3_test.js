@@ -1,6 +1,6 @@
 function adminFetchJobsRawTest_() {
   const ui = SpreadsheetApp.getUi();
-  const res = ui.prompt("Fetch Raw Jobs", "Enter profileId (e.g. p_91917494)", ui.ButtonSet.OK_CANCEL);
+  const res = ui.prompt("Fetch Raw Jobs", "Enter profileId (e.g. josh, client1)", ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;
 
   const profileId = res.getResponseText().trim();
@@ -17,7 +17,7 @@ function adminFetchJobsRawTest_() {
 
 function adminClearInboxForProfile_() {
   const ui = SpreadsheetApp.getUi();
-  const res = ui.prompt("Clear Inbox", "Enter profileId (e.g. p_91917494)", ui.ButtonSet.OK_CANCEL);
+  const res = ui.prompt("Clear Inbox", "Enter profileId (e.g. josh, client1)", ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;
 
   const profileId = res.getResponseText().trim();

@@ -198,52 +198,10 @@ function updateTrackerEntryForProfile_(profileId, patch) {
 
 /****************************************************
  * helpers
+ * Note: normalizeUrl_() and buildFallbackKey_() are in core_utils.js
  ****************************************************/
 
+// Legacy alias for backward compatibility
 function fallbackKey_(company, title) {
-  const c = String(company || "").toLowerCase().trim();
-  const t = String(title || "").toLowerCase().trim();
-  if (!c || !t) return "";
-  return c + "||" + t;
-}
-
-/**
- * Normalize URLs for dedupe:
- * - trims
- * - removes fragments
- * - strips common tracking params (utm_*, ref/source/referrer)
- * - strips trailing slash
- */
-function normalizeUrl_(url) {
-  let u = String(url || "").trim();
-  if (!u) return "";
-
-  // remove fragments
-  u = u.split("#")[0];
-
-  // strip tracking params
-  const parts = u.split("?");
-  if (parts.length > 1) {
-    const base = parts[0];
-    const qs = parts.slice(1).join("?");
-
-    const kept = [];
-    qs.split("&").forEach(pair => {
-      const p = String(pair || "").trim();
-      if (!p) return;
-
-      const k = p.split("=")[0].toLowerCase().trim();
-      if (k.startsWith("utm_")) return;
-      if (k === "ref" || k === "referrer" || k === "source") return;
-
-      kept.push(p);
-    });
-
-    u = kept.length ? (base + "?" + kept.join("&")) : base;
-  }
-
-  // trailing slash
-  if (u.length > 1 && u.endsWith("/")) u = u.slice(0, -1);
-
-  return u;
+  return buildFallbackKey_(company, title);
 }

@@ -301,14 +301,8 @@ function refreshAdminAnalytics_() {
 
 /****************************************************
  * helpers
+ * Note: ensureSheet_() is now in core_utils.js
  ****************************************************/
-
-function ensureSheet_(name) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sh = ss.getSheetByName(name);
-  if (!sh) sh = ss.insertSheet(name);
-  return sh;
-}
 
 function buildSectionTitle_(sh, row, title) {
   sh.getRange(row, 1).setValue(title);

@@ -257,8 +257,4 @@ function formatLogDetails_(action, details) {
   return "—";
 }
 
-function truncateStr_(str, maxLen) {
-  var s = String(str || "");
-  if (s.length <= maxLen) return s;
-  return s.slice(0, maxLen - 3) + "...";
-}
+// Note: truncateStr_() is now in core_utils.js

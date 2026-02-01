@@ -14,7 +14,7 @@ function adminTestTrackerWrite_() {
 
   const res = ui.prompt(
     "Enter profileId",
-    "Example: p_91917494",
+    "Example: josh, client1",
     ui.ButtonSet.OK_CANCEL
   );
   if (res.getSelectedButton() !== ui.Button.OK) return;

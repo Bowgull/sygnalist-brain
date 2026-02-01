@@ -20,7 +20,7 @@ function adminFetchJobsEnriched_() {
   const ui = SpreadsheetApp.getUi();
   const res = ui.prompt(
     "✨ Fetch Jobs (Enriched)",
-    "Enter profileId (e.g. p_91917494)",
+    "Enter profileId (e.g. josh, client1)",
     ui.ButtonSet.OK_CANCEL
   );
   if (res.getSelectedButton() !== ui.Button.OK) return;
