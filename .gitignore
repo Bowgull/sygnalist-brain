@@ -1,0 +1,14 @@
+# Clasp credentials (environment-specific)
+.clasp.json
+
+# Node modules (if you add build tools later)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root{
+        --color-bg: #0B0F14;
+        --color-bg-elevated: #0D1117;
+        --color-divider: #1F2933;
+
+        --color-text-main: #F9FAFB;
+        --color-text-muted: #9CA3AF;
+
+        --color-radar-light: #A9F2C4;
+        --color-radar-mid: #6AD7A3;
+        --color-radar-dark: #2F8A63;
+
+        --color-tier-s: #FAD76A;
+        --color-tier-a: #6AD7A3;
+        --color-tier-b: #38BDF8;
+        --color-tier-c: #9CA3AF;
+        --color-tier-f: #4B5563;
+        --color-tier-x: #DC2626;
+
+        --shadow: 0 10px 30px rgba(0,0,0,0.35);
+        --radius: 18px;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--color-bg);
+        color: var(--color-text-main);
+      }
+
+      .wrap{
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 22px 18px 40px;
+      }
+
+      .topbar{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border: 1px solid var(--color-divider);
+        background: var(--color-bg-elevated);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+
+      .brand{
+        display:flex;
+        flex-direction:column;
+        gap: 2px;
+      }
+
+      .brand h1{
+        font-size: 28px;
+        letter-spacing: 0.5px;
+        margin: 0;
+      }
+
+      .sub{
+        color: var(--color-text-muted);
+        font-size: 13px;
+      }
+
+      .actions{
+        display:flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items:center;
+        justify-content:flex-end;
+      }
+
+      .btn{
+        border: 1px solid var(--color-divider);
+        background: #111827;
+        color: var(--color-text-main);
+        padding: 10px 14px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: transform 160ms ease, filter 160ms ease, opacity 160ms ease;
+        font-weight: 700;
+      }
+
+      .btn.primary{
+        border: none;
+        background: linear-gradient(135deg, var(--color-radar-mid) 0%, var(--color-radar-dark) 40%, var(--color-radar-light) 100%);
+        color: #07110A;
+      }
+
+      .btn:hover{ transform: scale(1.03); filter: brightness(1.05); }
+      .btn:disabled{ opacity: 0.55; cursor: not-allowed; transform:none; }
+
+      .grid{
+        margin-top: 16px;
+        display:grid;
+        grid-template-columns: 60% 40%;
+        gap: 14px;
+      }
+
+      @media (max-width: 980px){
+        .grid{ grid-template-columns: 1fr; }
+      }
+
+      .panel{
+        border: 1px solid var(--color-divider);
+        background: var(--color-bg-elevated);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px;
+        min-height: 220px;
+      }
+
+      .panel h2{
+        margin: 0 0 10px 0;
+        font-size: 20px;
+      }
+
+      .status{
+        margin-top: 12px;
+        color: var(--color-text-muted);
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+
+      .card{
+        border: 1px solid var(--color-divider);
+        background: #0B1220;
+        border-radius: 16px;
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+
+      .title{
+        font-weight: 800;
+        font-size: 15px;
+        margin: 0 0 6px 0;
+      }
+
+      .meta{
+        color: var(--color-text-muted);
+        font-size: 12px;
+        display:flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items:center;
+        margin-bottom: 10px;
+      }
+
+      .chip{
+        display:inline-flex;
+        align-items:center;
+        gap: 6px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        border: 1px solid var(--color-divider);
+        background: rgba(255,255,255,0.03);
+        color: var(--color-text-main);
+      }
+
+      .chip.tier{ font-weight: 900; letter-spacing: 0.4px; }
+      .tier.S { background: rgba(250,215,106,0.12); border-color: rgba(250,215,106,0.35); color: var(--color-tier-s); }
+      .tier.A { background: rgba(106,215,163,0.12); border-color: rgba(106,215,163,0.35); color: var(--color-tier-a); }
+      .tier.B { background: rgba(56,189,248,0.12); border-color: rgba(56,189,248,0.35); color: var(--color-tier-b); }
+      .tier.C { background: rgba(156,163,175,0.12); border-color: rgba(156,163,175,0.30); color: var(--color-tier-c); }
+      .tier.F { background: rgba(75,85,99,0.12); border-color: rgba(75,85,99,0.35); color: var(--color-tier-f); }
+      .tier.X { background: rgba(220,38,38,0.12); border-color: rgba(220,38,38,0.35); color: var(--color-tier-x); }
+
+      a { color: var(--color-radar-light); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      label{
+        font-size: 12px;
+        color: var(--color-text-muted);
+        display:block;
+        margin-bottom: 4px;
+      }
+
+      select, input[type="date"], textarea{
+        width: 100%;
+        background: #0B0F14;
+        border: 1px solid var(--color-divider);
+        border-radius: 12px;
+        color: var(--color-text-main);
+        padding: 10px;
+        outline: none;
+      }
+
+      textarea{ min-height: 70px; resize: vertical; }
+      .row{ margin-top: 10px; }
+      .empty{ color: var(--color-text-muted); font-size: 13px; padding: 10px 0; }
+      .btnRow{ display:flex; gap: 10px; flex-wrap: wrap; align-items:center; }
+    </style>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <div class="brand">
+          <h1>Sygnalist</h1>
+          <div class="sub" id="who"></div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="refreshBtn" onclick="refreshAll()">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <h2>Inbox</h2>
+          <div id="inbox"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Tracker</h2>
+          <div id="tracker"></div>
+        </div>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <script>
+      const BOOT = JSON.parse(<?= BOOTSTRAP_JSON ?>);
+      const profileId = BOOT.profile.profileId;
+
+      function $(id){ return document.getElementById(id); }
+      function setStatus(s){ $("status").textContent = s || ""; }
+      function esc(s){ return String(s || "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+      $("who").textContent = `${BOOT.profile.displayName} (${BOOT.profile.profileId}) — ${BOOT.profile.status}`;
+
+      // ✅ STABILITY: never reject. Always resolve a shaped response.
+      function api(op, data){
+        return new Promise((resolve) => {
+          google.script.run
+            .withSuccessHandler(res => {
+              resolve(res || { ok:false, message:"Empty response from server" });
+            })
+            .withFailureHandler(err => {
+              const msg =
+                (err && err.message) ? err.message :
+                (typeof err === "string") ? err :
+                (() => { try { return JSON.stringify(err); } catch(e){ return String(err); } })();
+
+              resolve({ ok:false, message: msg || "Unknown server error" });
+            })
+            .portal_api(profileId, { op, data: data || {} });
+        });
+      }
+
+      function setBusy(isBusy){
+        $("refreshBtn").disabled = !!isBusy;
+      }
+
+      async function refreshAll(){
+        setBusy(true);
+        setStatus("Loading…");
+
+        // ✅ NEW: Ping first. If ping fails, nothing else matters.
+        const ping = await api("ping");
+        if (!ping || !ping.ok) {
+          setStatus("❌ API wiring failed: " + (ping && ping.message ? ping.message : "Ping failed"));
+          setBusy(false);
+          return;
+        }
+
+        // If ping works, we can safely load inbox + tracker
+        const [inboxRes, trackerRes] = await Promise.all([
+          api("getInbox"),
+          api("getTracker"),
+        ]);
+
+        if (!inboxRes || !inboxRes.ok) {
+          setStatus("❌ Inbox load failed: " + (inboxRes && inboxRes.message ? inboxRes.message : "Unknown"));
+          setBusy(false);
+          return;
+        }
+
+        if (!trackerRes || !trackerRes.ok) {
+          setStatus("❌ Tracker load failed: " + (trackerRes && trackerRes.message ? trackerRes.message : "Unknown"));
+          setBusy(false);
+          return;
+        }
+
+        renderInbox(inboxRes.inbox || []);
+        renderTracker(trackerRes.tracker || []);
+        setStatus("");
+        setBusy(false);
+      }
+
+      async function promote(job){
+        setBusy(true);
+        setStatus("Promoting…");
+
+        const res = await api("promote", job);
+
+        if (res && res.ok) {
+          await refreshAll();
+        } else {
+          setStatus("⚠️ " + (res && res.message ? res.message : "Promote blocked"));
+        }
+
+        setBusy(false);
+      }
+
+      async function updateTracker(url, company, title){
+        const key = url || (company + "||" + title);
+        const h = hash(key);
+
+        const status = $("st_" + h).value;
+        const notes = $("no_" + h).value;
+        const dateApplied = $("da_" + h).value;
+
+        setBusy(true);
+        setStatus("Saving…");
+
+        const res = await api("updateTracker", { url, company, title, status, notes, dateApplied });
+
+        if (!res || !res.ok) {
+          setStatus("❌ Save failed: " + (res && res.message ? res.message : "Unknown"));
+          setBusy(false);
+          return;
+        }
+
+        await refreshAll();
+        setBusy(false);
+      }
+
+      function tierChip(tier, score){
+        const T = String(tier || "").toUpperCase();
+        return `<span class="chip tier tier ${esc(T)}">TIER ${esc(T)} · ${esc(score)}</span>`;
+      }
+
+      function renderInbox(list){
+        const wrap = $("inbox");
+        if (!list.length) {
+          wrap.innerHTML = `<div class="empty">No inbox items yet.</div>`;
+          return;
+        }
+
+        wrap.innerHTML = list.map(j => `
+          <div class="card">
+            <div class="title">${esc(j.title)}</div>
+            <div class="meta">
+              ${tierChip(j.tier, j.score)}
+              <span class="chip">${esc(j.company)}</span>
+              <span class="chip">${esc(j.location)}</span>
+              <span class="chip">${esc(j.source)}</span>
+              ${j.laneLabel ? `<span class="chip">Lane: ${esc(j.laneLabel)}</span>` : ``}
+            </div>
+
+            <div class="btnRow">
+              <a class="btn" href="${esc(j.url)}" target="_blank" rel="noopener">Open job</a>
+              <button class="btn primary" onclick='promote(${JSON.stringify(j)})'>⭐ Add to Tracker</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function renderTracker(list){
+        const wrap = $("tracker");
+        if (!list.length) {
+          wrap.innerHTML = `<div class="empty">No tracker items yet.</div>`;
+          return;
+        }
+
+        wrap.innerHTML = list.map(j => {
+          const key = j.url || (j.company + "||" + j.title);
+          const h = hash(key);
+
+          return `
+            <div class="card">
+              <div class="title">${esc(j.title)}</div>
+              <div class="meta">
+                <span class="chip">${esc(j.company)}</span>
+                <span class="chip">${esc(j.location)}</span>
+                <span class="chip">${esc(j.source)}</span>
+              </div>
+
+              <div class="row"><a href="${esc(j.url)}" target="_blank" rel="noopener">Open job</a></div>
+
+              <div class="row">
+                <label>Status</label>
+                <select id="st_${h}">
+                  ${["Prospect","Applied","Interview","Offer","Rejected"].map(s => `<option ${s===j.status?"selected":""}>${s}</option>`).join("")}
+                </select>
+              </div>
+
+              <div class="row">
+                <label>Date Applied</label>
+                <input id="da_${h}" type="date" value="${esc(j.dateApplied)}"/>
+              </div>
+
+              <div class="row">
+                <label>Notes</label>
+                <textarea id="no_${h}">${esc(j.notes)}</textarea>
+              </div>
+
+              <div class="row">
+                <button class="btn primary" onclick='updateTracker(${JSON.stringify(j.url)}, ${JSON.stringify(j.company)}, ${JSON.stringify(j.title)})'>
+                  💾 Save
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function hash(s){
+        s = String(s || "");
+        let h = 0;
+        for (let i=0;i<s.length;i++) h = ((h<<5)-h) + s.charCodeAt(i) | 0;
+        return Math.abs(h);
+      }
+
+      refreshAll();
+    </script>
+  </body>
+</html>

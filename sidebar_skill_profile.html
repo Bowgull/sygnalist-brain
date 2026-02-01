@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; padding: 12px; }
+      h3 { margin: 0 0 8px 0; }
+      label { display: block; margin-top: 10px; font-weight: 600; }
+      select, textarea, button { width: 100%; margin-top: 6px; box-sizing: border-box; }
+      textarea { height: 280px; }
+      button { padding: 10px; cursor: pointer; }
+      .hint { font-size: 12px; opacity: 0.75; margin-top: 4px; }
+      .status { margin-top: 10px; font-size: 12px; white-space: pre-wrap; }
+      .row { margin-top: 10px; }
+      .muted { opacity: 0.7; font-size: 12px; margin-top: 4px; }
+    </style>
+  </head>
+
+  <body>
+    <h3>🧬 Skill Profile Builder</h3>
+    <div class="hint">
+      Paste resume text → saves back into Admin_Profiles:
+      <b>skillProfileText</b>, <b>topSkills</b>, <b>signatureStories</b>.
+      <div class="muted">Engine version: <?= version ?></div>
+    </div>
+
+    <div class="row">
+      <label for="profileSelect">Profile</label>
+      <select id="profileSelect">
+        <? for (var i = 0; i < (profiles || []).length; i++) { 
+             var p = profiles[i]; ?>
+          <option value="<?= p.profileId ?>">
+            <?= (p.displayName || p.profileId) ?> (<?= p.profileId ?>)
+          </option>
+        <? } ?>
+      </select>
+
+      <? if (!profiles || profiles.length === 0) { ?>
+        <div class="muted">No profiles found in Admin_Profiles.</div>
+      <? } ?>
+    </div>
+
+    <div class="row">
+      <label for="resumeText">Resume Text</label>
+      <textarea id="resumeText" placeholder="Paste the full resume text here..."></textarea>
+    </div>
+
+    <div class="row">
+      <button id="runBtn" onclick="run()">📡 Build + Save</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <script>
+      function $(id) { return document.getElementById(id); }
+      function setStatus(msg) { $("status").textContent = msg || ""; }
+
+      function setBusy(isBusy) {
+        $("runBtn").disabled = !!isBusy;
+        // keep dropdown enabled so you can't get trapped
+        $("resumeText").disabled = !!isBusy;
+      }
+
+      function errToText(err) {
+        try {
+          if (!err) return "Unknown error";
+          if (typeof err === "string") return err;
+          if (err.message) return err.message;
+          return JSON.stringify(err, null, 2);
+        } catch (e) {
+          return "Error (could not stringify)";
+        }
+      }
+
+      function run() {
+        var profileId = $("profileSelect").value;
+        var text = $("resumeText").value;
+
+        if (!profileId) return setStatus("Pick a profile.");
+        if (!text || text.trim().length < 50) return setStatus("Paste more resume text (at least ~50 chars).");
+
+        setBusy(true);
+        setStatus("Building skill profile…");
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.ok === false) {
+              setStatus("❌ " + (res.error || "Unknown error"));
+              setBusy(false);
+              return;
+            }
+
+            setStatus("✅ Saved to Admin_Profiles\n\nFilled:\n- skillProfileText\n- topSkills\n- signatureStories");
+            setBusy(false);
+          })
+          .withFailureHandler(function(err) {
+            setStatus("❌ " + errToText(err));
+            setBusy(false);
+          })
+          .skillProfile_buildAndSave_(profileId, text);
+      }
+
+      window.onload = function() {
+        setBusy(false);
+      };
+    </script>
+  </body>
+</html>
