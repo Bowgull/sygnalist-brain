@@ -10,7 +10,7 @@ function onOpen() {
     // Health / Ops
     .addItem("🧪 Health Check", "runHealthCheck_")
     .addItem("📊 Refresh Admin Analytics", "refreshAdminAnalytics_")
-    .addItem("📤 Export Logs (Pretty)", "exportLogsToPrettySheet_")
+    .addItem("📤 Export Logs ", "exportLogsToPrettySheet_")
     .addSeparator()
 
     // Profile admin
