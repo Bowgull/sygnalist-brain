@@ -233,11 +233,19 @@ function inboxRowToDto_(o) {
 function trackerRowToDto_(o) {
   const c = (o && o._canon) || {};
 
+  // Format dateApplied (user-set date)
   const d = (o.dateApplied !== undefined) ? o.dateApplied : c.dateapplied;
   const dateApplied =
     (d instanceof Date)
       ? Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd")
       : String(d || "");
+
+  // Format added_at (auto-set timestamp) - MUST be string, not Date object
+  const a = (o.added_at !== undefined) ? o.added_at : c.addedat;
+  const addedAt =
+    (a instanceof Date)
+      ? Utilities.formatDate(a, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm")
+      : String(a || "");
 
   return {
     company: String(o.company || c.company || ""),
@@ -253,7 +261,7 @@ function trackerRowToDto_(o) {
     status: String(o.status || c.status || "Prospect"),
     dateApplied: dateApplied,
     notes: String(o.notes || c.notes || ""),
-    added_at: (o.added_at !== undefined) ? o.added_at : (c.addedat || "")
+    added_at: addedAt
   };
 }
 
