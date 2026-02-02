@@ -2,10 +2,13 @@
 <html>
   <head>
     <base target="_top">
+    <meta name="color-scheme" content="dark only">
+    <meta name="supported-color-schemes" content="dark only">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      /* Blueprint Brand Colors */
+      /* Prevent system dark mode from inverting our already-dark theme */
       :root {
+        color-scheme: dark only;
         --bg-main: #05060A;
         --bg-elevated: #0D1117;
         --border: #1F2933;
@@ -20,10 +23,16 @@
       
       * { box-sizing: border-box; margin: 0; padding: 0; }
       
+      html {
+        background: #05060A !important;
+        color-scheme: dark only !important;
+      }
+      
       body {
         font-family: 'Inter', -apple-system, sans-serif;
-        background: var(--bg-main);
-        color: var(--text-main);
+        background: #05060A !important;
+        background-color: #05060A !important;
+        color: #F9FAFB !important;
         padding: 20px;
         font-size: 13px;
         line-height: 1.5;
