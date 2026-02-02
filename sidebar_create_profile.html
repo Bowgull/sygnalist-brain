@@ -298,7 +298,7 @@
             $('createBtn').disabled = false;
             showStatus('❌ ' + (err && err.message ? err.message : String(err)), 'error');
           })
-          .createProfileFromSidebar_({
+          .createProfileFromSidebar({
             profileId: profileId,
             displayName: displayName,
             email: $('email').value.trim(),

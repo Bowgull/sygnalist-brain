@@ -290,7 +290,7 @@
             $('runBtn').disabled = false;
             showStatus('❌ ' + (err && err.message ? err.message : String(err)), 'error');
           })
-          .skillProfile_buildAndSave_(profileId, text);
+          .skillProfileBuildAndSave(profileId, text);
       }
     </script>
   </body>

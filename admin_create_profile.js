@@ -23,8 +23,10 @@ function openCreateProfileSidebar_() {
 /**
  * Create a profile from the sidebar form.
  * Called by the frontend.
+ * 
+ * NOTE: No trailing underscore - must be callable from client via google.script.run
  */
-function createProfileFromSidebar_(data) {
+function createProfileFromSidebar(data) {
   try {
     const profileId = String(data.profileId || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
     const displayName = String(data.displayName || "").trim();

@@ -51,8 +51,10 @@ function skillProfile_listProfiles_() {
 /**
  * Build + Save (engine logic)
  * Returns { ok:true, parsed: {...} } or { ok:false, error }
+ * 
+ * NOTE: No trailing underscore - must be callable from client via google.script.run
  */
-function skillProfile_buildAndSave_(profileId, rawResumeText) {
+function skillProfileBuildAndSave(profileId, rawResumeText) {
   try {
     const pid = String(profileId || "").trim();
     const raw = String(rawResumeText || "").trim();
