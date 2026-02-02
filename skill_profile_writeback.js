@@ -6,6 +6,7 @@
  *  - skillProfileText  (column header: skillProfileText)
  *  - topSkills         (column header: topSkills)  -> comma-separated
  *  - signatureStories  (column header: signatureStories) -> newline-separated
+ *  - roleTracksJSON    (column header: roleTracksJSON) -> JSON string
  ****************************************************/
 
 function writeSkillProfileToAdminProfiles_(profileId, parsed) {
@@ -19,6 +20,7 @@ function writeSkillProfileToAdminProfiles_(profileId, parsed) {
   const idxSkillProfileText = headers.indexOf("skillProfileText");
   const idxTopSkills = headers.indexOf("topSkills");
   const idxSignatureStories = headers.indexOf("signatureStories");
+  const idxRoleTracksJSON = headers.indexOf("roleTracksJSON");
 
   if (idxProfileId === -1) throw new Error("Admin_Profiles missing header: profileId");
   if (idxSkillProfileText === -1) throw new Error("Admin_Profiles missing header: skillProfileText");
@@ -41,6 +43,7 @@ function writeSkillProfileToAdminProfiles_(profileId, parsed) {
   const skillProfileText = String(parsed.skillProfileText || "").trim();
   const topSkills = Array.isArray(parsed.topSkills) ? parsed.topSkills : [];
   const signatureStories = Array.isArray(parsed.signatureStories) ? parsed.signatureStories : [];
+  const suggestedRoles = Array.isArray(parsed.suggestedRoles) ? parsed.suggestedRoles : [];
 
   if (!skillProfileText) throw new Error("Parsed skillProfileText is empty.");
 
@@ -48,4 +51,10 @@ function writeSkillProfileToAdminProfiles_(profileId, parsed) {
   sheet.getRange(rowNumber, idxSkillProfileText + 1).setValue(skillProfileText);
   sheet.getRange(rowNumber, idxTopSkills + 1).setValue(topSkills.join(", "));
   sheet.getRange(rowNumber, idxSignatureStories + 1).setValue(signatureStories.join("\n"));
+  
+  // Build and save roleTracksJSON from suggested roles
+  if (idxRoleTracksJSON !== -1 && suggestedRoles.length > 0) {
+    const roleTracksJSON = buildRoleTracksFromSuggested_(suggestedRoles);
+    sheet.getRange(rowNumber, idxRoleTracksJSON + 1).setValue(roleTracksJSON);
+  }
 }

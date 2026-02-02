@@ -50,7 +50,7 @@ function skillProfile_listProfiles_() {
 
 /**
  * Build + Save (engine logic)
- * Returns { ok:true } or { ok:false, error }
+ * Returns { ok:true, parsed: {...} } or { ok:false, error }
  */
 function skillProfile_buildAndSave_(profileId, rawResumeText) {
   try {
@@ -76,13 +76,18 @@ function skillProfile_buildAndSave_(profileId, rawResumeText) {
         message: "Skill profile built + saved",
         meta: {
           topSkillsCount: (parsed.topSkills || []).length,
-          storiesCount: (parsed.signatureStories || []).length
+          storiesCount: (parsed.signatureStories || []).length,
+          rolesCount: (parsed.suggestedRoles || []).length
         },
         version: (typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "unknown")
       }
     });
 
-    return { ok: true, version: (typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "unknown") };
+    return { 
+      ok: true, 
+      parsed: parsed,
+      version: (typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "unknown") 
+    };
 
   } catch (e) {
     return {

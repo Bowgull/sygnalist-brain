@@ -1,0 +1,321 @@
+<script>
+  /* ═══════════════════════════════════════════════════════════════════════
+     SYGNALIST PORTAL — CLIENT SCRIPTS
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  const BOOT = JSON.parse(<?= BOOTSTRAP_JSON ?>);
+  const profileId = BOOT.profile.profileId;
+  let isBusy = false;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // UTILITIES
+  // ─────────────────────────────────────────────────────────────────────────
+  function $(id) { return document.getElementById(id); }
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"']/g, function(m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+
+  function hash(s) {
+    s = String(s || '');
+    var h = 0;
+    for (var i = 0; i < s.length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i) | 0;
+    }
+    return Math.abs(h);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // INITIALIZE
+  // ─────────────────────────────────────────────────────────────────────────
+  function init() {
+    $('profileName').textContent = BOOT.profile.displayName || BOOT.profile.profileId;
+    $('statusText').textContent = BOOT.profile.status.toUpperCase();
+    $('statusBadge').classList.add(BOOT.profile.status === 'active' ? 'active' : 'locked');
+    
+    loadData();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // API
+  // ─────────────────────────────────────────────────────────────────────────
+  function api(op, data) {
+    return new Promise(function(resolve) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          resolve(res || { ok: false, message: 'Empty response' });
+        })
+        .withFailureHandler(function(err) {
+          resolve({ ok: false, message: (err && err.message) || String(err) });
+        })
+        .portal_api(profileId, { op: op, data: data || {} });
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // UI STATE
+  // ─────────────────────────────────────────────────────────────────────────
+  function setLoading(loading) {
+    isBusy = loading;
+    $('fetchBtn').disabled = loading;
+    $('refreshBtn').disabled = loading;
+    $('loadingOverlay').classList.toggle('visible', loading);
+  }
+
+  function showToast(msg, type) {
+    var toast = $('toast');
+    toast.textContent = msg;
+    toast.className = 'toast visible ' + (type || '');
+    setTimeout(function() {
+      toast.classList.remove('visible');
+    }, 4000);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ACTIONS
+  // ─────────────────────────────────────────────────────────────────────────
+  async function fetchJobs() {
+    if (isBusy) return;
+    setLoading(true);
+
+    var res = await api('fetch');
+
+    if (!res || !res.ok) {
+      showToast('❌ ' + (res && res.message ? res.message : 'Fetch failed'), 'error');
+      setLoading(false);
+      return;
+    }
+
+    var count = res.count || 0;
+    showToast('✅ Found ' + count + ' new role' + (count !== 1 ? 's' : ''), 'success');
+    $('lastFetchTime').textContent = 'Last fetch: just now';
+    
+    await loadData();
+    setLoading(false);
+  }
+
+  async function refreshAll() {
+    if (isBusy) return;
+    setLoading(true);
+    await loadData();
+    setLoading(false);
+  }
+
+  async function loadData() {
+    var results = await Promise.all([api('getInbox'), api('getTracker')]);
+
+    if (results[0] && results[0].ok) {
+      renderInbox(results[0].inbox || []);
+    }
+    if (results[1] && results[1].ok) {
+      renderTracker(results[1].tracker || []);
+    }
+  }
+
+  async function promote(job) {
+    if (isBusy) return;
+    setLoading(true);
+
+    var res = await api('promote', job);
+
+    if (res && res.ok) {
+      showToast('⭐ Added to Tracker!', 'success');
+      await loadData();
+    } else {
+      showToast('⚠️ ' + (res && res.message ? res.message : 'Already in Tracker'), 'error');
+    }
+
+    setLoading(false);
+  }
+
+  async function updateTracker(url, company, title) {
+    var key = url || (company + '||' + title);
+    var h = hash(key);
+
+    var status = $('st_' + h).value;
+    var notes = $('no_' + h).value;
+    var dateApplied = $('da_' + h).value;
+
+    setLoading(true);
+
+    var res = await api('updateTracker', {
+      url: url,
+      company: company,
+      title: title,
+      status: status,
+      notes: notes,
+      dateApplied: dateApplied
+    });
+
+    if (res && res.ok) {
+      showToast('✅ Saved', 'success');
+    } else {
+      showToast('❌ ' + (res && res.message ? res.message : 'Save failed'), 'error');
+    }
+
+    await loadData();
+    setLoading(false);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RENDER INBOX
+  // ─────────────────────────────────────────────────────────────────────────
+  function renderInbox(list) {
+    var countEl = $('inboxCount');
+    countEl.textContent = list.length + ' role' + (list.length !== 1 ? 's' : '');
+
+    var container = $('inboxList');
+
+    if (!list.length) {
+      container.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="empty-icon">📡</div>' +
+          '<div class="empty-title">No roles in your inbox yet</div>' +
+          '<div class="empty-subtitle">Click "Fetch New Roles" to start the hunt</div>' +
+        '</div>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var job = list[i];
+      var tier = String(job.tier || 'C').toUpperCase();
+      var cardClass = tier === 'S' ? 'job-card tier-s' : 'job-card';
+      var whyFitId = 'whyfit_' + i;
+
+      html += '<div class="' + cardClass + '">';
+      
+      // Header
+      html += '<div class="job-header">';
+      html += '<div class="job-title">' + esc(job.title) + '</div>';
+      html += '<div class="job-company">' + esc(job.company) + '</div>';
+      html += '</div>';
+
+      // Meta chips
+      html += '<div class="job-meta">';
+      html += '<span class="chip chip-tier chip-tier-' + tier.toLowerCase() + '">Tier ' + tier + ' · ' + esc(job.score) + '</span>';
+      if (job.laneLabel) {
+        html += '<span class="chip chip-lane">' + esc(job.laneLabel) + '</span>';
+      }
+      html += '<span class="chip">' + esc(job.location || 'Remote') + '</span>';
+      html += '<span class="chip">' + esc(job.source) + '</span>';
+      html += '</div>';
+
+      // Summary
+      if (job.jobSummary) {
+        html += '<div class="job-summary">' + esc(job.jobSummary) + '</div>';
+      }
+
+      // Why Fit
+      if (job.whyFit) {
+        html += '<div class="why-fit">';
+        html += '<div class="why-fit-toggle" onclick="toggleWhyFit(\'' + whyFitId + '\', this)">';
+        html += '<span class="arrow">▶</span>';
+        html += '<span>Why You\'re a Fit</span>';
+        html += '</div>';
+        html += '<div class="why-fit-content" id="' + whyFitId + '">';
+        html += '<div class="why-fit-label">Why You\'re a Fit</div>';
+        html += '<div class="why-fit-text">' + esc(job.whyFit) + '</div>';
+        html += '</div>';
+        html += '</div>';
+      }
+
+      // Actions
+      html += '<div class="job-actions">';
+      html += '<a class="btn" href="' + esc(job.url) + '" target="_blank" rel="noopener">View Job →</a>';
+      html += '<button class="btn btn-primary" onclick=\'promote(' + JSON.stringify(job) + ')\'>⭐ Track</button>';
+      html += '</div>';
+
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  function toggleWhyFit(id, toggle) {
+    var content = $(id);
+    content.classList.toggle('open');
+    toggle.classList.toggle('open');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RENDER TRACKER
+  // ─────────────────────────────────────────────────────────────────────────
+  function renderTracker(list) {
+    var countEl = $('trackerCount');
+    countEl.textContent = list.length + ' role' + (list.length !== 1 ? 's' : '');
+
+    var container = $('trackerList');
+
+    if (!list.length) {
+      container.innerHTML =
+        '<div class="empty-state">' +
+          '<div class="empty-icon">⭐</div>' +
+          '<div class="empty-title">Nothing in your Tracker yet</div>' +
+          '<div class="empty-subtitle">Add roles from your Inbox to start tracking</div>' +
+        '</div>';
+      return;
+    }
+
+    var statusOptions = [
+      'Prospect',
+      'Applied',
+      'Interview 1',
+      'Interview 2',
+      'Final Interview',
+      'Offer 🤝🔥',
+      'Rejected 💀',
+      'Ghosted 👻'
+    ];
+
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var job = list[i];
+      var key = job.url || (job.company + '||' + job.title);
+      var h = hash(key);
+
+      html += '<div class="tracker-card">';
+      html += '<div class="job-title">' + esc(job.title) + '</div>';
+      html += '<div class="job-company">' + esc(job.company) + ' · ' + esc(job.source) + '</div>';
+      html += '<div style="margin-top:8px"><a href="' + esc(job.url) + '" target="_blank">View job →</a></div>';
+
+      // Status
+      html += '<div class="form-group">';
+      html += '<label class="form-label">Status</label>';
+      html += '<select class="form-select" id="st_' + h + '">';
+      for (var s = 0; s < statusOptions.length; s++) {
+        var opt = statusOptions[s];
+        html += '<option' + (opt === job.status ? ' selected' : '') + '>' + opt + '</option>';
+      }
+      html += '</select>';
+      html += '</div>';
+
+      // Date Applied
+      html += '<div class="form-group">';
+      html += '<label class="form-label">Date Applied</label>';
+      html += '<input class="form-input" type="date" id="da_' + h + '" value="' + esc(job.dateApplied) + '" />';
+      html += '</div>';
+
+      // Notes
+      html += '<div class="form-group">';
+      html += '<label class="form-label">Notes</label>';
+      html += '<textarea class="form-textarea" id="no_' + h + '">' + esc(job.notes) + '</textarea>';
+      html += '</div>';
+
+      // Save button
+      html += '<button class="btn btn-primary" onclick=\'updateTracker(' + JSON.stringify(job.url) + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>';
+      html += '💾 Save</button>';
+
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // START
+  // ─────────────────────────────────────────────────────────────────────────
+  init();
+</script>

@@ -1,6 +1,9 @@
 /****************************************************
  * admin_create_profile.js
  * Profile Creation Form (sidebar) - backend
+ * 
+ * Note: Target roles are set via the Skill Profile Builder,
+ * not during initial profile creation.
  ****************************************************/
 
 /**
@@ -18,58 +21,10 @@ function openCreateProfileSidebar_() {
 }
 
 /**
- * Role track templates for common roles.
- */
-var ROLE_TEMPLATES = {
-  cs: {
-    id: "cs",
-    label: "Customer Success",
-    roleKeywords: ["customer success", "csm", "client success", "customer success manager"],
-    laneLabel: "CS Lane",
-    priorityWeight: 1.0
-  },
-  impl: {
-    id: "impl",
-    label: "Implementation",
-    roleKeywords: ["implementation", "onboarding", "solutions", "implementation specialist", "onboarding specialist"],
-    laneLabel: "Impl Lane",
-    priorityWeight: 1.0
-  },
-  support: {
-    id: "support",
-    label: "Support",
-    roleKeywords: ["support", "technical support", "customer support", "support specialist", "help desk"],
-    laneLabel: "Support Lane",
-    priorityWeight: 0.9
-  },
-  am: {
-    id: "am",
-    label: "Account Management",
-    roleKeywords: ["account manager", "account management", "account executive", "client manager"],
-    laneLabel: "AM Lane",
-    priorityWeight: 0.9
-  },
-  ops: {
-    id: "ops",
-    label: "Operations",
-    roleKeywords: ["operations", "ops", "operations manager", "business operations"],
-    laneLabel: "Ops Lane",
-    priorityWeight: 0.8
-  },
-  pm: {
-    id: "pm",
-    label: "Project Management",
-    roleKeywords: ["project manager", "project management", "program manager", "pmo"],
-    laneLabel: "PM Lane",
-    priorityWeight: 0.8
-  }
-};
-
-/**
  * Create a profile from the sidebar form.
  * Called by the frontend.
  */
-function createProfileFromForm_(data) {
+function createProfileFromSidebar_(data) {
   try {
     const profileId = String(data.profileId || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
     const displayName = String(data.displayName || "").trim();
@@ -77,7 +32,6 @@ function createProfileFromForm_(data) {
     const remotePreference = String(data.remotePreference || "remote_only");
     const salaryMin = parseInt(data.salaryMin) || 0;
     const preferredLocations = String(data.preferredLocations || "").trim();
-    const roles = Array.isArray(data.roles) ? data.roles : [];
     
     // Validation
     if (!profileId || profileId.length < 2) {
@@ -89,25 +43,12 @@ function createProfileFromForm_(data) {
     if (!displayName) {
       return { ok: false, error: "Display Name is required." };
     }
-    if (roles.length === 0) {
-      return { ok: false, error: "Select at least one target role." };
-    }
     
     // Check for duplicate
     const existingProfiles = loadProfiles_();
     if (existingProfiles.some(function(p) { return p.profileId === profileId; })) {
       return { ok: false, error: "Profile ID '" + profileId + "' already exists." };
     }
-    
-    // Build roleTracksJSON from selected roles
-    var roleTracks = [];
-    for (var i = 0; i < roles.length; i++) {
-      var roleId = roles[i];
-      if (ROLE_TEMPLATES[roleId]) {
-        roleTracks.push(ROLE_TEMPLATES[roleId]);
-      }
-    }
-    var roleTracksJSON = JSON.stringify(roleTracks);
     
     // Generate portal URL
     var portalUrl = "";
@@ -123,7 +64,7 @@ function createProfileFromForm_(data) {
       return { ok: false, error: "Admin_Profiles headers not set up correctly." };
     }
     
-    // Build row
+    // Build row (roleTracksJSON left empty - will be set by Skill Profile Builder)
     var row = new Array(headers.length).fill("");
     
     setByHeader_(headers, row, "profileId", profileId);
@@ -134,7 +75,7 @@ function createProfileFromForm_(data) {
     setByHeader_(headers, row, "salaryMin", salaryMin);
     setByHeader_(headers, row, "preferredLocations", preferredLocations);
     setByHeader_(headers, row, "remotePreference", remotePreference);
-    setByHeader_(headers, row, "roleTracksJSON", roleTracksJSON);
+    setByHeader_(headers, row, "roleTracksJSON", "[]"); // Empty - set via Skill Profile Builder
     setByHeader_(headers, row, "webAppUrl", portalUrl);
     setByHeader_(headers, row, "isAdmin", "FALSE");
     
@@ -148,8 +89,8 @@ function createProfileFromForm_(data) {
       source: "create_profile",
       details: {
         level: "INFO",
-        message: "Profile created via form",
-        meta: { profileId: profileId, displayName: displayName, roles: roles },
+        message: "Profile created",
+        meta: { profileId: profileId, displayName: displayName },
         version: Sygnalist_VERSION
       }
     });
