@@ -3,8 +3,8 @@
      SYGNALIST PORTAL — CLIENT SCRIPTS v2.0
      ═══════════════════════════════════════════════════════════════════════════ */
 
-  const BOOT = JSON.parse(<?= BOOTSTRAP_JSON ?>);
-  const profileId = BOOT.profile.profileId;
+  // BOOT and profileId are defined in the main template (client_portal.html)
+  // They must be there because scriptlets don't evaluate in included files
   let isBusy = false;
 
   // ─────────────────────────────────────────────────────────────────────────────

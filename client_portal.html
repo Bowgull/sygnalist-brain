@@ -219,6 +219,12 @@
     <!-- Toast Notification -->
     <div class="toast" id="toast"></div>
 
+    <!-- Bootstrap data (must be in main template for scriptlet evaluation) -->
+    <script>
+      const BOOT = <?= BOOTSTRAP_JSON ?>;
+      const profileId = BOOT.profile.profileId;
+    </script>
+    
     <?!= HtmlService.createHtmlOutputFromFile('portal_scripts').getContent() ?>
   </body>
 </html>
