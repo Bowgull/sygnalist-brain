@@ -57,31 +57,38 @@ function skillProfile_buildAndSave_(profileId, rawResumeText) {
     const pid = String(profileId || "").trim();
     const raw = String(rawResumeText || "").trim();
 
-    if (!pid) throw new Error("profileId is empty.");
-    if (!raw) throw new Error("Resume text is empty.");
+    if (!pid) {
+      return { ok: false, error: "profileId is empty." };
+    }
+    if (!raw || raw.length < 50) {
+      return { ok: false, error: "Resume text is too short (need at least 50 characters)." };
+    }
 
-    const profile = getProfileByIdOrThrow_(pid);
-    assertProfileActiveOrThrow_(profile);
+    // Verify profile exists
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      return { ok: false, error: "No active spreadsheet." };
+    }
+    
+    var profileSheet = ss.getSheetByName("Admin_Profiles");
+    if (!profileSheet) {
+      return { ok: false, error: "Admin_Profiles sheet not found." };
+    }
 
-    const parsed = parseResumeToSkillProfile_(raw);
-    writeSkillProfileToAdminProfiles_(pid, parsed);
+    // Call AI to parse resume
+    var parsed;
+    try {
+      parsed = parseResumeToSkillProfile_(raw);
+    } catch (aiErr) {
+      return { ok: false, error: "AI Error: " + (aiErr.message || String(aiErr)) };
+    }
 
-    logEvent_({
-      timestamp: Date.now(),
-      profileId: pid,
-      action: "admin",
-      source: "skill_profile_ui",
-      details: {
-        level: "INFO",
-        message: "Skill profile built + saved",
-        meta: {
-          topSkillsCount: (parsed.topSkills || []).length,
-          storiesCount: (parsed.signatureStories || []).length,
-          rolesCount: (parsed.suggestedRoles || []).length
-        },
-        version: (typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "unknown")
-      }
-    });
+    // Write results back
+    try {
+      writeSkillProfileToAdminProfiles_(pid, parsed);
+    } catch (writeErr) {
+      return { ok: false, error: "Write Error: " + (writeErr.message || String(writeErr)) };
+    }
 
     return { 
       ok: true, 
@@ -92,7 +99,7 @@ function skillProfile_buildAndSave_(profileId, rawResumeText) {
   } catch (e) {
     return {
       ok: false,
-      error: (e && e.message) ? e.message : String(e),
+      error: "Unexpected Error: " + (e && e.message ? e.message : String(e)),
       version: (typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "unknown")
     };
   }
