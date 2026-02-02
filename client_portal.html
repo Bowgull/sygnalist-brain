@@ -9,18 +9,135 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <?!= HtmlService.createHtmlOutputFromFile('portal_styles').getContent() ?>
+    
+    <!-- Modal Styles -->
+    <style>
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(5, 6, 10, 0.9);
+        backdrop-filter: blur(6px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+      }
+      
+      .modal-overlay.visible {
+        opacity: 1;
+        pointer-events: all;
+      }
+      
+      .modal {
+        background: var(--color-bg-elevated);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-xl);
+        padding: var(--space-6);
+        width: 100%;
+        max-width: 420px;
+        box-shadow: var(--shadow-lg);
+        transform: scale(0.95);
+        transition: transform 0.25s ease;
+      }
+      
+      .modal-overlay.visible .modal {
+        transform: scale(1);
+      }
+      
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: var(--space-5);
+      }
+      
+      .modal-title {
+        font-size: 1.125rem;
+        font-weight: 700;
+      }
+      
+      .modal-close {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        color: var(--color-text-muted);
+        font-size: 1.25rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      
+      .modal-close:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--color-text-main);
+      }
+      
+      .modal-body .form-group {
+        margin-bottom: var(--space-4);
+      }
+      
+      .modal-body .form-group:last-child {
+        margin-bottom: 0;
+      }
+      
+      .modal-actions {
+        display: flex;
+        gap: var(--space-3);
+        margin-top: var(--space-5);
+      }
+      
+      .modal-actions .btn {
+        flex: 1;
+      }
+    </style>
   </head>
 
   <body>
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
       <div class="loader"></div>
+      <div class="loading-text" id="loadingText">Loading...</div>
+    </div>
+
+    <!-- Manual Add Modal -->
+    <div class="modal-overlay" id="manualAddModal">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">➕ Add Job Manually</div>
+          <button class="modal-close" onclick="hideManualAdd()">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Job Title *</label>
+            <input class="form-input" type="text" id="manualTitle" placeholder="e.g. Customer Success Manager" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Company *</label>
+            <input class="form-input" type="text" id="manualCompany" placeholder="e.g. Acme Corp" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Job URL (optional)</label>
+            <input class="form-input" type="text" id="manualUrl" placeholder="https://..." />
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="hideManualAdd()">Cancel</button>
+          <button class="btn btn-primary" onclick="submitManualAdd()">Add to Tracker</button>
+        </div>
+      </div>
     </div>
 
     <div class="app">
-      <!-- ═══════════════════════════════════════════════════════════════════
+      <!-- ═══════════════════════════════════════════════════════════════════════
            NAVBAR
-           ═══════════════════════════════════════════════════════════════════ -->
+           ═══════════════════════════════════════════════════════════════════════ -->
       <nav class="navbar">
         <div class="brand">
           <div class="brand-logo">
@@ -29,7 +146,7 @@
               <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
               <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
               <line x1="12" y1="12" x2="17" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <circle cx="17" cy="7" r="2" fill="#fbbf24"/>
+              <circle cx="17" cy="7" r="2" fill="#FAD76A"/>
             </svg>
           </div>
           <div class="brand-text">
@@ -38,18 +155,20 @@
           </div>
         </div>
 
-        <div class="profile-info">
-          <div class="profile-name" id="profileName"></div>
-          <div class="status-badge" id="statusBadge">
-            <span class="status-dot"></span>
-            <span id="statusText"></span>
+        <div class="profile-section">
+          <div class="profile-info">
+            <div class="profile-name" id="profileName"></div>
+            <div class="status-badge" id="statusBadge">
+              <span class="status-dot"></span>
+              <span id="statusText"></span>
+            </div>
           </div>
         </div>
       </nav>
 
-      <!-- ═══════════════════════════════════════════════════════════════════
+      <!-- ═══════════════════════════════════════════════════════════════════════
            ACTION BAR
-           ═══════════════════════════════════════════════════════════════════ -->
+           ═══════════════════════════════════════════════════════════════════════ -->
       <div class="action-bar">
         <button class="btn btn-primary" id="fetchBtn" onclick="fetchJobs()">
           📡 Fetch New Roles
@@ -57,12 +176,15 @@
         <button class="btn" id="refreshBtn" onclick="refreshAll()">
           ↻ Refresh
         </button>
+        <button class="btn" onclick="showManualAdd()">
+          ➕ Add Manually
+        </button>
         <div class="last-fetch-time" id="lastFetchTime"></div>
       </div>
 
-      <!-- ═══════════════════════════════════════════════════════════════════
+      <!-- ═══════════════════════════════════════════════════════════════════════
            MAIN CONTENT
-           ═══════════════════════════════════════════════════════════════════ -->
+           ═══════════════════════════════════════════════════════════════════════ -->
       <div class="main-grid">
         <!-- Inbox Panel -->
         <div class="panel">

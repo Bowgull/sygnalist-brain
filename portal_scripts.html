@@ -1,15 +1,15 @@
 <script>
-  /* ═══════════════════════════════════════════════════════════════════════
-     SYGNALIST PORTAL — CLIENT SCRIPTS
-     ═══════════════════════════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════════════
+     SYGNALIST PORTAL — CLIENT SCRIPTS v2.0
+     ═══════════════════════════════════════════════════════════════════════════ */
 
   const BOOT = JSON.parse(<?= BOOTSTRAP_JSON ?>);
   const profileId = BOOT.profile.profileId;
   let isBusy = false;
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   // UTILITIES
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   function $(id) { return document.getElementById(id); }
 
   function esc(s) {
@@ -27,9 +27,9 @@
     return Math.abs(h);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   // INITIALIZE
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   function init() {
     $('profileName').textContent = BOOT.profile.displayName || BOOT.profile.profileId;
     $('statusText').textContent = BOOT.profile.status.toUpperCase();
@@ -38,9 +38,9 @@
     loadData();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   // API
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   function api(op, data) {
     return new Promise(function(resolve) {
       google.script.run
@@ -54,14 +54,19 @@
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   // UI STATE
-  // ─────────────────────────────────────────────────────────────────────────
-  function setLoading(loading) {
+  // ─────────────────────────────────────────────────────────────────────────────
+  function setLoading(loading, message) {
     isBusy = loading;
     $('fetchBtn').disabled = loading;
     $('refreshBtn').disabled = loading;
     $('loadingOverlay').classList.toggle('visible', loading);
+    
+    var textEl = $('loadingText');
+    if (textEl) {
+      textEl.textContent = message || 'Loading...';
+    }
   }
 
   function showToast(msg, type) {
@@ -73,12 +78,12 @@
     }, 4000);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   // ACTIONS
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   async function fetchJobs() {
     if (isBusy) return;
-    setLoading(true);
+    setLoading(true, 'Scanning for new roles...');
 
     var res = await api('fetch');
 
@@ -98,9 +103,10 @@
 
   async function refreshAll() {
     if (isBusy) return;
-    setLoading(true);
+    setLoading(true, 'Refreshing...');
     await loadData();
     setLoading(false);
+    showToast('✓ Refreshed', 'success');
   }
 
   async function loadData() {
@@ -108,15 +114,20 @@
 
     if (results[0] && results[0].ok) {
       renderInbox(results[0].inbox || []);
+    } else {
+      console.error('Inbox load failed:', results[0]);
     }
+    
     if (results[1] && results[1].ok) {
       renderTracker(results[1].tracker || []);
+    } else {
+      console.error('Tracker load failed:', results[1]);
     }
   }
 
   async function promote(job) {
     if (isBusy) return;
-    setLoading(true);
+    setLoading(true, 'Adding to Tracker...');
 
     var res = await api('promote', job);
 
@@ -138,7 +149,7 @@
     var notes = $('no_' + h).value;
     var dateApplied = $('da_' + h).value;
 
-    setLoading(true);
+    setLoading(true, 'Saving...');
 
     var res = await api('updateTracker', {
       url: url,
@@ -159,9 +170,60 @@
     setLoading(false);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // MANUAL ADD
+  // ─────────────────────────────────────────────────────────────────────────────
+  function showManualAdd() {
+    $('manualAddModal').classList.add('visible');
+  }
+  
+  function hideManualAdd() {
+    $('manualAddModal').classList.remove('visible');
+    $('manualUrl').value = '';
+    $('manualTitle').value = '';
+    $('manualCompany').value = '';
+  }
+  
+  async function submitManualAdd() {
+    var url = $('manualUrl').value.trim();
+    var title = $('manualTitle').value.trim();
+    var company = $('manualCompany').value.trim();
+    
+    if (!title || !company) {
+      showToast('Title and Company are required', 'error');
+      return;
+    }
+    
+    hideManualAdd();
+    setLoading(true, 'Adding to Tracker...');
+    
+    var job = {
+      url: url || '',
+      title: title,
+      company: company,
+      source: 'manual',
+      location: 'Unknown',
+      tier: 'C',
+      score: 0,
+      jobSummary: 'Manually added',
+      whyFit: ''
+    };
+    
+    var res = await api('promote', job);
+    
+    if (res && res.ok) {
+      showToast('⭐ Added to Tracker!', 'success');
+      await loadData();
+    } else {
+      showToast('❌ ' + (res && res.message ? res.message : 'Failed to add'), 'error');
+    }
+    
+    setLoading(false);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // RENDER INBOX
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   function renderInbox(list) {
     var countEl = $('inboxCount');
     countEl.textContent = list.length + ' role' + (list.length !== 1 ? 's' : '');
@@ -173,7 +235,7 @@
         '<div class="empty-state">' +
           '<div class="empty-icon">📡</div>' +
           '<div class="empty-title">No roles in your inbox yet</div>' +
-          '<div class="empty-subtitle">Click "Fetch New Roles" to start the hunt</div>' +
+          '<div class="empty-subtitle">Click "Fetch New Roles" to start scanning for opportunities</div>' +
         '</div>';
       return;
     }
@@ -240,9 +302,9 @@
     toggle.classList.toggle('open');
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   // RENDER TRACKER
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   function renderTracker(list) {
     var countEl = $('trackerCount');
     countEl.textContent = list.length + ' role' + (list.length !== 1 ? 's' : '');
@@ -254,7 +316,7 @@
         '<div class="empty-state">' +
           '<div class="empty-icon">⭐</div>' +
           '<div class="empty-title">Nothing in your Tracker yet</div>' +
-          '<div class="empty-subtitle">Add roles from your Inbox to start tracking</div>' +
+          '<div class="empty-subtitle">Add roles from your Inbox or use "+ Add Manually" to start tracking</div>' +
         '</div>';
       return;
     }
@@ -264,10 +326,11 @@
       'Applied',
       'Interview 1',
       'Interview 2',
-      'Final Interview',
-      'Offer 🤝🔥',
-      'Rejected 💀',
-      'Ghosted 👻'
+      'Final Round',
+      'Offer 🎉',
+      'Rejected',
+      'Ghosted 👻',
+      'Withdrawn'
     ];
 
     var html = '';
@@ -279,7 +342,10 @@
       html += '<div class="tracker-card">';
       html += '<div class="job-title">' + esc(job.title) + '</div>';
       html += '<div class="job-company">' + esc(job.company) + ' · ' + esc(job.source) + '</div>';
-      html += '<div style="margin-top:8px"><a href="' + esc(job.url) + '" target="_blank">View job →</a></div>';
+      
+      if (job.url) {
+        html += '<div style="margin-top:8px"><a href="' + esc(job.url) + '" target="_blank">View job →</a></div>';
+      }
 
       // Status
       html += '<div class="form-group">';
@@ -295,17 +361,17 @@
       // Date Applied
       html += '<div class="form-group">';
       html += '<label class="form-label">Date Applied</label>';
-      html += '<input class="form-input" type="date" id="da_' + h + '" value="' + esc(job.dateApplied) + '" />';
+      html += '<input class="form-input" type="date" id="da_' + h + '" value="' + esc(job.dateApplied || '') + '" />';
       html += '</div>';
 
       // Notes
       html += '<div class="form-group">';
       html += '<label class="form-label">Notes</label>';
-      html += '<textarea class="form-textarea" id="no_' + h + '">' + esc(job.notes) + '</textarea>';
+      html += '<textarea class="form-textarea" id="no_' + h + '" placeholder="Add notes...">' + esc(job.notes || '') + '</textarea>';
       html += '</div>';
 
       // Save button
-      html += '<button class="btn btn-primary" onclick=\'updateTracker(' + JSON.stringify(job.url) + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>';
+      html += '<button class="btn btn-primary" onclick=\'updateTracker(' + JSON.stringify(job.url || '') + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>';
       html += '💾 Save</button>';
 
       html += '</div>';
@@ -314,8 +380,8 @@
     container.innerHTML = html;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   // START
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   init();
 </script>
