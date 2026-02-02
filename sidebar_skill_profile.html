@@ -4,75 +4,74 @@
     <base target="_top">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+      /* Blueprint Brand Colors */
       :root {
-        --bg: #0D1117;
-        --bg-elevated: #161B22;
-        --border: #30363D;
-        --text: #F0F6FC;
-        --text-muted: #8B949E;
-        --green: #6AD7A3;
-        --green-dark: #2F8A63;
+        --bg-main: #05060A;
+        --bg-elevated: #0D1117;
+        --border: #1F2933;
+        --text-main: #F9FAFB;
+        --text-muted: #9CA3AF;
+        --radar-light: #A9F2C4;
+        --radar-mid: #6AD7A3;
+        --radar-dark: #2F8A63;
         --gold: #FAD76A;
+        --error: #DC2626;
       }
       
-      * { box-sizing: border-box; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
       
       body {
         font-family: 'Inter', -apple-system, sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        margin: 0;
-        padding: 16px;
+        background: var(--bg-main);
+        color: var(--text-main);
+        padding: 20px;
         font-size: 13px;
         line-height: 1.5;
       }
       
       h3 {
-        margin: 0 0 4px 0;
         font-size: 18px;
         font-weight: 700;
-        background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: var(--radar-mid);
+        margin-bottom: 4px;
       }
       
       .subtitle {
         color: var(--text-muted);
         font-size: 12px;
-        margin-bottom: 16px;
+        margin-bottom: 20px;
       }
       
       .version {
         font-size: 11px;
         opacity: 0.6;
+        margin-top: 4px;
       }
       
-      .section {
+      .field {
         margin-bottom: 16px;
-      }
-      
-      .section-title {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
       }
       
       label {
         display: block;
         font-size: 12px;
         font-weight: 500;
+        color: var(--text-main);
         margin-bottom: 6px;
+      }
+      
+      .hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
       }
       
       select, textarea {
         width: 100%;
-        background: var(--bg);
+        background: var(--bg-elevated);
         border: 1px solid var(--border);
         border-radius: 8px;
-        color: var(--text);
+        color: var(--text-main);
         font-family: inherit;
         font-size: 13px;
         padding: 10px 12px;
@@ -80,7 +79,7 @@
       }
       
       select:focus, textarea:focus {
-        border-color: var(--green);
+        border-color: var(--radar-mid);
       }
       
       textarea {
@@ -97,19 +96,11 @@
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        transition: all 150ms ease;
-      }
-      
-      .btn.primary {
-        background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+        background: linear-gradient(135deg, var(--radar-mid) 0%, var(--radar-dark) 100%);
         color: #000;
       }
       
-      .btn.primary:hover {
-        filter: brightness(1.1);
-      }
-      
-      .btn.primary:disabled {
+      .btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
@@ -123,29 +114,23 @@
         white-space: pre-wrap;
       }
       
-      .status.visible {
-        display: block;
-      }
-      
+      .status.visible { display: block; }
       .status.error {
         background: rgba(220, 38, 38, 0.15);
         border: 1px solid rgba(220, 38, 38, 0.3);
         color: #FCA5A5;
       }
-      
       .status.success {
         background: rgba(106, 215, 163, 0.15);
         border: 1px solid rgba(106, 215, 163, 0.3);
-        color: var(--green);
+        color: var(--radar-mid);
       }
-      
       .status.loading {
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid var(--border);
         color: var(--text-muted);
       }
       
-      /* Results Section */
       .results {
         display: none;
         margin-top: 16px;
@@ -153,9 +138,7 @@
         border-top: 1px solid var(--border);
       }
       
-      .results.visible {
-        display: block;
-      }
+      .results.visible { display: block; }
       
       .result-group {
         margin-bottom: 16px;
@@ -172,8 +155,8 @@
       
       .result-value {
         font-size: 12px;
-        color: var(--text);
-        background: rgba(0,0,0,0.3);
+        color: var(--text-main);
+        background: var(--bg-elevated);
         padding: 10px 12px;
         border-radius: 6px;
         white-space: pre-wrap;
@@ -188,20 +171,13 @@
       }
       
       .role-chip {
-        display: inline-flex;
         padding: 6px 12px;
         background: rgba(106, 215, 163, 0.1);
         border: 1px solid rgba(106, 215, 163, 0.3);
         border-radius: 999px;
         font-size: 11px;
         font-weight: 600;
-        color: var(--green);
-      }
-      
-      .hint {
-        font-size: 11px;
-        color: var(--text-muted);
-        margin-top: 4px;
+        color: var(--radar-mid);
       }
     </style>
   </head>
@@ -213,8 +189,8 @@
       <div class="version">Engine v<?= version ?></div>
     </div>
     
-    <div class="section">
-      <label for="profileSelect">Profile</label>
+    <div class="field">
+      <label>Profile</label>
       <select id="profileSelect">
         <? for (var i = 0; i < (profiles || []).length; i++) { 
              var p = profiles[i]; ?>
@@ -228,33 +204,29 @@
       <? } ?>
     </div>
     
-    <div class="section">
-      <label for="resumeText">Resume Text</label>
+    <div class="field">
+      <label>Resume Text</label>
       <textarea id="resumeText" placeholder="Paste the full resume text here..."></textarea>
-      <div class="hint">Plain text works best. The AI will extract skills and suggest target roles.</div>
+      <div class="hint">Plain text works best.</div>
     </div>
     
-    <button class="btn primary" id="runBtn" onclick="run()">
-      🧬 Build + Save
-    </button>
+    <button class="btn" id="runBtn" onclick="run()">🧬 Build + Save</button>
     
     <div class="status" id="status"></div>
     
-    <!-- Results Section (shown after success) -->
     <div class="results" id="results">
       <div class="result-group">
-        <div class="result-label">Target Roles (Auto-Generated)</div>
+        <div class="result-label">Target Roles</div>
         <div class="role-chips" id="rolesOutput"></div>
-        <div class="hint">These roles will be used to fetch and score jobs.</div>
       </div>
       
       <div class="result-group">
-        <div class="result-label">Skills Extracted</div>
+        <div class="result-label">Skills</div>
         <div class="result-value" id="skillsOutput"></div>
       </div>
       
       <div class="result-group">
-        <div class="result-label">Profile Summary</div>
+        <div class="result-label">Summary</div>
         <div class="result-value" id="summaryOutput"></div>
       </div>
     </div>
@@ -268,38 +240,6 @@
         el.className = 'status visible ' + (type || '');
       }
       
-      function setBusy(busy) {
-        $('runBtn').disabled = busy;
-        $('resumeText').disabled = busy;
-      }
-      
-      function showResults(parsed) {
-        var resultsEl = $('results');
-        
-        // Roles
-        var rolesHtml = '';
-        var roles = parsed.suggestedRoles || [];
-        for (var i = 0; i < roles.length; i++) {
-          rolesHtml += '<span class="role-chip">' + escHtml(roles[i].title) + '</span>';
-        }
-        $('rolesOutput').innerHTML = rolesHtml || '<span style="color:#8B949E">No roles suggested</span>';
-        
-        // Skills
-        var skills = parsed.topSkills || [];
-        $('skillsOutput').textContent = skills.join(', ') || 'None';
-        
-        // Summary
-        $('summaryOutput').textContent = parsed.skillProfileText || 'None';
-        
-        resultsEl.classList.add('visible');
-      }
-      
-      function escHtml(s) {
-        return String(s || '').replace(/[&<>"']/g, function(m) {
-          return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
-        });
-      }
-      
       function run() {
         var profileId = $('profileSelect').value;
         var text = $('resumeText').value;
@@ -311,31 +251,35 @@
           return showStatus('Paste more resume text (at least 100 characters).', 'error');
         }
         
-        setBusy(true);
+        $('runBtn').disabled = true;
         showStatus('🔄 Analyzing resume with AI... This may take 15-30 seconds.', 'loading');
         $('results').classList.remove('visible');
         
         google.script.run
           .withSuccessHandler(function(res) {
+            $('runBtn').disabled = false;
             if (res && res.ok === false) {
               showStatus('❌ ' + (res.error || 'Unknown error'), 'error');
-              setBusy(false);
               return;
             }
             
             showStatus('✅ Saved to Admin_Profiles!', 'success');
             
-            // Show the parsed results
-            if (res.parsed) {
-              showResults(res.parsed);
+            if (res && res.parsed) {
+              var roles = res.parsed.suggestedRoles || [];
+              var rolesHtml = '';
+              for (var i = 0; i < roles.length; i++) {
+                rolesHtml += '<span class="role-chip">' + roles[i].title + '</span>';
+              }
+              $('rolesOutput').innerHTML = rolesHtml || 'None';
+              $('skillsOutput').textContent = (res.parsed.topSkills || []).join(', ') || 'None';
+              $('summaryOutput').textContent = res.parsed.skillProfileText || 'None';
+              $('results').classList.add('visible');
             }
-            
-            setBusy(false);
           })
           .withFailureHandler(function(err) {
-            var msg = (err && err.message) ? err.message : String(err);
-            showStatus('❌ ' + msg, 'error');
-            setBusy(false);
+            $('runBtn').disabled = false;
+            showStatus('❌ ' + (err && err.message ? err.message : String(err)), 'error');
           })
           .skillProfile_buildAndSave_(profileId, text);
       }
