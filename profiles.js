@@ -41,8 +41,15 @@ function getProfileByIdOrThrow_(profileId) {
 }
 
 function assertProfileActiveOrThrow_(profile) {
-  if (!profile || profile.status === "active") return;
+  // If no profile provided, throw (defensive check)
+  if (!profile) {
+    throw new Error("assertProfileActiveOrThrow_: profile is null or undefined");
+  }
+  
+  // If profile is active, allow through
+  if (profile.status === "active") return;
 
+  // Profile exists but is not active - throw with details
   const err = uiError_(
     "LOCKED_PROFILE",
     "Profile is locked: " + (profile.statusReason || "No reason set.")

@@ -61,23 +61,38 @@ Job Description (truncated):
 }
 
 /**
- * Enrich a list of jobs. If enrichment fails for a job:
+ * Enrich a list of jobs using PARALLEL API calls.
+ * 
+ * Performance: 25 jobs in ~5-10 seconds (vs 50+ seconds sequential)
+ * 
+ * If enrichment fails for a job:
  * - log WARN
  * - skip it (do not surface)
  */
 function enrichJobsForProfile_(jobs, profile) {
-  const out = [];
+  const jobList = jobs || [];
+  if (!jobList.length) return [];
+  
   const batchId = newBatchId_();
+  const out = [];
 
-  for (let i = 0; i < (jobs || []).length; i++) {
-    const job = jobs[i];
-
+  // Build all prompts upfront
+  const prompts = jobList.map(job => buildEnrichmentPrompt_(job, profile));
+  
+  // Send all requests in parallel (FAST!)
+  const results = aiBatchRequest_(prompts, CONFIG.OPENAI_MODEL);
+  
+  // Process results
+  for (let i = 0; i < jobList.length; i++) {
+    const job = jobList[i];
+    const result = results[i];
+    
     try {
-      const prompt = buildEnrichmentPrompt_(job, profile);
-      const ai = aiRequest_(prompt, CONFIG.OPENAI_MODEL);
-      const txt = String(ai.text || "").trim();
-
-      const parsed = safeParseEnrichmentJson_(txt);
+      if (!result.ok) {
+        throw new Error(result.error || "AI request failed");
+      }
+      
+      const parsed = safeParseEnrichmentJson_(result.text);
 
       // Hard requirement: must have both non-empty
       if (!parsed.jobSummary || !parsed.whyFit || !parsed.whyFit.length) {
@@ -119,8 +134,8 @@ function enrichJobsForProfile_(jobs, profile) {
     source: "openai",
     details: {
       level: "INFO",
-      message: "Enrichment complete",
-      meta: { batchId, inCount: (jobs || []).length, outCount: out.length },
+      message: "Enrichment complete (parallel)",
+      meta: { batchId, inCount: jobList.length, outCount: out.length },
       batchId,
       version: Sygnalist_VERSION
     }

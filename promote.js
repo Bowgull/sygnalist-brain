@@ -67,6 +67,8 @@ function promoteEnrichedJobToTracker_(profileId, enrichedJob) {
  * Strict dedupe (per profile).
  * Primary: normalized URL
  * Fallback: company||title key
+ * 
+ * Uses BOUNDED reads for performance (doesn't read entire wide sheet)
  */
 function trackerHasDuplicateForProfile_(profileId, entry) {
   ensureEngineTables_();
@@ -75,7 +77,15 @@ function trackerHasDuplicateForProfile_(profileId, entry) {
   if (!pid) throw new Error("trackerHasDuplicateForProfile_: profileId is empty.");
 
   const sh = assertSheetExists_("Engine_Tracker");
-  const values = sh.getDataRange().getValues();
+  
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return false;  // Header only or empty
+  
+  // Bounded read: only read up to last column with a header
+  const lastCol = getLastHeaderCol_(sh);
+  if (lastCol < 1) return false;
+  
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
   if (!values || values.length < 2) return false;
 
   const headers = values[0].map(h => String(h).trim());
@@ -107,6 +117,22 @@ function trackerHasDuplicateForProfile_(profileId, entry) {
   }
 
   return false;
+}
+
+/**
+ * Find the last column with a non-empty header.
+ * Prevents reading 500 empty columns if sheet got accidentally wide.
+ */
+function getLastHeaderCol_(sh) {
+  const maxCol = sh.getLastColumn();
+  if (maxCol < 1) return 0;
+  
+  const headerRow = sh.getRange(1, 1, 1, maxCol).getValues()[0];
+  for (let c = headerRow.length - 1; c >= 0; c--) {
+    const v = String(headerRow[c] || "").trim();
+    if (v) return c + 1;
+  }
+  return 0;
 }
 
 /**

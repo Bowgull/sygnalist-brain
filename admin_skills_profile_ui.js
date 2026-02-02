@@ -62,8 +62,8 @@ function skillProfileBuildAndSave(profileId, rawResumeText) {
     if (!pid) {
       return { ok: false, error: "profileId is empty." };
     }
-    if (!raw || raw.length < 50) {
-      return { ok: false, error: "Resume text is too short (need at least 50 characters)." };
+    if (!raw || raw.length < 100) {
+      return { ok: false, error: "Resume text is too short (need at least 100 characters)." };
     }
 
     // Verify profile exists
