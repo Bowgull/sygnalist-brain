@@ -1,11 +1,147 @@
 <script>
   /* ═══════════════════════════════════════════════════════════════════════════
-     SYGNALIST PORTAL — CLIENT SCRIPTS v2.0
+     SYGNALIST PORTAL — CLIENT SCRIPTS v3.0 (tabbed + caches)
      ═══════════════════════════════════════════════════════════════════════════ */
 
   // BOOT and profileId are defined in the main template (client_portal.html)
-  // They must be there because scriptlets don't evaluate in included files
   let isBusy = false;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // STATE (tab + caches)
+  // ─────────────────────────────────────────────────────────────────────────────
+  var currentTab = 'inbox';
+  var inboxCache = [];
+  var trackerCache = [];
+  var lastFetchTimeStr = '';
+  var spotlightCard = null;
+  var spotlightKey = null;
+  var spotlightSlotParent = null;
+  var spotlightSlotNextSibling = null;
+
+  // Rotating messages during fetch (keep users engaged)
+  var FETCH_LOADING_PHRASES = [
+    'Making the bots work for you…',
+    'Separating sygnal from noise…',
+    'Finding the good sygnals…',
+    'No spam. Just sygnal.',
+    'Teaching the algorithm some manners…',
+    'Filtering out the corporate fluff…',
+    'Reading the fine print so you don\'t have to…',
+    'Making sure it\'s actually worth your time…',
+    'Looking past the buzzwords…',
+    'Hang on. Let me cook…',
+    'Still cooking…',
+    'Not gaslighting. Promise.',
+    'Making sure it\'s not a red flag…',
+    'Reading the red flags…',
+    'Checking if the math is mathing…',
+    'Ensuring "remote" means remote…',
+    'Fast-paced ≠ chaos.',
+    'Not falling for that again…',
+    'No emotional damage here…',
+    'Just making sure…',
+    'Let\'s not romanticize this…',
+    'Running it back for quality…',
+    'Making sure it actually fits…',
+    'Double-checking the hype…',
+    'Almost there…',
+    'Almost almost there…',
+    'Yes, we\'re being picky on purpose…',
+    'Good sygnals take a second…'
+  ];
+  var FETCH_LOADING_ROTATE_MS = 3500;
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // TRACKER STATUS (pipeline + display; stored values unchanged)
+  // ─────────────────────────────────────────────────────────────────────────────
+  var TRACKER_STATUS_OPTIONS = [
+    'Prospect', 'Applied', 'Interview 1', 'Interview 2', 'Final Round',
+    'Offer 🎉', 'Rejected', 'Ghosted 👻', 'Withdrawn'
+  ];
+  var PIPELINE_STAGES = ['Prospect', 'Applied', 'Interview', 'Final', 'Offer'];
+  var CLOSED_STATUSES = ['Rejected', 'Ghosted 👻', 'Withdrawn'];
+  var STORED_TO_STAGE = {
+    'Prospect': 'Prospect',
+    'Applied': 'Applied',
+    'Interview 1': 'Interview',
+    'Interview 2': 'Interview',
+    'Final Round': 'Final',
+    'Offer 🎉': 'Offer',
+    'Rejected': 'Rejected',
+    'Ghosted 👻': 'Ghosted',
+    'Withdrawn': 'Withdrawn'
+  };
+  var STORED_TO_LABEL = {
+    'Prospect': 'Prospect',
+    'Applied': 'Applied',
+    'Interview 1': 'Interview 1',
+    'Interview 2': 'Interview 2',
+    'Final Round': 'Final',
+    'Offer 🎉': 'Offer',
+    'Rejected': 'Rejected',
+    'Ghosted 👻': 'Ghosted',
+    'Withdrawn': 'Withdrawn'
+  };
+  /** Maps pipeline stage name to canonical CSS key (from statusConfig). Interview -> interviewed. */
+  function stageToCanonicalKey(stage) {
+    var map = { Prospect: 'prospect', Applied: 'applied', Interview: 'interviewed', Final: 'final', Offer: 'offer' };
+    return map[stage] || (stage && String(stage).toLowerCase()) || 'prospect';
+  }
+  function getStageForStatus(storedStatus) {
+    var s = String(storedStatus || 'Prospect').trim();
+    return STORED_TO_STAGE[s] || 'Prospect';
+  }
+  function getDisplayLabel(storedStatus) {
+    var s = String(storedStatus || 'Prospect').trim();
+    return STORED_TO_LABEL[s] || s.replace(/\s*[\u{1F300}-\u{1F9FF}]/gu, '').trim() || 'Prospect';
+  }
+  function getStageCssClass(storedStatus) {
+    var stage = getStageForStatus(storedStatus) || 'Prospect';
+    return 'stage-' + stageToCanonicalKey(stage);
+  }
+  /** Salary display only. Never use goodFit here; salary and goodFit must stay separate. */
+  /** Safe salary formatter: only shows validated salary-like strings; never dates/timestamps. Returns "Salary not listed" if invalid. O(1) per card; no description parsing. */
+  function formatSalary(job) {
+    if (!job) return 'Salary not listed';
+    var val = job.salary != null ? job.salary : job.compensation;
+    if (val == null) return 'Salary not listed';
+    if (typeof val === 'object') return 'Salary not listed';
+    var raw = String(val);
+    var s = raw.trim().replace(/\s+/g, ' ');
+    if (!s || s === '—') return 'Salary not listed';
+
+    var lower = s.toLowerCase();
+    var reject = false;
+    var dayNames = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    var monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    var i;
+    for (i = 0; i < dayNames.length; i++) { if (lower.indexOf(dayNames[i]) !== -1) { reject = true; break; } }
+    if (!reject) for (i = 0; i < monthNames.length; i++) { if (lower.indexOf(monthNames[i]) !== -1) { reject = true; break; } }
+    if (!reject && (/gmt|utc|est|edt|pst|pdt|am|pm\b/i.test(lower) || /\d{1,2}:\d{2}(:\d{2})?/.test(s))) reject = true;
+    if (!reject && /\b(19|20)\d{2}\b/.test(s) && (lower.indexOf('jan') !== -1 || lower.indexOf('feb') !== -1 || lower.indexOf('mar') !== -1 || lower.indexOf('apr') !== -1 || lower.indexOf('may') !== -1 || lower.indexOf('jun') !== -1 || lower.indexOf('jul') !== -1 || lower.indexOf('aug') !== -1 || lower.indexOf('sep') !== -1 || lower.indexOf('oct') !== -1 || lower.indexOf('nov') !== -1 || lower.indexOf('dec') !== -1 || dayNames.some(function(d) { return lower.indexOf(d) !== -1; }))) reject = true;
+    if (!reject && /^\d+$/.test(s.replace(/[,.\s]/g, ''))) reject = true;
+    if (!reject && s.length > 40 && !/[£$€]/.test(s) && !/\d[kK]/.test(s)) reject = true;
+    if (reject) return 'Salary not listed';
+
+    var accept = /[£$€]/.test(s) || /\d[kK]/.test(s) || /per\s*hour|\/hr|hour|year|annum|\byr\b|salary/i.test(s) || (/\d/.test(s) && /[-–]/.test(s));
+    if (!accept) return 'Salary not listed';
+    return s;
+  }
+
+  /** Days in current stage: from stageChangedAt or added_at. Returns "Today" or "X days". */
+  function getDaysInCurrentStage(job) {
+    var raw = (job && (job.stageChangedAt != null ? job.stageChangedAt : job.added_at)) || '';
+    if (!raw) return '—';
+    var d = typeof raw === 'string' ? new Date(raw.replace(' ', 'T')) : new Date(raw);
+    if (isNaN(d.getTime())) return '—';
+    var now = new Date();
+    var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var startOfThen = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var days = Math.floor((startOfToday - startOfThen) / (24 * 60 * 60 * 1000));
+    if (days === 0) return 'Today';
+    if (days === 1) return '1 day';
+    return days + ' days';
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // UTILITIES
@@ -27,6 +163,73 @@
     return Math.abs(h);
   }
 
+  function jobKey(job) {
+    return (job && job.url) ? job.url : (job ? (job.company + '||' + job.title) : '');
+  }
+
+  // Stage → icon name for header pills (reuse metrics icon language)
+  var STAGE_TO_ICON = { Prospect: 'openSignals', Applied: 'applied', Interview: 'interviewing', Final: 'star', Offer: 'target' };
+  // Icon registry: semantic name → sprite symbol id (single source of truth)
+  var ICON_REGISTRY = {
+    openSignals: 'icon-open-signals',
+    inTracker: 'icon-in-tracker',
+    applied: 'icon-applied',
+    interviewing: 'icon-interviewing',
+    addedThisWeek: 'icon-added-this-week',
+    fetch: 'icon-fetch',
+    refresh: 'icon-refresh',
+    addToTracker: 'icon-add-to-tracker',
+    addManually: 'icon-plus',
+    clearFilters: 'icon-clear-filters',
+    view: 'icon-view',
+    star: 'icon-star',
+    clipboard: 'icon-clipboard',
+    lightbulb: 'icon-lightbulb',
+    save: 'icon-save',
+    copy: 'icon-copy',
+    plus: 'icon-plus',
+    radar: 'icon-radar',
+    target: 'icon-target',
+    goodFit: 'icon-good-fit',
+    calendar: 'icon-calendar',
+    pencil: 'icon-pencil',
+    trash: 'icon-trash'
+  };
+
+  function iconHtml(name, size) {
+    size = size || 24;
+    var sym = (ICON_REGISTRY && ICON_REGISTRY[name]) ? ICON_REGISTRY[name] : ('icon-' + name);
+    return '<svg class="icon-inline" width="' + size + '" height="' + size + '" viewBox="0 0 24 24"><use href="#' + sym + '"/></svg>';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // TAB STATE + ROUTING
+  // ─────────────────────────────────────────────────────────────────────────────
+  function setTab(tab) {
+    currentTab = tab;
+    var tabs = ['inbox', 'tracker'];
+    for (var i = 0; i < tabs.length; i++) {
+      var t = tabs[i];
+      var el = $('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (el) el.classList.toggle('hidden', t !== tab);
+      var btn = $('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+      if (btn) btn.classList.toggle('active', t === tab);
+    }
+    var fetchBtn = $('fetchBtn');
+    var addBtn = $('addManuallyBtn');
+    if (fetchBtn) fetchBtn.style.display = (tab === 'inbox') ? '' : 'none';
+    if (addBtn) addBtn.style.display = (tab === 'tracker') ? '' : 'none';
+    updateCommandBarCounts();
+    if (tab === 'tracker' && trackerCache.length === 0) loadTracker();
+  }
+
+  function updateCommandBarCounts() {
+    var el = $('lastFetchTime');
+    if (el) el.textContent = lastFetchTimeStr || 'Last fetch: —';
+    var countEl = $('inboxTrackerCounts');
+    if (countEl) countEl.textContent = 'Inbox: ' + inboxCache.length + ' · Tracker: ' + trackerCache.length;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // INITIALIZE
   // ─────────────────────────────────────────────────────────────────────────────
@@ -34,23 +237,171 @@
     $('profileName').textContent = BOOT.profile.displayName || BOOT.profile.profileId;
     $('statusText').textContent = BOOT.profile.status.toUpperCase();
     $('statusBadge').classList.add(BOOT.profile.status === 'active' ? 'active' : 'locked');
-    
-    loadData();
+    var vEl = $('navVersion');
+    if (vEl && BOOT.version) vEl.textContent = 'v' + BOOT.version;
+    var adminLink = $('navAdminLink');
+    if (adminLink) adminLink.href = window.location.href.split('?')[0];
+    var cbl = $('commandBarLeft');
+    if (cbl) cbl.innerHTML = '<button class="btn btn-primary" id="fetchBtn" onclick="fetchJobs()">' + iconHtml('fetch', 18) + ' Fetch New Roles</button><button class="btn" id="refreshBtn" onclick="refreshCurrentTab()">' + iconHtml('refresh', 18) + ' Refresh</button><button class="btn" id="addManuallyBtn" onclick="showManualAdd()">' + iconHtml('addManually', 18) + ' Add Manually</button>';
+    setTab('inbox');
+    loadInbox();
+    loadDashboard();
+    var tabIds = ['tabBtnInbox', 'tabBtnTracker'];
+    var tabValues = ['inbox', 'tracker'];
+    for (var i = 0; i < tabIds.length; i++) {
+      var btn = $(tabIds[i]);
+      if (btn) btn.addEventListener('click', (function(t) { return function() { setTab(t); }; })(tabValues[i]));
+    }
+    document.addEventListener('click', function(e) {
+      var panel = $('closedPanel');
+      var trigger = $('closedTrigger');
+      if (panel && panel.classList.contains('open') && trigger !== e.target && !panel.contains(e.target)) panel.classList.remove('open');
+    });
+    document.addEventListener('click', function(e) {
+      if (spotlightCard) return;
+      if (e.target.closest('.tracker-goodfit-btn')) return;
+      if (e.target.closest('.tracker-card-back')) return;
+      var listEl = $('trackerList');
+      if (listEl) listEl.querySelectorAll('.tracker-card.flipped').forEach(function(c) { c.classList.remove('flipped'); c.style.height = ''; c.style.minHeight = ''; });
+    });
+    var overlay = $('spotlightOverlay');
+    if (overlay) overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSpotlight(); });
+    var slot = $('spotlightSlot');
+    if (slot) slot.addEventListener('click', function(e) { if (e.target === slot) closeSpotlight(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && spotlightCard) closeSpotlight(); });
+  }
+
+  function setFlippedCardHeight(card) {
+    if (!card) return;
+    var back = card.querySelector('.tracker-card-back');
+    if (!back) return;
+    var heading = back.querySelector('.good-fit-heading');
+    var content = back.querySelector('.good-fit-back-content');
+    var btn = back.querySelector('.good-fit-back-btn');
+    var pad = 24;
+    var gap = 16;
+    var h = (heading ? heading.offsetHeight : 0) + (content ? content.scrollHeight : 0) + (btn ? btn.offsetHeight : 0) + pad + gap;
+    var maxH = Math.min(560, Math.floor(window.innerHeight * 0.72));
+    card.style.height = Math.min(h, maxH) + 'px';
+    card.style.minHeight = '0';
+  }
+
+  function openSpotlight(card, initialTab) {
+    if (!card) return;
+    var key = card.getAttribute('data-tracker-key-full');
+    if (!key) return;
+    var slot = $('spotlightSlot');
+    if (!slot) return;
+    spotlightSlotParent = card.parentNode;
+    spotlightSlotNextSibling = card.nextSibling;
+    slot.appendChild(card);
+    spotlightCard = card;
+    spotlightKey = key;
+    card.classList.add('is-spotlight');
+    card.setAttribute('data-spotlight-tab', initialTab || 'overview');
+    slot.classList.add('visible');
+    slot.setAttribute('aria-hidden', 'false');
+    var overlay = $('spotlightOverlay');
+    if (overlay) { overlay.classList.add('visible'); overlay.setAttribute('aria-hidden', 'false'); }
+    document.body.classList.add('spotlight-active');
+    var tabs = card.querySelectorAll('.spotlight-tab');
+    tabs.forEach(function(t) {
+      t.classList.toggle('active', t.getAttribute('data-spotlight-tab') === (initialTab || 'overview'));
+    });
+    var notesTa = card.querySelector('.spotlight-notes-textarea');
+    if (notesTa && initialTab === 'notes') {
+      var job = trackerCache.find(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+      if (job) notesTa.value = job.notes || '';
+    }
+    if (initialTab === 'goodfit') {
+      var job = trackerCache.find(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+      var panel = card.querySelector('.spotlight-panel-goodfit .good-fit-back-content');
+      if (panel && job) {
+        if (job.goodFit && String(job.goodFit).trim()) {
+          var statements = String(job.goodFit).trim().split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+          var html = '<div class="good-fit-statements">';
+          statements.slice(0, 5).forEach(function(s) { html += '<p class="good-fit-statement">' + esc(s) + '</p>'; });
+          html += '</div>';
+          panel.innerHTML = html;
+        } else {
+          panel.innerHTML = '<p class="color-text-dim">Generating…</p>';
+          api('getOrCreateGoodFit', { trackerKey: key, force: false }).then(function(r) {
+            if (r && r.ok && r.goodFit) {
+              var idx = trackerCache.findIndex(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+              if (idx !== -1) trackerCache[idx].goodFit = r.goodFit;
+              var statements = String(r.goodFit).trim().split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+              var h = '<div class="good-fit-statements">';
+              statements.slice(0, 5).forEach(function(s) { h += '<p class="good-fit-statement">' + esc(s) + '</p>'; });
+              h += '</div>';
+              if (spotlightCard && panel && panel.parentNode) panel.innerHTML = h;
+              showToast('GoodFit generated.', 'success');
+            } else {
+              if (panel && panel.parentNode) panel.innerHTML = '<p class="color-text-dim good-fit-placeholder">Generation failed. Try again.</p>';
+              showToast(r && r.message ? r.message : 'GoodFit failed', 'error');
+            }
+          }).catch(function() {
+            if (panel && panel.parentNode) panel.innerHTML = '<p class="color-text-dim good-fit-placeholder">Generation failed. Try again.</p>';
+            showToast('GoodFit failed', 'error');
+          });
+        }
+      }
+    }
+  }
+
+  function closeSpotlight() {
+    var slot = $('spotlightSlot');
+    if (spotlightCard && spotlightSlotParent) {
+      spotlightCard.classList.remove('is-spotlight');
+      spotlightCard.removeAttribute('data-spotlight-tab');
+      spotlightSlotParent.insertBefore(spotlightCard, spotlightSlotNextSibling);
+      spotlightCard = null;
+    }
+    spotlightKey = null;
+    spotlightSlotParent = null;
+    spotlightSlotNextSibling = null;
+    if (slot) { slot.classList.remove('visible'); slot.setAttribute('aria-hidden', 'true'); }
+    var overlay = $('spotlightOverlay');
+    if (overlay) { overlay.classList.remove('visible'); overlay.setAttribute('aria-hidden', 'true'); }
+    document.body.classList.remove('spotlight-active');
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // API
+  // API (with retry and structured error mapping)
   // ─────────────────────────────────────────────────────────────────────────────
+  var API_RETRIES = 2;
+  var API_RETRY_DELAY_MS = 800;
+
   function api(op, data) {
     return new Promise(function(resolve) {
-      google.script.run
-        .withSuccessHandler(function(res) {
-          resolve(res || { ok: false, message: 'Empty response' });
-        })
-        .withFailureHandler(function(err) {
-          resolve({ ok: false, message: (err && err.message) || String(err) });
-        })
-        .portal_api(profileId, { op: op, data: data || {} });
+      function run(attempt) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.ok) {
+              resolve(res);
+              return;
+            }
+            var msg = (res && res.message) ? res.message : 'Request failed';
+            if (res && res.message && res.message.indexOf('locked') !== -1) {
+              msg = 'Profile is locked. Try again later or contact support.';
+            }
+            if (res && res.message && res.message.indexOf('throttl') !== -1) {
+              msg = 'Please wait a moment before trying again.';
+            }
+            resolve({ ok: false, message: msg, code: (res && res.message) ? 'SERVER' : null });
+          })
+          .withFailureHandler(function(err) {
+            var errStr = (err && err.message) ? err.message : String(err);
+            if (attempt < API_RETRIES) {
+              setTimeout(function() { run(attempt + 1); }, API_RETRY_DELAY_MS * Math.pow(1.5, attempt));
+              return;
+            }
+            var msg = 'Connection issue. Check your network and try again.';
+            if (errStr.indexOf('Authorization') !== -1 || errStr.indexOf('script') !== -1) msg = 'Session issue. Refresh the page and try again.';
+            resolve({ ok: false, message: msg, code: 'NETWORK' });
+          })
+          .portal_api(profileId, { op: op, data: data || {} });
+      }
+      run(0);
     });
   }
 
@@ -59,14 +410,19 @@
   // ─────────────────────────────────────────────────────────────────────────────
   function setLoading(loading, message) {
     isBusy = loading;
-    $('fetchBtn').disabled = loading;
-    $('refreshBtn').disabled = loading;
-    $('loadingOverlay').classList.toggle('visible', loading);
-    
-    var textEl = $('loadingText');
-    if (textEl) {
-      textEl.textContent = message || 'Loading...';
+    var fetchBtn = $('fetchBtn');
+    var refreshBtn = $('refreshBtn');
+    if (fetchBtn) {
+      fetchBtn.disabled = loading;
+      if (!loading) {
+        fetchBtn.classList.remove('btn-loading');
+        fetchBtn.innerHTML = '<span class="icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#icon-radar"/></svg></span> Fetch New Roles';
+      }
     }
+    if (refreshBtn) refreshBtn.disabled = loading;
+    $('loadingOverlay').classList.toggle('visible', loading);
+    var textEl = $('loadingText');
+    if (textEl) textEl.textContent = message || 'Loading...';
   }
 
   function showToast(msg, type) {
@@ -75,7 +431,7 @@
     toast.className = 'toast visible ' + (type || '');
     setTimeout(function() {
       toast.classList.remove('visible');
-    }, 4000);
+    }, 2500);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -83,73 +439,385 @@
   // ─────────────────────────────────────────────────────────────────────────────
   async function fetchJobs() {
     if (isBusy) return;
-    setLoading(true, 'Scanning for new roles...');
-
-    var res = await api('fetch');
-
-    if (!res || !res.ok) {
-      showToast('❌ ' + (res && res.message ? res.message : 'Fetch failed'), 'error');
-      setLoading(false);
-      return;
+    var phrases = FETCH_LOADING_PHRASES;
+    var idx = Math.floor(Math.random() * phrases.length);
+    var firstMsg = phrases[idx];
+    setLoading(true, firstMsg);
+    var fetchBtn = $('fetchBtn');
+    if (fetchBtn) {
+      fetchBtn.classList.add('btn-loading');
+      fetchBtn.textContent = 'Fetch …';
     }
-
-    var count = res.count || 0;
-    showToast('✅ Found ' + count + ' new role' + (count !== 1 ? 's' : ''), 'success');
-    $('lastFetchTime').textContent = 'Last fetch: just now';
-    
-    await loadData();
-    setLoading(false);
+    var loadingRotateId = setInterval(function() {
+      if (!isBusy) return;
+      var textEl = $('loadingText');
+      if (!textEl) return;
+      idx = (idx + 1) % phrases.length;
+      textEl.textContent = phrases[idx];
+    }, FETCH_LOADING_ROTATE_MS);
+    try {
+      var res = await api('fetch');
+      if (!res || !res.ok) {
+        showToast('Fetch failed: ' + (res && res.message ? res.message : 'Unknown error'), 'error');
+        return;
+      }
+      var count = res.count || 0;
+      showToast(count + ' new role' + (count !== 1 ? 's' : '') + ' fetched.', 'success');
+      lastFetchTimeStr = 'Last fetch: just now';
+      await loadInbox();
+    } finally {
+      clearInterval(loadingRotateId);
+      setLoading(false);
+    }
   }
 
-  async function refreshAll() {
+  async function refreshCurrentTab() {
     if (isBusy) return;
     setLoading(true, 'Refreshing...');
-    await loadData();
+    if (currentTab === 'inbox') await loadInbox();
+    else if (currentTab === 'tracker') await loadTracker();
+    loadDashboard();
     setLoading(false);
-    showToast('✓ Refreshed', 'success');
+    showToast('Refreshed.', 'success');
   }
 
-  async function loadData() {
-    var results = await Promise.all([api('getInbox'), api('getTracker')]);
-
-    if (results[0] && results[0].ok) {
-      renderInbox(results[0].inbox || []);
-    } else {
-      console.error('Inbox load failed:', results[0]);
+  function showInboxSkeleton() {
+    var container = $('inboxList');
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < 4; i++) {
+      html += '<div class="job-card"><div class="skeleton" style="height:20px;width:70%;margin-bottom:8px"></div><div class="skeleton" style="height:14px;width:50%;margin-bottom:12px"></div><div class="skeleton" style="height:24px;width:100%"></div></div>';
     }
-    
-    if (results[1] && results[1].ok) {
-      renderTracker(results[1].tracker || []);
-    } else {
-      console.error('Tracker load failed:', results[1]);
-    }
+    container.innerHTML = html;
   }
 
-  async function promote(job) {
-    if (isBusy) return;
-    setLoading(true, 'Adding to Tracker...');
+  function showTrackerSkeleton() {
+    var container = $('trackerList');
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < 3; i++) {
+      html += '<div class="tracker-card"><div class="skeleton" style="height:18px;width:80%;margin-bottom:8px"></div><div class="skeleton" style="height:14px;width:60%;margin-bottom:12px"></div><div class="skeleton" style="height:32px;width:100%"></div></div>';
+    }
+    container.innerHTML = html;
+  }
 
-    var res = await api('promote', job);
-
+  async function loadInbox() {
+    showInboxSkeleton();
+    var res = await api('getInbox');
     if (res && res.ok) {
-      showToast('⭐ Added to Tracker!', 'success');
-      await loadData();
+      inboxCache = (res.inbox || []).slice();
+      inboxCache.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
+      renderInboxFilters();
+      renderInbox(inboxCache);
     } else {
-      showToast('⚠️ ' + (res && res.message ? res.message : 'Already in Tracker'), 'error');
+      console.error('Inbox load failed:', res);
+      var container = $('inboxList');
+      if (container) container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load inbox</div></div>';
     }
+    updateCommandBarCounts();
+  }
 
-    setLoading(false);
+  async function loadTracker() {
+    showTrackerSkeleton();
+    var timeoutMs = 15000;
+    var timeoutPromise = new Promise(function(resolve) {
+      setTimeout(function() { resolve({ timedOut: true }); }, timeoutMs);
+    });
+    var apiPromise = api('getTracker').then(function(res) { return { res: res, timedOut: false }; });
+    var result = await Promise.race([apiPromise, timeoutPromise]);
+    var res = result.res;
+    var timedOut = result.timedOut === true;
+    if (timedOut && !res) {
+      console.error('Tracker load timed out');
+      res = null;
+    }
+    if (res && res.ok) {
+      trackerCache = res.tracker || [];
+      renderTrackerPipeline();
+      renderTracker(getFilteredTrackerList());
+      loadDashboard();
+    } else {
+      if (!timedOut) console.error('Tracker load failed:', res);
+      var container = $('trackerList');
+      if (container) container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load tracker</div></div>';
+      showToast(timedOut ? 'Request timed out' : (res && res.message ? res.message : 'Could not load tracker'), 'error');
+    }
+    updateCommandBarCounts();
+  }
+
+  function renderInboxFilters() {
+    var row = $('inboxFiltersRow');
+    if (!row) return;
+    var lanes = [];
+    for (var i = 0; i < inboxCache.length; i++) {
+      var lb = String(inboxCache[i].laneLabel || '').trim();
+      if (lb && lanes.indexOf(lb) === -1) lanes.push(lb);
+    }
+    lanes.sort();
+    var laneOpts = '<option value="">All Lanes</option>';
+    for (var l = 0; l < lanes.length; l++) laneOpts += '<option value="' + esc(lanes[l]) + '">' + esc(lanes[l]) + '</option>';
+    row.innerHTML =
+      '<select class="form-select inbox-lane" id="inboxLane" style="max-width:160px" aria-label="Lane">' + laneOpts + '</select>' +
+      '<select class="form-select inbox-sort" id="inboxSort" style="max-width:140px" aria-label="Score"><option value="score">Score</option><option value="tier">Tier</option></select>';
+    var laneEl = $('inboxLane');
+    var sortEl = $('inboxSort');
+    if (laneEl) laneEl.addEventListener('change', applyInboxFilters);
+    if (sortEl) sortEl.addEventListener('change', applyInboxFilters);
+  }
+
+  function getInboxFilterState() {
+    var lane = ($('inboxLane') && $('inboxLane').value) ? $('inboxLane').value.trim() : '';
+    var sort = ($('inboxSort') && $('inboxSort').value) ? $('inboxSort').value : 'score';
+    return { lane: lane, sort: sort };
+  }
+
+  function applyInboxFilters() {
+    var state = getInboxFilterState();
+    var list = inboxCache.slice();
+    if (state.lane) {
+      list = list.filter(function(j) { return String(j.laneLabel || '').trim() === state.lane; });
+    }
+    if (state.sort === 'score') list.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
+    else if (state.sort === 'tier') {
+      var tierOrder = { S: 0, A: 1, B: 2, C: 3, F: 4 };
+      list.sort(function(a, b) {
+        var ta = tierOrder[String(a.tier || 'C').toUpperCase()] ?? 5;
+        var tb = tierOrder[String(b.tier || 'C').toUpperCase()] ?? 5;
+        return ta - tb;
+      });
+    }
+    renderInbox(list);
+  }
+
+  // Ops Mode = table view of the same filtered list (rapid-fire); not a separate filter or sort.
+  var trackerViewMode = 'list'; // 'list' | 'table'
+  var trackerFilter = { type: 'all' }; // { type: 'all' } | { type: 'stage', stage } | { type: 'closed', status }
+  var trackerSearchQuery = '';
+  var trackerSortOrder = 'newest'; // 'newest' | 'oldest'
+
+  function getFilteredTrackerList() {
+    var list;
+    if (trackerFilter.type === 'all') {
+      list = trackerCache.slice();
+      if (trackerSearchQuery) {
+        var q = trackerSearchQuery.trim().toLowerCase();
+        list = list.filter(function(j) {
+          var t = (j.title || '').toLowerCase();
+          var c = (j.company || '').toLowerCase();
+          return t.indexOf(q) !== -1 || c.indexOf(q) !== -1;
+        });
+      }
+      list.sort(function(a, b) {
+        var ta = String(a.added_at || '').trim();
+        var tb = String(b.added_at || '').trim();
+        if (!ta && !tb) return 0;
+        if (!ta) return 1;
+        if (!tb) return -1;
+        if (trackerSortOrder === 'oldest') return ta < tb ? -1 : ta > tb ? 1 : 0;
+        return tb < ta ? -1 : tb > ta ? 1 : 0;
+      });
+      return list;
+    }
+    if (trackerFilter.type === 'stage') {
+      var stage = trackerFilter.stage;
+      return trackerCache.filter(function(j) { return getStageForStatus(j.status) === stage; });
+    }
+    if (trackerFilter.type === 'closed') {
+      return trackerCache.filter(function(j) { return (j.status || 'Prospect') === trackerFilter.status; });
+    }
+    return trackerCache.slice();
+  }
+
+  function setTrackerViewMode(mode) {
+    trackerViewMode = mode;
+    renderTracker(getFilteredTrackerList());
+    var listBtn = $('trackerViewList');
+    var tableBtn = $('trackerViewTable');
+    if (listBtn) listBtn.classList.toggle('active', mode === 'list');
+    if (tableBtn) tableBtn.classList.toggle('active', mode === 'table');
+  }
+
+  function renderTrackerPipeline() {
+    var header = $('trackerHeader');
+    if (!header) return;
+    var countsByStage = {};
+    var countsByClosed = {};
+    for (var i = 0; i < PIPELINE_STAGES.length; i++) countsByStage[PIPELINE_STAGES[i]] = 0;
+    for (var c = 0; c < CLOSED_STATUSES.length; c++) countsByClosed[CLOSED_STATUSES[c]] = 0;
+    for (var k = 0; k < trackerCache.length; k++) {
+      var st = getStageForStatus(trackerCache[k].status);
+      if (PIPELINE_STAGES.indexOf(st) !== -1) countsByStage[st] = (countsByStage[st] || 0) + 1;
+      else if (CLOSED_STATUSES.indexOf(trackerCache[k].status) !== -1) countsByClosed[trackerCache[k].status] = (countsByClosed[trackerCache[k].status] || 0) + 1;
+    }
+    var closedTotal = 0;
+    for (var cs in countsByClosed) closedTotal += countsByClosed[cs];
+    var isAll = trackerFilter.type === 'all';
+    var activeStage = trackerFilter.type === 'stage' ? trackerFilter.stage : null;
+    var activeClosed = trackerFilter.type === 'closed' ? trackerFilter.status : null;
+    var html = '<div class="pipeline-row">';
+    html += '<button type="button" class="pipeline-chip pipeline-all' + (isAll ? ' active' : '') + '" data-filter="all">All (' + trackerCache.length + ')</button>';
+    html += '<div class="pipeline-bar">';
+    for (var p = 0; p < PIPELINE_STAGES.length; p++) {
+      var stage = PIPELINE_STAGES[p];
+      var count = countsByStage[stage] || 0;
+      var active = activeStage === stage;
+      var iconName = STAGE_TO_ICON[stage] || 'openSignals';
+      html += '<span class="pipeline-segment-wrap"><button type="button" class="pipeline-segment pipeline-segment-' + stageToCanonicalKey(stage) + (active ? ' active' : '') + '" data-stage="' + esc(stage) + '">' + iconHtml(iconName, 16) + esc(stage) + ' <span class="pipeline-count">' + count + '</span></button></span>';
+    }
+    html += '</div>';
+    html += '<div class="pipeline-closed-wrap">';
+    html += '<button type="button" class="pipeline-closed-trigger' + (activeClosed ? ' active' : '') + '" id="closedTrigger" aria-haspopup="true">Closed (' + closedTotal + ')</button>';
+    html += '<div class="pipeline-closed-panel" id="closedPanel" role="menu">';
+    for (var cl = 0; cl < CLOSED_STATUSES.length; cl++) {
+      var cStatus = CLOSED_STATUSES[cl];
+      var cCount = countsByClosed[cStatus] || 0;
+      var label = getDisplayLabel(cStatus);
+      var closedClass = cStatus === 'Rejected' ? ' closed-rejected' : (cStatus === 'Ghosted 👻' ? ' closed-ghosted' : ' closed-withdrawn');
+      html += '<button type="button" class="pipeline-closed-item' + closedClass + (activeClosed === cStatus ? ' active' : '') + '" data-closed-status="' + esc(cStatus) + '" role="menuitem">' + esc(label) + ' (' + cCount + ')</button>';
+    }
+    html += '<button type="button" class="pipeline-closed-clear" role="menuitem">All</button>';
+    html += '</div></div>';
+    html += '<span class="pipeline-view-toggle">';
+    html += '<button type="button" class="filter-pill' + (trackerViewMode === 'list' ? ' active' : '') + '" id="trackerViewList">List</button>';
+    html += '<button type="button" class="filter-pill' + (trackerViewMode === 'table' ? ' active' : '') + '" id="trackerViewTable">Ops Mode</button>';
+    html += '</span></div>';
+    header.innerHTML = html;
+    header.querySelector('.pipeline-all').addEventListener('click', function() { filterTrackerByStatus('All'); });
+    header.querySelectorAll('.pipeline-segment').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var stage = btn.getAttribute('data-stage');
+        if (stage) filterTrackerByStage(stage);
+      });
+    });
+    header.querySelectorAll('.pipeline-closed-item').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var status = btn.getAttribute('data-closed-status');
+        if (status) filterTrackerByStatus(status);
+        var panel = $('closedPanel');
+        if (panel) panel.classList.remove('open');
+      });
+    });
+    var clearBtn = header.querySelector('.pipeline-closed-clear');
+    if (clearBtn) clearBtn.addEventListener('click', function() { filterTrackerByStatus('All'); var p = $('closedPanel'); if (p) p.classList.remove('open'); });
+    var trigger = $('closedTrigger');
+    var panel = $('closedPanel');
+    if (trigger && panel) {
+      trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        panel.classList.toggle('open');
+      });
+    }
+    var listBtn = $('trackerViewList');
+    var tableBtn = $('trackerViewTable');
+    if (listBtn) listBtn.addEventListener('click', function() { setTrackerViewMode('list'); });
+    if (tableBtn) tableBtn.addEventListener('click', function() { setTrackerViewMode('table'); });
+
+    var filtersRow = $('trackerFiltersRow');
+    if (filtersRow) {
+      if (trackerFilter.type === 'all') {
+        filtersRow.style.display = '';
+        filtersRow.innerHTML = '<input type="text" class="form-input tracker-search" id="trackerSearch" placeholder="Search title or company..." style="max-width:240px" aria-label="Search" />' +
+          '<select class="form-select tracker-sort" id="trackerSort" style="max-width:160px" aria-label="Sort"><option value="newest">Newest added</option><option value="oldest">Oldest added</option></select>';
+        var searchEl = $('trackerSearch');
+        var sortEl = $('trackerSort');
+        if (searchEl) { searchEl.value = trackerSearchQuery; searchEl.addEventListener('input', function() { trackerSearchQuery = searchEl.value; renderTracker(getFilteredTrackerList()); }); }
+        if (sortEl) { sortEl.value = trackerSortOrder; sortEl.addEventListener('change', function() { trackerSortOrder = sortEl.value; renderTracker(getFilteredTrackerList()); }); }
+      } else {
+        filtersRow.style.display = 'none';
+        filtersRow.innerHTML = '';
+      }
+    }
+  }
+
+  function filterTrackerByStage(stage) {
+    var wasStage = trackerFilter.type === 'stage' && trackerFilter.stage === stage;
+    trackerFilter = wasStage ? { type: 'all' } : { type: 'stage', stage: stage };
+    renderTrackerPipeline();
+    renderTracker(getFilteredTrackerList());
+  }
+
+  function filterTrackerByStatus(status) {
+    if (status === 'All') {
+      trackerFilter = { type: 'all' };
+    } else if (CLOSED_STATUSES.indexOf(status) !== -1) {
+      trackerFilter = { type: 'closed', status: status };
+    } else {
+      var stage = getStageForStatus(status);
+      trackerFilter = { type: 'stage', stage: stage };
+    }
+    renderTrackerPipeline();
+    renderTracker(getFilteredTrackerList());
+  }
+
+  var dashboardCache = { inboxCount: 0, trackerCount: 0, byStatus: {}, inboxAddedLast7: 0, trackerAddedLast7: 0 };
+  async function loadDashboard() {
+    var res = await api('getDashboard');
+    if (res && res.ok) {
+      dashboardCache = {
+        inboxCount: res.inboxCount || 0,
+        trackerCount: res.trackerCount || 0,
+        byStatus: res.byStatus || {},
+        inboxAddedLast7: res.inboxAddedLast7 || 0,
+        trackerAddedLast7: res.trackerAddedLast7 || 0
+      };
+      renderMetrics(dashboardCache);
+    }
+  }
+
+  function renderMetrics(dash) {
+    var col = $('metricsColumn');
+    if (!col) return;
+    var byStatus = dash.byStatus || {};
+    var applied = (byStatus['Applied'] || 0) + (byStatus['Interview 1'] || 0) + (byStatus['Interview 2'] || 0) + (byStatus['Final Round'] || 0) + (byStatus['Offer 🎉'] || 0);
+    var interviewing = (byStatus['Interview 1'] || 0) + (byStatus['Interview 2'] || 0);
+    var v1 = dash.inboxCount || 0;
+    var v2 = dash.trackerCount || 0;
+    var v3 = byStatus['Applied'] || 0;
+    var v4 = interviewing;
+    var v5 = (dash.inboxAddedLast7 || 0) + (dash.trackerAddedLast7 || 0);
+    var html = '';
+    html += '<div class="metric-card metric-open-signals"><div class="metric-card-icon">' + iconHtml('openSignals') + '</div><div class="metric-card-label">Open Signals</div><div class="metric-card-value">' + v1 + '</div></div>';
+    html += '<div class="metric-card metric-in-tracker"><div class="metric-card-icon">' + iconHtml('inTracker') + '</div><div class="metric-card-label">In Tracker</div><div class="metric-card-value">' + v2 + '</div></div>';
+    html += '<button type="button" class="metric-card metric-applied" data-stage="Applied" aria-label="Filter by Applied"><div class="metric-card-icon">' + iconHtml('applied') + '</div><div class="metric-card-label">Applied</div><div class="metric-card-value">' + v3 + '</div></button>';
+    html += '<button type="button" class="metric-card metric-interviewing" data-stage="Interview" aria-label="Filter by Interviewing"><div class="metric-card-icon">' + iconHtml('interviewing') + '</div><div class="metric-card-label">Interviewing</div><div class="metric-card-value">' + v4 + '</div></button>';
+    html += '<div class="metric-card metric-added-week"><div class="metric-card-icon">' + iconHtml('addedThisWeek') + '</div><div class="metric-card-label">Added this week</div><div class="metric-card-value">' + v5 + '</div></div>';
+    html += '<div style="margin-top:auto;padding-top:var(--space-3)"><button type="button" class="btn" style="width:100%;font-size:0.75rem" onclick="resetAllFilters()">Reset filters</button></div>';
+    col.innerHTML = html;
+    col.querySelectorAll('.metric-card[data-stage]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var stage = btn.getAttribute('data-stage');
+        if (stage) {
+          setTab('tracker');
+          filterTrackerByStage(stage);
+        }
+      });
+    });
+  }
+
+  function resetAllFilters() {
+    clearInboxFilters();
+    trackerFilter = { type: 'all' };
+    if (currentTab === 'tracker') {
+      renderTrackerPipeline();
+      renderTracker(getFilteredTrackerList());
+    }
+    showToast('Filters reset.', 'success');
   }
 
   async function updateTracker(url, company, title) {
     var key = url || (company + '||' + title);
     var h = hash(key);
 
-    var status = $('st_' + h).value;
-    var notes = $('no_' + h).value;
-    var dateApplied = $('da_' + h).value;
+    var statusEl = $('st_' + h);
+    var notesEl = $('no_' + h);
+    var dateEl = $('da_' + h);
+    var status = statusEl ? statusEl.value : '';
+    var notes = notesEl ? notesEl.value : '';
+    var dateApplied = dateEl ? dateEl.value : '';
 
-    setLoading(true, 'Saving...');
+    var rowWrap = document.querySelector('.tracker-card[data-tracker-key="' + h + '"]') || document.querySelector('.tracker-table-row[data-tracker-key="' + h + '"]');
+    var saveBtn = rowWrap ? rowWrap.querySelector('.tracker-save-btn') : null;
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
     var res = await api('updateTracker', {
       url: url,
@@ -160,14 +828,18 @@
       dateApplied: dateApplied
     });
 
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = res && res.ok ? '✓ Saved' : iconHtml('save', 18) + ' Save'; }
     if (res && res.ok) {
-      showToast('✅ Saved', 'success');
+      showToast('Saved.', 'success');
+      var idx = trackerCache.findIndex(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+      if (idx !== -1) {
+        trackerCache[idx].status = status;
+        trackerCache[idx].notes = notes;
+        trackerCache[idx].dateApplied = dateApplied;
+      }
     } else {
-      showToast('❌ ' + (res && res.message ? res.message : 'Save failed'), 'error');
+      showToast('Save failed: ' + (res && res.message ? res.message : 'Unknown error'), 'error');
     }
-
-    await loadData();
-    setLoading(false);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -206,14 +878,22 @@
       tier: 'C',
       score: 0,
       jobSummary: 'Manually added',
-      whyFit: ''
+      whyFit: '',
+      status: 'Prospect',
+      notes: '',
+      dateApplied: ''
     };
     
     var res = await api('promote', job);
     
     if (res && res.ok) {
-      showToast('⭐ Added to Tracker!', 'success');
-      await loadData();
+      showToast('Added to Tracker.', 'success');
+      trackerCache.push(job);
+      updateCommandBarCounts();
+      if (currentTab === 'tracker') {
+        renderTrackerPipeline();
+        renderTracker(getFilteredTrackerList());
+      }
     } else {
       showToast('❌ ' + (res && res.message ? res.message : 'Failed to add'), 'error');
     }
@@ -225,159 +905,324 @@
   // RENDER INBOX
   // ─────────────────────────────────────────────────────────────────────────────
   function renderInbox(list) {
-    var countEl = $('inboxCount');
-    countEl.textContent = list.length + ' role' + (list.length !== 1 ? 's' : '');
-
     var container = $('inboxList');
-
+    if (!container) return;
     if (!list.length) {
       container.innerHTML =
         '<div class="empty-state">' +
-          '<div class="empty-icon">📡</div>' +
-          '<div class="empty-title">No roles in your inbox yet</div>' +
-          '<div class="empty-subtitle">Click "Fetch New Roles" to start scanning for opportunities</div>' +
+          '<div class="empty-icon">' + iconHtml('openSignals', 48) + '</div>' +
+          '<div class="empty-title">No roles yet — click \'Fetch New Roles\' to start the hunt.</div>' +
         '</div>';
       return;
     }
-
-    var html = '';
+    var frag = document.createDocumentFragment();
     for (var i = 0; i < list.length; i++) {
       var job = list[i];
+      var key = jobKey(job);
       var tier = String(job.tier || 'C').toUpperCase();
       var cardClass = tier === 'S' ? 'job-card tier-s' : 'job-card';
-      var whyFitId = 'whyfit_' + i;
-
-      html += '<div class="' + cardClass + '">';
-      
-      // Header
-      html += '<div class="job-header">';
-      html += '<div class="job-title">' + esc(job.title) + '</div>';
-      html += '<div class="job-company">' + esc(job.company) + '</div>';
-      html += '</div>';
-
-      // Meta chips
-      html += '<div class="job-meta">';
-      html += '<span class="chip chip-tier chip-tier-' + tier.toLowerCase() + '">Tier ' + tier + ' · ' + esc(job.score) + '</span>';
-      if (job.laneLabel) {
-        html += '<span class="chip chip-lane">' + esc(job.laneLabel) + '</span>';
-      }
-      html += '<span class="chip">' + esc(job.location || 'Remote') + '</span>';
-      html += '<span class="chip">' + esc(job.source) + '</span>';
-      html += '</div>';
-
-      // Summary
-      if (job.jobSummary) {
-        html += '<div class="job-summary">' + esc(job.jobSummary) + '</div>';
-      }
-
-      // Why Fit
-      if (job.whyFit) {
-        html += '<div class="why-fit">';
-        html += '<div class="why-fit-toggle" onclick="toggleWhyFit(\'' + whyFitId + '\', this)">';
-        html += '<span class="arrow">▶</span>';
-        html += '<span>Why You\'re a Fit</span>';
-        html += '</div>';
-        html += '<div class="why-fit-content" id="' + whyFitId + '">';
-        html += '<div class="why-fit-label">Why You\'re a Fit</div>';
-        html += '<div class="why-fit-text">' + esc(job.whyFit) + '</div>';
-        html += '</div>';
-        html += '</div>';
-      }
-
-      // Actions
-      html += '<div class="job-actions">';
-      html += '<a class="btn" href="' + esc(job.url) + '" target="_blank" rel="noopener">View Job →</a>';
-      html += '<button class="btn btn-primary" onclick=\'promote(' + JSON.stringify(job) + ')\'>⭐ Track</button>';
-      html += '</div>';
-
-      html += '</div>';
+      var card = document.createElement('div');
+      card.className = cardClass;
+      card.dataset.jobKey = key;
+      var summary = (job.jobSummary || '').trim();
+      var summaryEsc = summary ? esc(summary) : '';
+      var salaryDisplay = esc(formatSalary(job));
+      card.innerHTML =
+        '<div class="job-card-front">' +
+          '<div class="job-header">' +
+            '<div class="job-title">' + esc(job.title) + '</div>' +
+            '<div class="job-company">' + esc(job.company) + '</div>' +
+          '</div>' +
+          '<div class="job-meta">' +
+            '<span class="chip chip-tier chip-tier-' + tier.toLowerCase() + '">Tier ' + tier + ' · ' + esc(job.score) + '</span>' +
+            (job.laneLabel ? '<span class="chip chip-lane">' + esc(job.laneLabel) + '</span>' : '') +
+            '<span class="chip">' + esc(job.location || 'Remote') + '</span>' +
+            '<span class="chip">' + esc(job.source) + '</span>' +
+            '<span class="chip job-salary">' + salaryDisplay + '</span>' +
+          '</div>' +
+          (summaryEsc ? '<div class="job-summary-preview">' + summaryEsc + '</div>' : '') +
+          '<div class="job-actions">' +
+            '<a class="btn btn-card" href="' + esc(job.url) + '" target="_blank" rel="noopener">' + iconHtml('view', 18) + ' View job</a>' +
+            '<button type="button" class="btn btn-primary btn-card" data-promote="' + esc(key) + '">' + iconHtml('addToTracker', 18) + ' Add to Tracker</button>' +
+          '</div>' +
+        '</div>';
+      frag.appendChild(card);
     }
-
-    container.innerHTML = html;
+    container.innerHTML = '';
+    container.appendChild(frag);
+    container.querySelectorAll('[data-promote]').forEach(function(btn) {
+      var k = btn.getAttribute('data-promote');
+      var j = list.find(function(x) { return jobKey(x) === k; });
+      if (j) btn.addEventListener('click', function() { promote(j); });
+    });
   }
 
-  function toggleWhyFit(id, toggle) {
-    var content = $(id);
-    content.classList.toggle('open');
-    toggle.classList.toggle('open');
+  function promote(job) {
+    if (isBusy) return;
+    setLoading(true, 'Adding to Tracker...');
+    api('promote', job).then(function(res) {
+      if (res && res.ok) {
+        showToast('Added to Tracker.', 'success');
+        trackerCache.push(job);
+        updateCommandBarCounts();
+        if (currentTab === 'tracker') { renderTrackerPipeline(); renderTracker(getFilteredTrackerList()); }
+      } else {
+        showToast(res && res.message ? res.message : 'Already in Tracker.', 'error');
+      }
+      setLoading(false);
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // RENDER TRACKER
+  // RENDER TRACKER (list or table mode)
   // ─────────────────────────────────────────────────────────────────────────────
   function renderTracker(list) {
-    var countEl = $('trackerCount');
-    countEl.textContent = list.length + ' role' + (list.length !== 1 ? 's' : '');
-
     var container = $('trackerList');
-
+    if (!container) return;
     if (!list.length) {
       container.innerHTML =
         '<div class="empty-state">' +
-          '<div class="empty-icon">⭐</div>' +
-          '<div class="empty-title">Nothing in your Tracker yet</div>' +
-          '<div class="empty-subtitle">Add roles from your Inbox or use "+ Add Manually" to start tracking</div>' +
+          '<div class="empty-icon">' + iconHtml('star', 48) + '</div>' +
+          '<div class="empty-title">Nothing in your Tracker yet. Add roles you like from your Inbox.</div>' +
         '</div>';
       return;
     }
 
-    var statusOptions = [
-      'Prospect',
-      'Applied',
-      'Interview 1',
-      'Interview 2',
-      'Final Round',
-      'Offer 🎉',
-      'Rejected',
-      'Ghosted 👻',
-      'Withdrawn'
-    ];
+    if (trackerViewMode === 'table') {
+      var tableHtml = '<table class="tracker-table"><thead><tr><th>Title</th><th>Company</th><th>Salary</th><th>Current Stage</th><th>Days in Stage</th><th>Change Status</th><th>Actions</th></tr></thead><tbody>';
+      for (var t = 0; t < list.length; t++) {
+        var job = list[t];
+        var key = job.url || (job.company + '||' + job.title);
+        var h = hash(key);
+        var statusOpts = TRACKER_STATUS_OPTIONS.map(function(opt) {
+          return '<option' + (opt === job.status ? ' selected' : '') + '>' + esc(opt) + '</option>';
+        }).join('');
+        var tableSalary = formatSalary(job);
+        var daysInStage = getDaysInCurrentStage(job);
+        var statusLabel = job.status || 'Prospect';
+        var stageClass = getStageCssClass(statusLabel);
+        var eyeHref = (job.url && String(job.url).trim()) ? esc(job.url) : '#';
+        var eyeDisabled = !(job.url && String(job.url).trim());
+        var eyeHtml = eyeDisabled
+          ? '<span class="icon-btn tracker-eye-btn tracker-eye-btn-disabled" aria-label="View job posting" title="No URL">' + iconHtml('view', 18) + '</span>'
+          : '<a href="' + eyeHref + '" target="_blank" rel="noreferrer" class="icon-btn tracker-eye-btn" aria-label="View job posting" title="View job posting">' + iconHtml('view', 18) + '</a>';
+        var saveHtml = '<button type="button" class="btn btn-primary tracker-save-btn" onclick=\'updateTracker(' + JSON.stringify(job.url || '') + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>' + iconHtml('save', 18) + ' Save</button>';
+        tableHtml += '<tr class="tracker-table-row ' + stageClass + '" data-tracker-key="' + h + '">' +
+          '<td class="tracker-table-title">' + esc(job.title) + '</td>' +
+          '<td>' + esc(job.company) + '</td>' +
+          '<td class="tracker-table-salary">' + esc(tableSalary) + '</td>' +
+          '<td><span class="status-pill ' + stageClass + '">' + esc(statusLabel) + '</span></td>' +
+          '<td class="tracker-table-days">' + esc(daysInStage) + '</td>' +
+          '<td><select class="form-select form-select-sm" id="st_' + h + '">' + statusOpts + '</select></td>' +
+          '<td><div class="tracker-table-row-actions">' + eyeHtml + saveHtml + '</div></td>' +
+          '</tr>';
+      }
+      tableHtml += '</tbody></table>';
+      container.innerHTML = tableHtml;
+      return;
+    }
 
+    container.classList.remove('tracker-list-context-all', 'tracker-list-context-stage');
+    container.classList.add(trackerFilter.type === 'all' ? 'tracker-list-context-all' : 'tracker-list-context-stage');
     var html = '';
     for (var i = 0; i < list.length; i++) {
       var job = list[i];
       var key = job.url || (job.company + '||' + job.title);
       var h = hash(key);
+      var statusLabel = job.status || 'Prospect';
+      var jobSum = (job.jobSummary && String(job.jobSummary).trim()) ? String(job.jobSummary).trim() : '';
+      var goodFit = (job.goodFit && String(job.goodFit).trim()) ? String(job.goodFit).trim() : '';
+      var goodFitBackHtml = '';
+      if (goodFit) {
+        var statements = goodFit.split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+        goodFitBackHtml = '<div class="good-fit-statements">';
+        statements.slice(0, 5).forEach(function(s) { goodFitBackHtml += '<p class="good-fit-statement">' + esc(s) + '</p>'; });
+        goodFitBackHtml += '</div>';
+      } else {
+        goodFitBackHtml = '<p class="color-text-dim good-fit-placeholder">Click GoodFit to generate.</p>';
+      }
 
-      html += '<div class="tracker-card">';
+      var stageClass = getStageCssClass(statusLabel);
+      var companyLine = job.location ? esc(job.company) + ' • ' + esc(job.location) : esc(job.company);
+      var salaryDisplay = formatSalary(job);
+
+      html += '<div class="tracker-card ' + stageClass + '" data-tracker-key="' + h + '" data-tracker-key-full="' + esc(key) + '" data-expanded="false">';
+      html += '<div class="tracker-card-inner">';
+      html += '<div class="tracker-card-front">';
+      html += '<div class="tracker-card-header">';
+      html += '<div class="tracker-card-main">';
       html += '<div class="job-title">' + esc(job.title) + '</div>';
-      html += '<div class="job-company">' + esc(job.company) + ' · ' + esc(job.source) + '</div>';
-      
-      if (job.url) {
-        html += '<div style="margin-top:8px"><a href="' + esc(job.url) + '" target="_blank">View job →</a></div>';
-      }
-
-      // Status
-      html += '<div class="form-group">';
-      html += '<label class="form-label">Status</label>';
+      html += '<div class="job-company">' + companyLine + '</div>';
+      html += '<div class="tracker-meta-pill-row">';
+      html += '<span class="tracker-salary-pill meta-pill meta-pill--salary">' + esc(salaryDisplay) + '</span>';
+      html += '<span class="status-pill meta-pill meta-pill--status ' + stageClass + '" data-status="' + esc(statusLabel) + '">' + esc(statusLabel) + '</span>';
+      html += '</div>';
+      html += '</div>';
+      html += '<div class="tracker-card-actions-top">';
+      html += '<button type="button" class="btn btn-sm btn-icon tracker-expand-btn" data-tracker-key="' + h + '" title="Edit" aria-label="Edit">' + iconHtml('pencil', 18) + '</button>';
+      html += '</div></div>';
+      if (jobSum) html += '<div class="tracker-card-summary">' + esc(jobSum) + '</div>';
+      html += '<div class="tracker-card-cta">';
+      if (job.url) html += '<a href="' + esc(job.url) + '" target="_blank" rel="noopener" class="btn btn-primary tracker-view-job-btn">' + iconHtml('view', 20) + ' View job</a>';
+      else html += '<span class="tracker-view-job-btn tracker-view-job-btn-disabled">View job</span>';
+      html += '</div>';
+      html += '<div class="tracker-card-footer">';
+      if (trackerFilter.type === 'all') html += '<button type="button" class="btn btn-sm tracker-goodfit-btn" data-tracker-key-full="' + esc(key) + '" title="GoodFit">' + iconHtml('goodFit', 18) + ' GoodFit</button>';
+      html += '</div>';
+      html += '<div class="tracker-card-details">';
+      html += '<div class="form-group"><label class="form-label">Status</label>';
       html += '<select class="form-select" id="st_' + h + '">';
-      for (var s = 0; s < statusOptions.length; s++) {
-        var opt = statusOptions[s];
-        html += '<option' + (opt === job.status ? ' selected' : '') + '>' + opt + '</option>';
+      for (var s = 0; s < TRACKER_STATUS_OPTIONS.length; s++) {
+        var opt = TRACKER_STATUS_OPTIONS[s];
+        html += '<option' + (opt === statusLabel ? ' selected' : '') + '>' + opt + '</option>';
       }
-      html += '</select>';
+      html += '</select></div>';
+      html += '<div class="form-group"><label class="form-label">Date Applied</label>';
+      html += '<input class="form-input" type="date" id="da_' + h + '" value="' + esc(job.dateApplied || '') + '" /></div>';
+      html += '<div class="form-group"><label class="form-label">Notes</label>';
+      html += '<textarea class="form-textarea" id="no_' + h + '" placeholder="Add notes...">' + esc(job.notes || '') + '</textarea></div>';
+      html += '<div class="tracker-card-details-actions">';
+      html += '<button type="button" class="btn btn-primary tracker-save-btn" onclick=\'updateTracker(' + JSON.stringify(job.url || '') + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>' + iconHtml('save', 18) + ' Save</button>';
+      html += '<button type="button" class="btn btn-icon btn-sm tracker-remove-btn" data-tracker-key-full="' + esc(key) + '" title="Remove from Tracker" aria-label="Remove from Tracker">' + iconHtml('trash', 18) + '</button>';
+      html += '</div></div>';
       html += '</div>';
-
-      // Date Applied
-      html += '<div class="form-group">';
-      html += '<label class="form-label">Date Applied</label>';
-      html += '<input class="form-input" type="date" id="da_' + h + '" value="' + esc(job.dateApplied || '') + '" />';
+      html += '<div class="tracker-card-back">';
+      html += '<h3 class="good-fit-heading">Good Fit</h3>';
+      html += '<div class="good-fit-back-content">' + goodFitBackHtml + '</div>';
+      html += '<button type="button" class="btn btn-sm good-fit-back-btn">← Back</button>';
       html += '</div>';
-
-      // Notes
-      html += '<div class="form-group">';
-      html += '<label class="form-label">Notes</label>';
-      html += '<textarea class="form-textarea" id="no_' + h + '" placeholder="Add notes...">' + esc(job.notes || '') + '</textarea>';
+      html += '<div class="spotlight-detail">';
+      html += '<div class="spotlight-tabs">';
+      html += '<button type="button" class="spotlight-tab active" data-spotlight-tab="overview">Overview</button>';
+      html += '<button type="button" class="spotlight-tab" data-spotlight-tab="goodfit">Good Fit</button>';
+      html += '<button type="button" class="spotlight-tab" data-spotlight-tab="notes">Notes</button>';
+      html += '<button type="button" class="spotlight-close" aria-label="Close">×</button>';
       html += '</div>';
-
-      // Save button
-      html += '<button class="btn btn-primary" onclick=\'updateTracker(' + JSON.stringify(job.url || '') + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>';
-      html += '💾 Save</button>';
-
+      html += '<div class="spotlight-panel spotlight-panel-overview">';
+      html += '<div class="job-title">' + esc(job.title) + '</div>';
+      html += '<div class="job-company">' + companyLine + '</div>';
+      html += '<div class="tracker-meta-pill-row"><span class="tracker-salary-pill meta-pill meta-pill--salary">' + esc(salaryDisplay) + '</span><span class="status-pill meta-pill meta-pill--status ' + stageClass + '">' + esc(statusLabel) + '</span></div>';
+      if (jobSum) html += '<div class="tracker-card-summary">' + esc(jobSum) + '</div>';
+      if (job.url) html += '<a href="' + esc(job.url) + '" target="_blank" rel="noopener" class="btn btn-primary tracker-view-job-btn">' + iconHtml('view', 20) + ' View job</a>';
+      else html += '<span class="tracker-view-job-btn tracker-view-job-btn-disabled">View job</span>';
+      html += '</div>';
+      html += '<div class="spotlight-panel spotlight-panel-goodfit"><div class="good-fit-back-content">' + goodFitBackHtml + '</div></div>';
+      html += '<div class="spotlight-panel spotlight-panel-notes">';
+      html += '<textarea class="form-textarea spotlight-notes-textarea" id="no_spotlight_' + h + '" placeholder="Add notes...">' + esc(job.notes || '') + '</textarea>';
+      html += '<div class="spotlight-notes-save-wrap"><button type="button" class="btn btn-primary spotlight-notes-save-btn" data-tracker-key-full="' + esc(key) + '" data-tracker-h="' + h + '">' + iconHtml('save', 18) + ' Save</button></div>';
+      html += '</div>';
+      html += '</div>';
+      html += '</div>';
       html += '</div>';
     }
 
     container.innerHTML = html;
+    container.querySelectorAll('.tracker-expand-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.tracker-card');
+        if (!card) return;
+        var expanded = card.getAttribute('data-expanded') === 'true';
+        card.setAttribute('data-expanded', !expanded);
+        card.classList.toggle('expanded', !expanded);
+        btn.innerHTML = !expanded ? 'Done' : iconHtml('pencil', 18);
+        btn.setAttribute('title', !expanded ? 'Done' : 'Edit');
+        btn.setAttribute('aria-label', !expanded ? 'Done' : 'Edit');
+      });
+    });
+    container.querySelectorAll('.good-fit-back-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.tracker-card');
+        if (card) { card.classList.remove('flipped'); card.style.height = ''; card.style.minHeight = ''; }
+      });
+    });
+    container.querySelectorAll('.tracker-remove-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var key = btn.getAttribute('data-tracker-key-full');
+        if (!key) return;
+        if (!confirm('Remove this job from your tracker? It may appear in Inbox again after the next fetch.')) return;
+        if (isBusy) return;
+        setLoading(true, 'Removing…');
+        api('removeFromTracker', { trackerKey: key }).then(function(r) {
+          setLoading(false);
+          if (r && r.ok && r.deleted) {
+            for (var i = trackerCache.length - 1; i >= 0; i--) {
+              var j = trackerCache[i];
+              var jKey = (j.url && j.url.trim()) ? j.url : (j.company + '||' + j.title);
+              if (jKey === key) { trackerCache.splice(i, 1); break; }
+            }
+            updateCommandBarCounts();
+            renderTrackerPipeline();
+            renderTracker(getFilteredTrackerList());
+            loadDashboard();
+            showToast('Removed from Tracker.', 'success');
+          } else {
+            showToast(r && r.message ? r.message : 'Could not remove', 'error');
+          }
+        }).catch(function() { setLoading(false); showToast('Could not remove', 'error'); });
+      });
+    });
+    container.querySelectorAll('.tracker-goodfit-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.tracker-card');
+        if (card) openSpotlight(card, 'goodfit');
+      });
+    });
+    container.querySelectorAll('.spotlight-tab').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.tracker-card');
+        if (!card || !card.classList.contains('is-spotlight')) return;
+        var tab = btn.getAttribute('data-spotlight-tab');
+        if (!tab) return;
+        card.setAttribute('data-spotlight-tab', tab);
+        card.querySelectorAll('.spotlight-tab').forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-spotlight-tab') === tab); });
+      });
+    });
+    container.querySelectorAll('.spotlight-close').forEach(function(btn) {
+      btn.addEventListener('click', function(e) { e.stopPropagation(); closeSpotlight(); });
+    });
+    container.querySelectorAll('.spotlight-notes-save-btn').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var key = btn.getAttribute('data-tracker-key-full');
+        var h = btn.getAttribute('data-tracker-h');
+        if (!key || !h) return;
+        var card = btn.closest('.tracker-card');
+        var notesEl = card ? card.querySelector('.spotlight-notes-textarea') : null;
+        var notes = notesEl ? notesEl.value : '';
+        var job = trackerCache.find(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+        if (!job) return;
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        api('updateTracker', {
+          url: job.url || '',
+          company: job.company,
+          title: job.title,
+          status: job.status || 'Prospect',
+          notes: notes,
+          dateApplied: job.dateApplied || ''
+        }).then(function(res) {
+          btn.disabled = false;
+          btn.innerHTML = res && res.ok ? '✓ Saved' : iconHtml('save', 18) + ' Save';
+          if (res && res.ok) {
+            var idx = trackerCache.findIndex(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+            if (idx !== -1) trackerCache[idx].notes = notes;
+            showToast('Saved.', 'success');
+          } else {
+            showToast(res && res.message ? res.message : 'Save failed', 'error');
+          }
+        }).catch(function() {
+          btn.disabled = false;
+          btn.innerHTML = iconHtml('save', 18) + ' Save';
+          showToast('Save failed', 'error');
+        });
+      });
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

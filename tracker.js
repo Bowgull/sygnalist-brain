@@ -24,12 +24,16 @@ function buildTrackerEntryFromEnrichedJob_(job, profileId) {
     source: String(j.source || "").trim(),
     dateApplied: "", // blank by default
     status: "Prospect",
+    stageChangedAt: new Date(),
     location: String(j.location || "").trim(),
     roleType: String(j.roleType || "").trim(),
     laneLabel: String(j.laneLabel || "").trim(),
     category: String(j.category || "").trim(),
     jobSummary: String(j.jobSummary || "").trim(),
     whyFit: String(j.whyFit || "").trim(),
+    salary: String(j.salary || "").trim() || "",
+    goodFit: "",
+    goodFitUpdatedAt: "",
     notes: ""
   };
 }
@@ -43,7 +47,10 @@ function trackerHasDuplicate_(entry) {
   ensureEngineTables_();
 
   const sh = assertSheetExists_("Engine_Tracker");
-  const values = sh.getDataRange().getValues();
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return false;
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
   if (!values || values.length < 2) return false;
 
   const headers = values[0].map(h => String(h).trim());
@@ -100,12 +107,16 @@ function appendTrackerEntry_(entry) {
       case "source": return entry.source;
       case "dateApplied": return entry.dateApplied ? entry.dateApplied : "";
       case "status": return entry.status || "Prospect";
+      case "stageChangedAt": return (entry.stageChangedAt instanceof Date) ? entry.stageChangedAt : (entry.stageChangedAt ? new Date(entry.stageChangedAt) : entry.added_at instanceof Date ? entry.added_at : new Date(entry.added_at));
       case "location": return entry.location || "";
       case "roleType": return entry.roleType || "";
       case "laneLabel": return entry.laneLabel || "";
       case "category": return entry.category || "";
       case "jobSummary": return entry.jobSummary || "";
       case "whyFit": return entry.whyFit || "";
+      case "salary": return entry.salary || "";
+      case "goodFit": return entry.goodFit || "";
+      case "goodFitUpdatedAt": return entry.goodFitUpdatedAt || "";
       case "notes": return entry.notes || "";
       default: return "";
     }
@@ -128,7 +139,10 @@ function updateTrackerEntryForProfile_(profileId, patch) {
   if (!pid) throw new Error("updateTrackerEntryForProfile_: profileId empty.");
 
   const sh = assertSheetExists_("Engine_Tracker");
-  const values = sh.getDataRange().getValues();
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return { updated: 0 };
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
   if (!values || values.length < 2) return { updated: 0 };
 
   const headers = values[0].map(h => String(h).trim());
@@ -140,6 +154,7 @@ function updateTrackerEntryForProfile_(profileId, patch) {
   const idxStatus = headers.indexOf("status");
   const idxNotes = headers.indexOf("notes");
   const idxDateApplied = headers.indexOf("dateApplied");
+  const idxStageChangedAt = headers.indexOf("stageChangedAt");
 
   if (idxProfile === -1) throw new Error("Engine_Tracker missing header: profileId");
   if (idxUrl === -1) throw new Error("Engine_Tracker missing header: url");
@@ -148,6 +163,7 @@ function updateTrackerEntryForProfile_(profileId, patch) {
   if (idxStatus === -1) throw new Error("Engine_Tracker missing header: status");
   if (idxNotes === -1) throw new Error("Engine_Tracker missing header: notes");
   if (idxDateApplied === -1) throw new Error("Engine_Tracker missing header: dateApplied");
+  // stageChangedAt optional (backfill: use added_at when missing)
 
   const wantUrl = normalizeUrl_(patch && patch.url);
 
@@ -176,7 +192,10 @@ function updateTrackerEntryForProfile_(profileId, patch) {
     if (!match) continue;
 
     // status only if provided (lets UI keep it stable)
-    if (newStatus) sh.getRange(r + 1, idxStatus + 1).setValue(newStatus);
+    if (newStatus) {
+      sh.getRange(r + 1, idxStatus + 1).setValue(newStatus);
+      if (idxStageChangedAt !== -1) sh.getRange(r + 1, idxStageChangedAt + 1).setValue(new Date());
+    }
 
     // notes always set (allows clearing)
     sh.getRange(r + 1, idxNotes + 1).setValue(newNotes);
@@ -194,6 +213,200 @@ function updateTrackerEntryForProfile_(profileId, patch) {
   }
 
   return { updated: 0 };
+}
+
+/**
+ * Delete one tracker entry by profileId and trackerKey (url or company||title).
+ * Returns { deleted: 1 } or { deleted: 0 } if not found.
+ */
+function deleteTrackerEntryForProfile_(profileId, trackerKey) {
+  ensureEngineTables_();
+
+  const pid = String(profileId || "").trim();
+  if (!pid) throw new Error("deleteTrackerEntryForProfile_: profileId empty.");
+  const keyStr = String(trackerKey || "").trim();
+  if (!keyStr) throw new Error("deleteTrackerEntryForProfile_: trackerKey empty.");
+
+  const sh = assertSheetExists_("Engine_Tracker");
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return { deleted: 0 };
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  if (!values || values.length < 2) return { deleted: 0 };
+
+  const headers = values[0].map(h => String(h).trim());
+  const idxProfile = headers.indexOf("profileId");
+  const idxUrl = headers.indexOf("url");
+  const idxCompany = headers.indexOf("company");
+  const idxTitle = headers.indexOf("title");
+  if (idxProfile === -1 || idxUrl === -1 || idxCompany === -1 || idxTitle === -1) return { deleted: 0 };
+
+  const keyUrl = keyStr.indexOf("||") === -1 ? normalizeUrl_(keyStr) : "";
+  const keyParts = keyStr.indexOf("||") !== -1 ? keyStr.split("||").map(s => s.trim().toLowerCase()) : [];
+  const keyCompanyTitle = keyParts.length === 2 ? keyParts[0] + "||" + keyParts[1] : "";
+
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    if (String(row[idxProfile] || "").trim() !== pid) continue;
+
+    const rowUrl = normalizeUrl_(row[idxUrl]);
+    const rowCompany = String(row[idxCompany] || "").toLowerCase().trim();
+    const rowTitle = String(row[idxTitle] || "").toLowerCase().trim();
+    const rowKey = (rowCompany && rowTitle) ? (rowCompany + "||" + rowTitle) : "";
+
+    const match =
+      (keyUrl && rowUrl && rowUrl === keyUrl) ||
+      (keyCompanyTitle && rowKey && rowKey === keyCompanyTitle);
+    if (!match) continue;
+
+    sh.deleteRow(r + 1);
+    return { deleted: 1 };
+  }
+  return { deleted: 0 };
+}
+
+/**
+ * Find one tracker row by profileId and key (url or company||title).
+ * Returns row as object keyed by header names, or null if not found.
+ */
+function getTrackerRowByKey_(profileId, key) {
+  ensureEngineTables_();
+
+  const pid = String(profileId || "").trim();
+  if (!pid) throw new Error("getTrackerRowByKey_: profileId empty.");
+  const keyStr = String(key || "").trim();
+  if (!keyStr) throw new Error("getTrackerRowByKey_: key empty.");
+
+  const sh = assertSheetExists_("Engine_Tracker");
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return null;
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  if (!values || values.length < 2) return null;
+
+  const headers = values[0].map(h => String(h).trim());
+  const idxProfile = headers.indexOf("profileId");
+  const idxUrl = headers.indexOf("url");
+  const idxCompany = headers.indexOf("company");
+  const idxTitle = headers.indexOf("title");
+  if (idxProfile === -1 || idxUrl === -1 || idxCompany === -1 || idxTitle === -1) return null;
+
+  const keyUrl = keyStr.indexOf("||") === -1 ? normalizeUrl_(keyStr) : "";
+  const keyParts = keyStr.indexOf("||") !== -1 ? keyStr.split("||").map(s => s.trim().toLowerCase()) : [];
+  const keyCompanyTitle = keyParts.length === 2 ? keyParts[0] + "||" + keyParts[1] : "";
+
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    if (String(row[idxProfile] || "").trim() !== pid) continue;
+
+    const rowUrl = normalizeUrl_(row[idxUrl]);
+    const rowCompany = String(row[idxCompany] || "").toLowerCase().trim();
+    const rowTitle = String(row[idxTitle] || "").toLowerCase().trim();
+    const rowKey = (rowCompany && rowTitle) ? (rowCompany + "||" + rowTitle) : "";
+
+    const match =
+      (keyUrl && rowUrl && rowUrl === keyUrl) ||
+      (keyCompanyTitle && rowKey && rowKey === keyCompanyTitle);
+    if (!match) continue;
+
+    const out = {};
+    for (let i = 0; i < headers.length; i++) {
+      if (headers[i]) out[headers[i]] = row[i];
+    }
+    return out;
+  }
+  return null;
+}
+
+/**
+ * Update goodFit and goodFitUpdatedAt for one tracker row (by profileId + key).
+ * Returns { updated: 1 } or { updated: 0 }.
+ */
+function updateTrackerRowGoodFit_(profileId, key, goodFitString) {
+  ensureEngineTables_();
+
+  const pid = String(profileId || "").trim();
+  if (!pid) throw new Error("updateTrackerRowGoodFit_: profileId empty.");
+  const keyStr = String(key || "").trim();
+  if (!keyStr) throw new Error("updateTrackerRowGoodFit_: key empty.");
+
+  const sh = assertSheetExists_("Engine_Tracker");
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return { updated: 0 };
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  if (!values || values.length < 2) return { updated: 0 };
+
+  const headers = values[0].map(h => String(h).trim());
+  const idxProfile = headers.indexOf("profileId");
+  const idxUrl = headers.indexOf("url");
+  const idxCompany = headers.indexOf("company");
+  const idxTitle = headers.indexOf("title");
+  const idxGoodFit = headers.indexOf("goodFit");
+  const idxGoodFitUpdatedAt = headers.indexOf("goodFitUpdatedAt");
+  if (idxProfile === -1 || idxUrl === -1 || idxCompany === -1 || idxTitle === -1) return { updated: 0 };
+  if (idxGoodFit === -1 || idxGoodFitUpdatedAt === -1) return { updated: 0 };
+
+  const keyUrl = keyStr.indexOf("||") === -1 ? normalizeUrl_(keyStr) : "";
+  const keyParts = keyStr.indexOf("||") !== -1 ? keyStr.split("||").map(s => s.trim().toLowerCase()) : [];
+  const keyCompanyTitle = keyParts.length === 2 ? keyParts[0] + "||" + keyParts[1] : "";
+
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    if (String(row[idxProfile] || "").trim() !== pid) continue;
+
+    const rowUrl = normalizeUrl_(row[idxUrl]);
+    const rowCompany = String(row[idxCompany] || "").toLowerCase().trim();
+    const rowTitle = String(row[idxTitle] || "").toLowerCase().trim();
+    const rowKey = (rowCompany && rowTitle) ? (rowCompany + "||" + rowTitle) : "";
+
+    const match =
+      (keyUrl && rowUrl && rowUrl === keyUrl) ||
+      (keyCompanyTitle && rowKey && rowKey === keyCompanyTitle);
+    if (!match) continue;
+
+    sh.getRange(r + 1, idxGoodFit + 1).setValue(String(goodFitString || ""));
+    sh.getRange(r + 1, idxGoodFitUpdatedAt + 1).setValue(new Date());
+    return { updated: 1 };
+  }
+  return { updated: 0 };
+}
+
+/**
+ * Return Set of key strings (normalized URL and company||title) for all tracker rows for a profile.
+ * Used to exclude tracker jobs from inbox write so they do not reappear until released.
+ */
+function getTrackerKeyStringsForProfile_(profileId) {
+  ensureEngineTables_();
+
+  const pid = String(profileId || "").trim();
+  if (!pid) return new Set();
+
+  const sh = assertSheetExists_("Engine_Tracker");
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return new Set();
+
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  if (!values || values.length < 2) return new Set();
+
+  const headers = values[0].map(h => String(h).trim());
+  const idxProfile = headers.indexOf("profileId");
+  const idxUrl = headers.indexOf("url");
+  const idxCompany = headers.indexOf("company");
+  const idxTitle = headers.indexOf("title");
+  if (idxProfile === -1 || idxUrl === -1 || idxCompany === -1 || idxTitle === -1) return new Set();
+
+  const set = new Set();
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    if (String(row[idxProfile] || "").trim() !== pid) continue;
+    const u = normalizeUrl_(row[idxUrl]);
+    if (u) set.add(u);
+    const k = buildFallbackKey_(row[idxCompany], row[idxTitle]);
+    if (k) set.add(k);
+  }
+  return set;
 }
 
 /****************************************************

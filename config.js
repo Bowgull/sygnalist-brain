@@ -9,7 +9,11 @@ const CONFIG = {
   // ═══════════════════════════════════════════════════════════════════════════
   MAX_JOBS_PER_FETCH: 25,
   MIN_SCORE_FOR_INBOX: 60,
-  DEFAULT_SOURCES: ["remotive", "remoteok"],
+  DEFAULT_SOURCES: ["adzuna_us", "adzuna_ca", "usajobs", "jooble", "remotive", "remoteok"],
+  FALLBACK_TERMS: ["customer service", "administrative", "entry level"],
+  MIN_JOBS_BEFORE_FALLBACK: 3,
+  LAST_DITCH_SOURCES: ["remotive", "remoteok"],
+  LAST_DITCH_TERMS: ["remote", "software", "customer success"],
 
   // ═══════════════════════════════════════════════════════════════════════════
   // AI / OPENAI SETTINGS

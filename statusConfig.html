@@ -1,0 +1,47 @@
+<script>
+  /* ═══════════════════════════════════════════════════════════════════════════
+     SYGNALIST — STATUS CONFIG (single source of truth for pipeline stage colors)
+     Load before portal_scripts. Do not change stored status values or persistence.
+     ═══════════════════════════════════════════════════════════════════════════ */
+  (function(global) {
+    var STATUS_KEYS = ['prospect', 'applied', 'interviewed', 'final', 'offer'];
+    var STATUS_DISPLAY = {
+      prospect: 'Prospect',
+      applied: 'Applied',
+      interviewed: 'Interview',
+      final: 'Final',
+      offer: 'Offer'
+    };
+    var STATUS_COLORS = {
+      prospect: '#1DD3B0',
+      applied: '#3B82F6',
+      interviewed: '#8B5CF6',
+      final: '#F59E0B',
+      offer: '#22C55E'
+    };
+    var STATUS_BG = {
+      prospect: 'rgba(29, 211, 176, 0.12)',
+      applied: 'rgba(59, 130, 246, 0.14)',
+      interviewed: 'rgba(139, 92, 246, 0.14)',
+      final: 'rgba(245, 158, 11, 0.14)',
+      offer: 'rgba(34, 197, 94, 0.16)'
+    };
+    function normalizeStatus(statusString) {
+      try {
+        if (statusString == null) return 'prospect';
+        var s = String(statusString).trim().toLowerCase();
+        if (!s) return 'prospect';
+        if (s === 'interview' || s === 'interviewing') return 'interviewed';
+        if (STATUS_KEYS.indexOf(s) !== -1) return s;
+        return 'prospect';
+      } catch (e) {
+        return 'prospect';
+      }
+    }
+    global.STATUS_KEYS = STATUS_KEYS;
+    global.STATUS_DISPLAY = STATUS_DISPLAY;
+    global.STATUS_COLORS = STATUS_COLORS;
+    global.STATUS_BG = STATUS_BG;
+    global.normalizeStatus = normalizeStatus;
+  })(typeof window !== 'undefined' ? window : this);
+</script>

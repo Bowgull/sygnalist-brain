@@ -1,7 +1,10 @@
 function clearEngineInboxForProfile_(profileId) {
   ensureEngineTables_();
   const sh = assertSheetExists_("Engine_Inbox");
-  const values = sh.getDataRange().getValues();
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return 0;
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
   if (values.length < 2) return 0;
 
   const headers = values[0];
@@ -46,6 +49,7 @@ function writeEngineInbox_(scoredJobs, profileId) {
         case "category": return String(j.category || "");
         case "jobSummary": return ""; // NO AI YET
         case "whyFit": return "";     // NO AI YET
+        case "salary": return "";
         case "added_at": return now;
         default: return "";
       }

@@ -27,7 +27,10 @@ function skillProfile_listProfiles_() {
   const sh = ss.getSheetByName("Admin_Profiles");
   if (!sh) throw new Error("Sheet 'Admin_Profiles' not found.");
 
-  const values = sh.getDataRange().getValues();
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return [];
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
   if (!values || values.length < 2) return [];
 
   const headers = values[0].map(h => String(h).trim());

@@ -22,6 +22,14 @@ function getAPIKey_(name) {
 }
 
 /**
+ * Get API key from Script Properties.
+ * Returns null if not set (for optional sources like Jooble, Adzuna).
+ */
+function getOptionalAPIKey_(name) {
+  return PropertiesService.getScriptProperties().getProperty(name) || null;
+}
+
+/**
  * Ensure a sheet exists, create if missing.
  * Used by multiple modules (logging, analytics, engine tables).
  */

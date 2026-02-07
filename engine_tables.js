@@ -21,6 +21,7 @@ function ensureEngineInboxSheet_() {
     "company","title","url","source","location",
     "roleType","laneLabel","category",
     "jobSummary","whyFit",
+    "salary",
     "added_at"
   ];
 
@@ -34,9 +35,11 @@ function ensureEngineTrackerSheet_() {
     "profileId",
     "added_at",
     "company","title","url","source",
-    "dateApplied","status",
+    "dateApplied","status","stageChangedAt",
     "location","roleType","laneLabel","category",
     "jobSummary","whyFit",
+    "salary",
+    "goodFit","goodFitUpdatedAt",
     "notes"
   ];
 

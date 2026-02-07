@@ -1,7 +1,9 @@
 function loadProfiles_() {
   const sheet = assertSheetExists_("Admin_Profiles");
-  const values = sheet.getDataRange().getValues();
-  if (values.length < 2) return [];
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return [];
+  const values = sheet.getRange(1, 1, lastRow, lastCol).getValues();
 
   const headers = values[0].map(String);
   const rows = values.slice(1);
@@ -41,15 +43,8 @@ function getProfileByIdOrThrow_(profileId) {
 }
 
 function assertProfileActiveOrThrow_(profile) {
-  // If no profile provided, throw (defensive check)
-  if (!profile) {
-    throw new Error("assertProfileActiveOrThrow_: profile is null or undefined");
-  }
-  
-  // If profile is active, allow through
-  if (profile.status === "active") return;
+  if (!profile || profile.status === "active") return;
 
-  // Profile exists but is not active - throw with details
   const err = uiError_(
     "LOCKED_PROFILE",
     "Profile is locked: " + (profile.statusReason || "No reason set.")

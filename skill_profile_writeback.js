@@ -11,7 +11,10 @@
 
 function writeSkillProfileToAdminProfiles_(profileId, parsed) {
   const sheet = assertSheetExists_("Admin_Profiles");
-  const values = sheet.getDataRange().getValues();
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) throw new Error("Admin_Profiles has no data rows.");
+  const values = sheet.getRange(1, 1, lastRow, lastCol).getValues();
   if (values.length < 2) throw new Error("Admin_Profiles has no data rows.");
 
   const headers = values[0].map(String);

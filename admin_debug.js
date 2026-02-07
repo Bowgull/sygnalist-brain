@@ -153,7 +153,10 @@ function debugInspectProfileRow_() {
   if (!pid) return ui.alert("No profileId provided.");
 
   const sh = assertSheetExists_("Admin_Profiles");
-  const values = sh.getDataRange().getValues();
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return ui.alert("Admin_Profiles is empty.");
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
   if (!values || values.length < 2) return ui.alert("Admin_Profiles is empty.");
 
   const headers = values[0].map(h => String(h).trim());

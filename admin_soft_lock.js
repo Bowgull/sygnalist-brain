@@ -50,7 +50,10 @@ function softLockProfile_(profileId, reason) {
     if (!why) throw new Error("statusReason is required.");
 
     const sh = assertSheetExists_("Admin_Profiles");
-    const values = sh.getDataRange().getValues();
+    const lastRow = sh.getLastRow();
+    const lastCol = sh.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) throw new Error("Admin_Profiles has no data.");
+    const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
     if (!values || values.length < 2) throw new Error("Admin_Profiles has no data.");
 
     const headers = values[0].map(h => String(h).trim());
@@ -103,7 +106,10 @@ function unlockProfile_(profileId) {
     if (!pid) throw new Error("profileId is empty.");
 
     const sh = assertSheetExists_("Admin_Profiles");
-    const values = sh.getDataRange().getValues();
+    const lastRow = sh.getLastRow();
+    const lastCol = sh.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) throw new Error("Admin_Profiles has no data.");
+    const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
     if (!values || values.length < 2) throw new Error("Admin_Profiles has no data.");
 
     const headers = values[0].map(h => String(h).trim());
