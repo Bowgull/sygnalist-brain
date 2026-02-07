@@ -262,13 +262,24 @@
       if (e.target.closest('.tracker-goodfit-btn')) return;
       if (e.target.closest('.tracker-card-back')) return;
       var listEl = $('trackerList');
-      if (listEl) listEl.querySelectorAll('.tracker-card.flipped').forEach(function(c) { c.classList.remove('flipped'); c.style.height = ''; c.style.minHeight = ''; });
+      if (listEl) {
+        listEl.querySelectorAll('.tracker-card.flipped').forEach(function(c) { c.classList.remove('flipped'); c.style.height = ''; c.style.minHeight = ''; });
+        listEl.classList.remove('has-flipped-card');
+      }
     });
     var overlay = $('spotlightOverlay');
     if (overlay) overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSpotlight(); });
     var slot = $('spotlightSlot');
     if (slot) slot.addEventListener('click', function(e) { if (e.target === slot) closeSpotlight(); });
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && spotlightCard) closeSpotlight(); });
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      if (spotlightCard) { closeSpotlight(); return; }
+      var listEl = $('trackerList');
+      if (listEl) {
+        listEl.querySelectorAll('.tracker-card.flipped').forEach(function(c) { c.classList.remove('flipped'); c.style.height = ''; c.style.minHeight = ''; });
+        listEl.classList.remove('has-flipped-card');
+      }
+    });
   }
 
   function setFlippedCardHeight(card) {
@@ -1089,28 +1100,12 @@
       html += '<div class="tracker-card-back">';
       html += '<h3 class="good-fit-heading">Good Fit</h3>';
       html += '<div class="good-fit-back-content">' + goodFitBackHtml + '</div>';
+      html += '<div class="tracker-card-back-notes">';
+      html += '<label class="form-label">Notes</label>';
+      html += '<textarea class="form-textarea tracker-card-back-notes-input" data-tracker-key-full="' + esc(key) + '" placeholder="Add notes...">' + esc(job.notes || '') + '</textarea>';
+      html += '<button type="button" class="btn btn-primary btn-sm tracker-card-back-notes-save" data-tracker-key-full="' + esc(key) + '">' + iconHtml('save', 18) + ' Save</button>';
+      html += '</div>';
       html += '<button type="button" class="btn btn-sm good-fit-back-btn">← Back</button>';
-      html += '</div>';
-      html += '<div class="spotlight-detail">';
-      html += '<div class="spotlight-tabs">';
-      html += '<button type="button" class="spotlight-tab active" data-spotlight-tab="overview">Overview</button>';
-      html += '<button type="button" class="spotlight-tab" data-spotlight-tab="goodfit">Good Fit</button>';
-      html += '<button type="button" class="spotlight-tab" data-spotlight-tab="notes">Notes</button>';
-      html += '<button type="button" class="spotlight-close" aria-label="Close">×</button>';
-      html += '</div>';
-      html += '<div class="spotlight-panel spotlight-panel-overview">';
-      html += '<div class="job-title">' + esc(job.title) + '</div>';
-      html += '<div class="job-company">' + companyLine + '</div>';
-      html += '<div class="tracker-meta-pill-row"><span class="tracker-salary-pill meta-pill meta-pill--salary">' + esc(salaryDisplay) + '</span><span class="status-pill meta-pill meta-pill--status ' + stageClass + '">' + esc(statusLabel) + '</span></div>';
-      if (jobSum) html += '<div class="tracker-card-summary">' + esc(jobSum) + '</div>';
-      if (job.url) html += '<a href="' + esc(job.url) + '" target="_blank" rel="noopener" class="btn btn-primary tracker-view-job-btn">' + iconHtml('view', 20) + ' View job</a>';
-      else html += '<span class="tracker-view-job-btn tracker-view-job-btn-disabled">View job</span>';
-      html += '</div>';
-      html += '<div class="spotlight-panel spotlight-panel-goodfit"><div class="good-fit-back-content">' + goodFitBackHtml + '</div></div>';
-      html += '<div class="spotlight-panel spotlight-panel-notes">';
-      html += '<textarea class="form-textarea spotlight-notes-textarea" id="no_spotlight_' + h + '" placeholder="Add notes...">' + esc(job.notes || '') + '</textarea>';
-      html += '<div class="spotlight-notes-save-wrap"><button type="button" class="btn btn-primary spotlight-notes-save-btn" data-tracker-key-full="' + esc(key) + '" data-tracker-h="' + h + '">' + iconHtml('save', 18) + ' Save</button></div>';
-      html += '</div>';
       html += '</div>';
       html += '</div>';
       html += '</div>';
@@ -1134,7 +1129,13 @@
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
         var card = btn.closest('.tracker-card');
-        if (card) { card.classList.remove('flipped'); card.style.height = ''; card.style.minHeight = ''; }
+        if (card) {
+          card.classList.remove('flipped');
+          card.style.height = '';
+          card.style.minHeight = '';
+          var listEl = $('trackerList');
+          if (listEl) listEl.classList.remove('has-flipped-card');
+        }
       });
     });
     container.querySelectorAll('.tracker-remove-btn').forEach(function(btn) {
@@ -1168,37 +1169,61 @@
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
         var card = btn.closest('.tracker-card');
-        if (card) openSpotlight(card, 'goodfit');
+        if (!card) return;
+        var key = card.getAttribute('data-tracker-key-full');
+        if (!key) return;
+        var listEl = $('trackerList');
+        if (listEl) listEl.classList.add('has-flipped-card');
+        card.classList.add('flipped');
+        var backPanel = card.querySelector('.tracker-card-back .good-fit-back-content');
+        if (backPanel && !backPanel.querySelector('.good-fit-statements')) {
+          var job = trackerCache.find(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+            if (job && job.goodFit && String(job.goodFit).trim()) {
+              var statements = String(job.goodFit).trim().split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+              var h = '<div class="good-fit-statements">';
+              statements.slice(0, 5).forEach(function(s) { h += '<p class="good-fit-statement">' + esc(s) + '</p>'; });
+              h += '</div>';
+              backPanel.innerHTML = h;
+            } else {
+              backPanel.innerHTML = '<p class="color-text-dim">Generating…</p>';
+              api('getOrCreateGoodFit', { trackerKey: key, force: false }).then(function(r) {
+                if (r && r.ok && r.goodFit) {
+                  var idx = trackerCache.findIndex(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+                  if (idx !== -1) trackerCache[idx].goodFit = r.goodFit;
+                  var stmts = String(r.goodFit).trim().split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+                  var html = '<div class="good-fit-statements">';
+                  stmts.slice(0, 5).forEach(function(s) { html += '<p class="good-fit-statement">' + esc(s) + '</p>'; });
+                  html += '</div>';
+                  var el = card.querySelector('.tracker-card-back .good-fit-back-content');
+                  if (el && el.parentNode) el.innerHTML = html;
+                  showToast('GoodFit generated.', 'success');
+                } else {
+                  var el2 = card.querySelector('.tracker-card-back .good-fit-back-content');
+                  if (el2 && el2.parentNode) el2.innerHTML = '<p class="color-text-dim good-fit-placeholder">Generation failed. Try again.</p>';
+                  showToast(r && r.message ? r.message : 'GoodFit failed', 'error');
+                }
+              }).catch(function() {
+                var el3 = card.querySelector('.tracker-card-back .good-fit-back-content');
+                if (el3 && el3.parentNode) el3.innerHTML = '<p class="color-text-dim good-fit-placeholder">Generation failed. Try again.</p>';
+                showToast('GoodFit failed', 'error');
+              });
+            }
+        }
       });
     });
-    container.querySelectorAll('.spotlight-tab').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var card = btn.closest('.tracker-card');
-        if (!card || !card.classList.contains('is-spotlight')) return;
-        var tab = btn.getAttribute('data-spotlight-tab');
-        if (!tab) return;
-        card.setAttribute('data-spotlight-tab', tab);
-        card.querySelectorAll('.spotlight-tab').forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-spotlight-tab') === tab); });
-      });
-    });
-    container.querySelectorAll('.spotlight-close').forEach(function(btn) {
-      btn.addEventListener('click', function(e) { e.stopPropagation(); closeSpotlight(); });
-    });
-    container.querySelectorAll('.spotlight-notes-save-btn').forEach(function(btn) {
+    container.querySelectorAll('.tracker-card-back-notes-save').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
         var key = btn.getAttribute('data-tracker-key-full');
-        var h = btn.getAttribute('data-tracker-h');
-        if (!key || !h) return;
+        if (!key) return;
         var card = btn.closest('.tracker-card');
-        var notesEl = card ? card.querySelector('.spotlight-notes-textarea') : null;
+        var notesEl = card ? card.querySelector('.tracker-card-back-notes-input') : null;
         var notes = notesEl ? notesEl.value : '';
         var job = trackerCache.find(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
         if (!job) return;
         if (btn.disabled) return;
         btn.disabled = true;
-        btn.textContent = 'Saving…';
+        btn.innerHTML = 'Saving…';
         api('updateTracker', {
           url: job.url || '',
           company: job.company,
@@ -1208,7 +1233,7 @@
           dateApplied: job.dateApplied || ''
         }).then(function(res) {
           btn.disabled = false;
-          btn.innerHTML = res && res.ok ? '✓ Saved' : iconHtml('save', 18) + ' Save';
+          btn.innerHTML = res && res.ok ? iconHtml('save', 18) + ' Saved' : iconHtml('save', 18) + ' Save';
           if (res && res.ok) {
             var idx = trackerCache.findIndex(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
             if (idx !== -1) trackerCache[idx].notes = notes;
