@@ -2,6 +2,10 @@
   /* ═══════════════════════════════════════════════════════════════════════════
      SYGNALIST PORTAL — CLIENT SCRIPTS v3.0 (tabbed + caches)
      ═══════════════════════════════════════════════════════════════════════════ */
+  /* UI regression checklist:
+   * - Header: 3-column layout on desktop (left = brand, center = pulse, right = controls); no floating CTA in center.
+   * - GoodFit: Trigger on every Tracker list card; opens focus mode with Job Summary / GoodFit / Notes; Back and ESC close.
+   * - Ops Mode: Table view; stage pill and action icons consistent size; readable row height. */
 
   // BOOT and profileId are defined in the main template (client_portal.html)
   let isBusy = false;
@@ -13,10 +17,15 @@
   var inboxCache = [];
   var trackerCache = [];
   var lastFetchTimeStr = '';
+  /** Date or null: used for relative "X mins ago" and 60s refresh. */
+  var lastFetchAt = null;
+  var lastFetchIntervalId = null;
   var spotlightCard = null;
   var spotlightKey = null;
   var spotlightSlotParent = null;
   var spotlightSlotNextSibling = null;
+  /** Placeholder left in list when card is in focus mode (same-card spotlight). */
+  var focusedPlaceholder = null;
 
   // Rotating messages during fetch (keep users engaged)
   var FETCH_LOADING_PHRASES = [
@@ -49,7 +58,7 @@
     'Yes, we\'re being picky on purpose…',
     'Good sygnals take a second…'
   ];
-  var FETCH_LOADING_ROTATE_MS = 3500;
+  var FETCH_LOADING_ROTATE_MS = 6000;
 
   // ─────────────────────────────────────────────────────────────────────────────
   // TRACKER STATUS (pipeline + display; stored values unchanged)
@@ -199,15 +208,19 @@
   function iconHtml(name, size) {
     size = size || 24;
     var sym = (ICON_REGISTRY && ICON_REGISTRY[name]) ? ICON_REGISTRY[name] : ('icon-' + name);
-    return '<svg class="icon-inline" width="' + size + '" height="' + size + '" viewBox="0 0 24 24"><use href="#' + sym + '"/></svg>';
+    var decorative = (name === 'view' || name === 'fetch' || name === 'addToTracker');
+    var aria = decorative ? ' aria-hidden="true"' : '';
+    return '<svg class="icon-inline" width="' + size + '" height="' + size + '" viewBox="0 0 24 24"' + aria + '><use href="#' + sym + '"/></svg>';
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // TAB STATE + ROUTING
   // ─────────────────────────────────────────────────────────────────────────────
   function setTab(tab) {
+    var t_switch_start = Date.now();
+    if (tab === 'tracker') timingLog('tab_switch', { t_switch_start, profileId: typeof profileId !== 'undefined' ? profileId : null, cacheHadData: trackerCache.length > 0 });
     currentTab = tab;
-    var tabs = ['inbox', 'tracker'];
+    var tabs = ['inbox', 'tracker', 'admin'];
     for (var i = 0; i < tabs.length; i++) {
       var t = tabs[i];
       var el = $('tab' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -218,36 +231,126 @@
     var fetchBtn = $('fetchBtn');
     var addBtn = $('addManuallyBtn');
     if (fetchBtn) fetchBtn.style.display = (tab === 'inbox') ? '' : 'none';
-    if (addBtn) addBtn.style.display = (tab === 'tracker') ? '' : 'none';
+    if (addBtn) addBtn.style.display = (tab === 'admin') ? 'none' : '';
+    if (tab === 'admin') {
+      if (typeof window.loadAdminProfiles === 'function') {
+        window.loadAdminProfiles();
+      } else {
+        showToast('Admin tab not ready. Refresh the page.', 'error');
+      }
+    }
     updateCommandBarCounts();
-    if (tab === 'tracker' && trackerCache.length === 0) loadTracker();
+    if (tab === 'inbox') {
+      if (inboxCache.length > 0) {
+        var displayList = prepareRadarRenderList(inboxCache.slice());
+        renderInboxFilters();
+        renderInbox(displayList);
+        loadInbox(true);
+      } else {
+        loadInbox();
+      }
+    } else if (tab === 'tracker') {
+      if (trackerCache.length > 0) {
+        renderTrackerPipeline();
+        renderTracker(getFilteredTrackerList());
+        timingLog('tab_switch', { t_first_render_tracker: Date.now(), t_data_ready: Date.now(), fromCache: true, profileId: typeof profileId !== 'undefined' ? profileId : null });
+        loadTracker(true);
+      } else {
+        loadTracker();
+      }
+    }
   }
 
   function updateCommandBarCounts() {
     var el = $('lastFetchTime');
-    if (el) el.textContent = lastFetchTimeStr || 'Last fetch: —';
-    var countEl = $('inboxTrackerCounts');
-    if (countEl) countEl.textContent = 'Inbox: ' + inboxCache.length + ' · Tracker: ' + trackerCache.length;
+    if (el) el.textContent = lastFetchTimeStr || '—';
+  }
+
+  /** Relative or absolute last-fetch label. < 1 min = "just now", 1-59 min = "X mins ago", 1-23 hr = "X hours ago", 1-3 days = "X days ago", > 3 days = "Feb 7, 6:26 PM". */
+  function formatLastFetchRelative(lastFetchDate, nowMs) {
+    nowMs = nowMs == null ? Date.now() : nowMs;
+    var d = lastFetchDate instanceof Date ? lastFetchDate : new Date(lastFetchDate);
+    var t = d.getTime();
+    if (isNaN(t)) return '—';
+    var diff = nowMs - t;
+    if (diff < 0) return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    var minMs = 60 * 1000, hrMs = 60 * minMs, dayMs = 24 * hrMs, threeDaysMs = 3 * dayMs;
+    if (diff < minMs) return 'just now';
+    if (diff < 60 * minMs) {
+      var mins = Math.floor(diff / minMs);
+      return mins === 1 ? '1 min ago' : mins + ' mins ago';
+    }
+    if (diff < 24 * hrMs) {
+      var hrs = Math.floor(diff / hrMs);
+      return hrs === 1 ? '1 hour ago' : hrs + ' hours ago';
+    }
+    if (diff < threeDaysMs) {
+      var days = Math.floor(diff / dayMs);
+      return days === 1 ? '1 day ago' : days + ' days ago';
+    }
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // INITIALIZE
   // ─────────────────────────────────────────────────────────────────────────────
   function init() {
-    $('profileName').textContent = BOOT.profile.displayName || BOOT.profile.profileId;
-    $('statusText').textContent = BOOT.profile.status.toUpperCase();
-    $('statusBadge').classList.add(BOOT.profile.status === 'active' ? 'active' : 'locked');
-    var vEl = $('navVersion');
-    if (vEl && BOOT.version) vEl.textContent = 'v' + BOOT.version;
+    var h = document.querySelector('.app-header');
+    if (h) h.setAttribute('data-header-init', '20260207');
+    /* View as: opens in new tab; no banner or back/exit (user closes tab when done) */
+    if (typeof VIEW_AS !== 'undefined' && VIEW_AS && BOOT.profile) {
+      /* Leave viewAsBanner hidden; no exit link or history/popstate */
+    }
+    var name = BOOT.profile.displayName || BOOT.profile.profileId;
+    var statusDisplay = BOOT.profile.status === 'active' ? 'Active' : 'Inactive';
+    var prefixEl = $('headerPrimaryMetaPrefix');
+    var dotEl = $('headerPrimaryMetaDot');
+    var statusEl = $('headerPrimaryMetaStatus');
+    if (prefixEl) prefixEl.textContent = name;
+    if (dotEl) { dotEl.textContent = '● '; dotEl.className = 'header-meta-dot ' + (BOOT.profile.status === 'active' ? 'active' : 'locked'); }
+    if (statusEl) statusEl.textContent = statusDisplay;
+    if (BOOT.profile.last_fetch_at) {
+      try {
+        var d = new Date(BOOT.profile.last_fetch_at);
+        if (!isNaN(d.getTime())) {
+          lastFetchAt = d;
+          lastFetchTimeStr = formatLastFetchRelative(lastFetchAt);
+        }
+      } catch (e) { lastFetchTimeStr = ''; }
+    } else {
+      lastFetchTimeStr = '';
+    }
+    if (lastFetchIntervalId != null) clearInterval(lastFetchIntervalId);
+    lastFetchIntervalId = setInterval(function() {
+      if (lastFetchAt != null) {
+        lastFetchTimeStr = formatLastFetchRelative(lastFetchAt);
+        updateCommandBarCounts();
+      }
+    }, 60000);
+    window.addEventListener('pagehide', function() { if (lastFetchIntervalId != null) { clearInterval(lastFetchIntervalId); lastFetchIntervalId = null; } });
     var adminLink = $('navAdminLink');
     if (adminLink) adminLink.href = window.location.href.split('?')[0];
-    var cbl = $('commandBarLeft');
-    if (cbl) cbl.innerHTML = '<button class="btn btn-primary" id="fetchBtn" onclick="fetchJobs()">' + iconHtml('fetch', 18) + ' Fetch New Roles</button><button class="btn" id="refreshBtn" onclick="refreshCurrentTab()">' + iconHtml('refresh', 18) + ' Refresh</button><button class="btn" id="addManuallyBtn" onclick="showManualAdd()">' + iconHtml('addManually', 18) + ' Add Manually</button>';
+    var baseUrl = window.location.href.split('?')[0];
+    var showAdminUI = BOOT.profile.isAdmin;
+    if (BOOT.profile.isAdmin && typeof VIEW_AS !== 'undefined' && !VIEW_AS) {
+      try { sessionStorage.setItem('sygnalist_admin_return', baseUrl + '?profile=' + profileId); } catch (e) {}
+    }
+    if (!showAdminUI) {
+      if (adminLink) adminLink.style.display = 'none';
+      var tabBtnAdmin = $('tabBtnAdmin');
+      if (tabBtnAdmin) tabBtnAdmin.style.display = 'none';
+    }
+    var actionsEl = $('contentBayActions');
+    if (actionsEl) actionsEl.innerHTML = '<button class="btn btn-action" id="fetchBtn" onclick="fetchJobs()">' + iconHtml('fetch', 18) + ' Scan</button><button class="btn btn-ghost btn-icon-only" id="refreshBtn" onclick="refreshCurrentTab()" aria-label="Refresh">' + iconHtml('refresh', 18) + '</button><button class="btn" id="addManuallyBtn" onclick="showManualAdd()">' + iconHtml('addManually', 18) + ' Add Manually</button>';
+    if (BOOT.profile.status !== 'active') {
+      var fetchBtn = $('fetchBtn');
+      if (fetchBtn) { fetchBtn.disabled = true; fetchBtn.setAttribute('title', 'Scan is disabled (profile inactive)'); }
+    }
     setTab('inbox');
     loadInbox();
     loadDashboard();
-    var tabIds = ['tabBtnInbox', 'tabBtnTracker'];
-    var tabValues = ['inbox', 'tracker'];
+    var tabIds = ['tabBtnInbox', 'tabBtnTracker', 'tabBtnAdmin'];
+    var tabValues = ['inbox', 'tracker', 'admin'];
     for (var i = 0; i < tabIds.length; i++) {
       var btn = $(tabIds[i]);
       if (btn) btn.addEventListener('click', (function(t) { return function() { setTab(t); }; })(tabValues[i]));
@@ -258,6 +361,7 @@
       if (panel && panel.classList.contains('open') && trigger !== e.target && !panel.contains(e.target)) panel.classList.remove('open');
     });
     document.addEventListener('click', function(e) {
+      if (focusedPlaceholder) return;
       if (spotlightCard) return;
       if (e.target.closest('.tracker-goodfit-btn')) return;
       if (e.target.closest('.tracker-card-back')) return;
@@ -268,11 +372,20 @@
       }
     });
     var overlay = $('spotlightOverlay');
-    if (overlay) overlay.addEventListener('click', function(e) { if (e.target === overlay) closeSpotlight(); });
+    if (overlay) overlay.addEventListener('click', function(e) {
+      if (e.target !== overlay) return;
+      if (focusedPlaceholder) closeGoodFitFocusMode();
+      else if (spotlightCard) closeSpotlight();
+    });
     var slot = $('spotlightSlot');
-    if (slot) slot.addEventListener('click', function(e) { if (e.target === slot) closeSpotlight(); });
+    if (slot) slot.addEventListener('click', function(e) {
+      if (e.target !== slot) return;
+      if (focusedPlaceholder) closeGoodFitFocusMode();
+      else if (spotlightCard) closeSpotlight();
+    });
     document.addEventListener('keydown', function(e) {
       if (e.key !== 'Escape') return;
+      if (focusedPlaceholder) { closeGoodFitFocusMode(); return; }
       if (spotlightCard) { closeSpotlight(); return; }
       var listEl = $('trackerList');
       if (listEl) {
@@ -376,6 +489,146 @@
     document.body.classList.remove('spotlight-active');
   }
 
+  function closeGoodFitFocusMode() {
+    if (!spotlightCard || !spotlightSlotParent || !focusedPlaceholder) return;
+    if (spotlightCard.classList.contains('is-edit-mode')) {
+      spotlightCard.setAttribute('data-expanded', 'false');
+      spotlightCard.classList.remove('expanded');
+      spotlightCard.classList.remove('is-edit-mode');
+      var expandBtn = spotlightCard.querySelector('.tracker-expand-btn');
+      if (expandBtn) {
+        expandBtn.innerHTML = iconHtml('pencil', 18);
+        expandBtn.setAttribute('title', 'Edit');
+        expandBtn.setAttribute('aria-label', 'Edit');
+      }
+    }
+    spotlightSlotParent.insertBefore(spotlightCard, focusedPlaceholder);
+    focusedPlaceholder.remove();
+    spotlightCard.classList.remove('is-focus-mode');
+    spotlightCard = null;
+    spotlightKey = null;
+    spotlightSlotParent = null;
+    focusedPlaceholder = null;
+    var slot = $('spotlightSlot');
+    if (slot) { slot.classList.remove('visible'); slot.setAttribute('aria-hidden', 'true'); }
+    var overlay = $('spotlightOverlay');
+    if (overlay) { overlay.classList.remove('visible'); overlay.setAttribute('aria-hidden', 'true'); }
+    document.body.classList.remove('spotlight-active');
+  }
+
+  function openEditFocusMode(card) {
+    var key = card.getAttribute('data-tracker-key-full');
+    if (!key) return;
+    var slot = $('spotlightSlot');
+    var overlay = $('spotlightOverlay');
+    if (!slot || !overlay) return;
+
+    var parent = card.parentNode;
+    var placeholder = document.createElement('div');
+    placeholder.className = 'tracker-card-focus-placeholder';
+    placeholder.style.height = card.offsetHeight + 'px';
+    placeholder.style.minHeight = '120px';
+    parent.insertBefore(placeholder, card);
+    slot.appendChild(card);
+
+    spotlightCard = card;
+    spotlightKey = key;
+    spotlightSlotParent = parent;
+    focusedPlaceholder = placeholder;
+    card.classList.add('is-focus-mode');
+    card.classList.add('is-edit-mode');
+    card.setAttribute('data-expanded', 'true');
+    card.classList.add('expanded');
+
+    overlay.classList.add('visible');
+    overlay.setAttribute('aria-hidden', 'false');
+    slot.classList.add('visible');
+    slot.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('spotlight-active');
+
+    var expandBtn = card.querySelector('.tracker-expand-btn');
+    if (expandBtn) {
+      expandBtn.innerHTML = 'Done';
+      expandBtn.setAttribute('title', 'Done');
+      expandBtn.setAttribute('aria-label', 'Done');
+    }
+  }
+
+  function openGoodFitFocusMode(card) {
+    var key = card.getAttribute('data-tracker-key-full');
+    if (!key) return;
+    var slot = $('spotlightSlot');
+    var overlay = $('spotlightOverlay');
+    if (!slot || !overlay) return;
+
+    var parent = card.parentNode;
+    var placeholder = document.createElement('div');
+    placeholder.className = 'tracker-card-focus-placeholder';
+    placeholder.style.height = card.offsetHeight + 'px';
+    placeholder.style.minHeight = '120px';
+    parent.insertBefore(placeholder, card);
+    slot.appendChild(card);
+
+    spotlightCard = card;
+    spotlightKey = key;
+    spotlightSlotParent = parent;
+    focusedPlaceholder = placeholder;
+    card.classList.add('is-focus-mode');
+
+    overlay.classList.add('visible');
+    overlay.setAttribute('aria-hidden', 'false');
+    slot.classList.add('visible');
+    slot.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('spotlight-active');
+
+    var backPanel = card.querySelector('.tracker-card-back .good-fit-back-content');
+    if (backPanel && !backPanel.querySelector('.good-fit-statements')) {
+      var job = trackerCache.find(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+      if (job && job.goodFit && String(job.goodFit).trim()) {
+        var statements = String(job.goodFit).trim().split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+        var h = '<div class="good-fit-statements">';
+        statements.slice(0, 5).forEach(function(s) { h += '<p class="good-fit-statement">' + esc(s) + '</p>'; });
+        h += '</div>';
+        backPanel.innerHTML = h;
+      } else {
+        backPanel.innerHTML = '<p class="color-text-dim">Generating…</p>';
+        api('getOrCreateGoodFit', { trackerKey: key, force: false }).then(function(r) {
+          if (r && r.ok && r.goodFit) {
+            var idx = trackerCache.findIndex(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
+            if (idx !== -1) trackerCache[idx].goodFit = r.goodFit;
+            var stmts = String(r.goodFit).trim().split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+            var html = '<div class="good-fit-statements">';
+            stmts.slice(0, 5).forEach(function(s) { html += '<p class="good-fit-statement">' + esc(s) + '</p>'; });
+            html += '</div>';
+            var el = spotlightCard && spotlightCard.querySelector('.tracker-card-back .good-fit-back-content');
+            if (el && el.parentNode) el.innerHTML = html;
+            showToast('GoodFit generated.', 'success');
+          } else {
+            var el2 = spotlightCard && spotlightCard.querySelector('.tracker-card-back .good-fit-back-content');
+            if (el2 && el2.parentNode) el2.innerHTML = '<p class="color-text-dim good-fit-placeholder">Generation failed. Try again.</p>';
+            showToast(r && r.message ? r.message : 'GoodFit failed', 'error');
+          }
+        }).catch(function() {
+          var el3 = spotlightCard && spotlightCard.querySelector('.tracker-card-back .good-fit-back-content');
+          if (el3 && el3.parentNode) el3.innerHTML = '<p class="color-text-dim good-fit-placeholder">Generation failed. Try again.</p>';
+          showToast('GoodFit failed', 'error');
+        });
+      }
+    }
+
+    var backBtn = card.querySelector('.good-fit-back-btn');
+    if (backBtn) backBtn.focus();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // TIMING (opt-in: set window.SYGNALIST_TIMING = true in console to log)
+  // ─────────────────────────────────────────────────────────────────────────────
+  function timingLog(label, data) {
+    if (typeof window !== 'undefined' && window.SYGNALIST_TIMING && console && console.log) {
+      console.log('[SygnalistTiming] ' + label, data);
+    }
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // API (with retry and structured error mapping)
   // ─────────────────────────────────────────────────────────────────────────────
@@ -410,7 +663,11 @@
             if (errStr.indexOf('Authorization') !== -1 || errStr.indexOf('script') !== -1) msg = 'Session issue. Refresh the page and try again.';
             resolve({ ok: false, message: msg, code: 'NETWORK' });
           })
-          .portal_api(profileId, { op: op, data: data || {} });
+          .portal_api(profileId, (function() {
+            var req = { op: op, data: data || {} };
+            if (typeof VIEW_AS !== 'undefined' && VIEW_AS && typeof ADMIN_PROFILE_ID !== 'undefined' && ADMIN_PROFILE_ID && (op === 'getProfileList' || op === 'logAdminSwitch')) req.actingAdminId = ADMIN_PROFILE_ID;
+            return req;
+          })());
       }
       run(0);
     });
@@ -427,7 +684,7 @@
       fetchBtn.disabled = loading;
       if (!loading) {
         fetchBtn.classList.remove('btn-loading');
-        fetchBtn.innerHTML = '<span class="icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#icon-radar"/></svg></span> Fetch New Roles';
+        fetchBtn.innerHTML = iconHtml('fetch', 18) + ' Scan';
       }
     }
     if (refreshBtn) refreshBtn.disabled = loading;
@@ -474,7 +731,9 @@
       }
       var count = res.count || 0;
       showToast(count + ' new role' + (count !== 1 ? 's' : '') + ' fetched.', 'success');
-      lastFetchTimeStr = 'Last fetch: just now';
+      lastFetchAt = new Date();
+      lastFetchTimeStr = 'just now';
+      updateCommandBarCounts();
       await loadInbox();
     } finally {
       clearInterval(loadingRotateId);
@@ -512,25 +771,43 @@
     container.innerHTML = html;
   }
 
-  async function loadInbox() {
-    showInboxSkeleton();
-    var res = await api('getInbox');
+  async function loadInbox(backgroundRefresh) {
+    if (!backgroundRefresh) showInboxSkeleton();
+    var timeoutMs = 15000;
+    var timeoutPromise = new Promise(function(resolve) {
+      setTimeout(function() { resolve({ res: null, timedOut: true }); }, timeoutMs);
+    });
+    var apiPromise = api('getInbox').then(function(res) { return { res: res, timedOut: false }; });
+    var result = await Promise.race([apiPromise, timeoutPromise]);
+    var res = result.res;
+    var timedOut = result.timedOut === true;
+    if (timedOut && !res) res = null;
     if (res && res.ok) {
       inboxCache = (res.inbox || []).slice();
-      inboxCache.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
+      var displayList = prepareRadarRenderList(inboxCache.slice());
       renderInboxFilters();
-      renderInbox(inboxCache);
+      renderInbox(displayList);
     } else {
-      console.error('Inbox load failed:', res);
-      var container = $('inboxList');
-      if (container) container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load inbox</div></div>';
+      if (!backgroundRefresh) {
+        console.error('Inbox load failed:', res, timedOut ? '(timed out)' : '');
+        var container = $('inboxList');
+        if (container) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load Radar</div><div class="empty-desc">' + (timedOut ? 'Request timed out.' : (res && res.message ? esc(res.message) : 'Load failed.')) + '</div><button type="button" class="btn btn-action" id="inboxRetryBtn">Retry</button></div>';
+          var retryBtn = document.getElementById('inboxRetryBtn');
+          if (retryBtn) retryBtn.addEventListener('click', function() { loadInbox(); });
+        }
+        if (timedOut) showToast('Request timed out', 'error');
+      }
     }
     updateCommandBarCounts();
   }
 
-  async function loadTracker() {
-    showTrackerSkeleton();
-    var timeoutMs = 15000;
+  async function loadTracker(backgroundRefresh) {
+    if (!backgroundRefresh) {
+      showTrackerSkeleton();
+      timingLog('tracker_load', { t_switch_start: Date.now(), t_first_render_tracker: Date.now(), phase: 'skeleton', profileId: typeof profileId !== 'undefined' ? profileId : null });
+    }
+    var timeoutMs = 25000;
     var timeoutPromise = new Promise(function(resolve) {
       setTimeout(function() { resolve({ timedOut: true }); }, timeoutMs);
     });
@@ -546,40 +823,86 @@
       trackerCache = res.tracker || [];
       renderTrackerPipeline();
       renderTracker(getFilteredTrackerList());
+      timingLog('tracker_load', { t_first_render_tracker: Date.now(), t_data_ready: Date.now(), phase: 'data', background: !!backgroundRefresh, profileId: typeof profileId !== 'undefined' ? profileId : null });
+      if (res.dashboard) {
+        var isAdminUser = (typeof SHOW_ADMIN_UI !== 'undefined' && SHOW_ADMIN_UI);
+        if (isAdminUser) {
+          /* Admin: never replace with client-only dashboard; merge tracker counts so metrics order/state stay consistent */
+          dashboardCache = Object.assign({}, dashboardCache, {
+            inboxCount: res.dashboard.inboxCount,
+            trackerCount: res.dashboard.trackerCount,
+            byStatus: res.dashboard.byStatus || {},
+            inboxAddedLast7: res.dashboard.inboxAddedLast7,
+            trackerAddedLast7: res.dashboard.trackerAddedLast7
+          });
+        } else {
+          dashboardCache = Object.assign({}, res.dashboard);
+        }
+        renderMetrics(dashboardCache);
+      }
       loadDashboard();
     } else {
-      if (!timedOut) console.error('Tracker load failed:', res);
-      var container = $('trackerList');
-      if (container) container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load tracker</div></div>';
-      showToast(timedOut ? 'Request timed out' : (res && res.message ? res.message : 'Could not load tracker'), 'error');
+      if (!backgroundRefresh) {
+        if (!timedOut) console.error('Tracker load failed:', res);
+        var container = $('trackerList');
+        if (container) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load tracker</div><div class="empty-desc">' + (timedOut ? 'Request timed out.' : (res && res.message ? esc(res.message) : 'Load failed.')) + '</div><button type="button" class="btn btn-action" id="trackerRetryBtn">Retry</button></div>';
+          var retryBtn = document.getElementById('trackerRetryBtn');
+          if (retryBtn) retryBtn.addEventListener('click', function() { loadTracker(); });
+        }
+        showToast(timedOut ? 'Request timed out' : (res && res.message ? res.message : 'Could not load tracker'), 'error');
+      }
     }
     updateCommandBarCounts();
+  }
+
+  /** Display role/title only; strip " Lane" so clients never see that word. */
+  function roleDisplayLabel(laneLabel) {
+    var s = String(laneLabel || '').trim();
+    return s.replace(/\s+Lane\s*$/i, '').trim() || s;
   }
 
   function renderInboxFilters() {
     var row = $('inboxFiltersRow');
     if (!row) return;
-    var lanes = [];
+    var roles = [];
     for (var i = 0; i < inboxCache.length; i++) {
       var lb = String(inboxCache[i].laneLabel || '').trim();
-      if (lb && lanes.indexOf(lb) === -1) lanes.push(lb);
+      if (lb && roles.indexOf(lb) === -1) roles.push(lb);
     }
-    lanes.sort();
-    var laneOpts = '<option value="">All Lanes</option>';
-    for (var l = 0; l < lanes.length; l++) laneOpts += '<option value="' + esc(lanes[l]) + '">' + esc(lanes[l]) + '</option>';
+    roles.sort();
+    var roleOpts = '<option value="">All roles</option>';
+    for (var r = 0; r < roles.length; r++) roleOpts += '<option value="' + esc(roles[r]) + '">' + esc(roleDisplayLabel(roles[r])) + '</option>';
     row.innerHTML =
-      '<select class="form-select inbox-lane" id="inboxLane" style="max-width:160px" aria-label="Lane">' + laneOpts + '</select>' +
-      '<select class="form-select inbox-sort" id="inboxSort" style="max-width:140px" aria-label="Score"><option value="score">Score</option><option value="tier">Tier</option></select>';
+      '<select class="form-select inbox-role" id="inboxLane" style="max-width:160px" aria-label="Role">' + roleOpts + '</select>';
     var laneEl = $('inboxLane');
-    var sortEl = $('inboxSort');
     if (laneEl) laneEl.addEventListener('change', applyInboxFilters);
-    if (sortEl) sortEl.addEventListener('change', applyInboxFilters);
+  }
+
+  var INBOX_TIER_ORDER = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5 };
+
+  function prepareRadarRenderList(list) {
+    if (!list || !list.length) return list;
+    var hasUpper = list.some(function(j) {
+      var t = String(j.tier || '').toUpperCase();
+      return t === 'S' || t === 'A' || t === 'B' || t === 'C' || t === 'D';
+    });
+    if (hasUpper) list = list.filter(function(j) { return String(j.tier || '').toUpperCase() !== 'F'; });
+    list.sort(function(a, b) {
+      var ta = INBOX_TIER_ORDER[String(a.tier || 'C').toUpperCase()] ?? 6;
+      var tb = INBOX_TIER_ORDER[String(b.tier || 'C').toUpperCase()] ?? 6;
+      if (ta !== tb) return ta - tb;
+      var tsA = (a.added_at != null && !isNaN(a.added_at)) ? Number(a.added_at) : 0;
+      var tsB = (b.added_at != null && !isNaN(b.added_at)) ? Number(b.added_at) : 0;
+      if (tsA !== tsB) return tsB - tsA;
+      return (b.score || 0) - (a.score || 0);
+    });
+    return list;
   }
 
   function getInboxFilterState() {
     var lane = ($('inboxLane') && $('inboxLane').value) ? $('inboxLane').value.trim() : '';
-    var sort = ($('inboxSort') && $('inboxSort').value) ? $('inboxSort').value : 'score';
-    return { lane: lane, sort: sort };
+    return { lane: lane };
   }
 
   function applyInboxFilters() {
@@ -588,15 +911,7 @@
     if (state.lane) {
       list = list.filter(function(j) { return String(j.laneLabel || '').trim() === state.lane; });
     }
-    if (state.sort === 'score') list.sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
-    else if (state.sort === 'tier') {
-      var tierOrder = { S: 0, A: 1, B: 2, C: 3, F: 4 };
-      list.sort(function(a, b) {
-        var ta = tierOrder[String(a.tier || 'C').toUpperCase()] ?? 5;
-        var tb = tierOrder[String(b.tier || 'C').toUpperCase()] ?? 5;
-        return ta - tb;
-      });
-    }
+    list = prepareRadarRenderList(list);
     renderInbox(list);
   }
 
@@ -764,13 +1079,7 @@
   async function loadDashboard() {
     var res = await api('getDashboard');
     if (res && res.ok) {
-      dashboardCache = {
-        inboxCount: res.inboxCount || 0,
-        trackerCount: res.trackerCount || 0,
-        byStatus: res.byStatus || {},
-        inboxAddedLast7: res.inboxAddedLast7 || 0,
-        trackerAddedLast7: res.trackerAddedLast7 || 0
-      };
+      dashboardCache = Object.assign({}, res);
       renderMetrics(dashboardCache);
     }
   }
@@ -778,21 +1087,32 @@
   function renderMetrics(dash) {
     var col = $('metricsColumn');
     if (!col) return;
-    var byStatus = dash.byStatus || {};
-    var applied = (byStatus['Applied'] || 0) + (byStatus['Interview 1'] || 0) + (byStatus['Interview 2'] || 0) + (byStatus['Final Round'] || 0) + (byStatus['Offer 🎉'] || 0);
+    var isAdmin = dash.isAdminResponse === true;
+    var byStatus = isAdmin ? (dash.byStatusAll || {}) : (dash.byStatus || {});
     var interviewing = (byStatus['Interview 1'] || 0) + (byStatus['Interview 2'] || 0);
-    var v1 = dash.inboxCount || 0;
-    var v2 = dash.trackerCount || 0;
+    var v1 = isAdmin ? (dash.inboxCountAll != null ? dash.inboxCountAll : 0) : (dash.inboxCount || 0);
+    var v2 = isAdmin ? (dash.trackerCountAll != null ? dash.trackerCountAll : 0) : (dash.trackerCount || 0);
     var v3 = byStatus['Applied'] || 0;
     var v4 = interviewing;
-    var v5 = (dash.inboxAddedLast7 || 0) + (dash.trackerAddedLast7 || 0);
+    var v5 = isAdmin ? (dash.addedLast7All != null ? dash.addedLast7All : 0) : ((dash.inboxAddedLast7 || 0) + (dash.trackerAddedLast7 || 0));
+    var labelTracker = isAdmin ? 'In Tracker' : 'Prospects';
     var html = '';
-    html += '<div class="metric-card metric-open-signals"><div class="metric-card-icon">' + iconHtml('openSignals') + '</div><div class="metric-card-label">Open Signals</div><div class="metric-card-value">' + v1 + '</div></div>';
-    html += '<div class="metric-card metric-in-tracker"><div class="metric-card-icon">' + iconHtml('inTracker') + '</div><div class="metric-card-label">In Tracker</div><div class="metric-card-value">' + v2 + '</div></div>';
+    /* Client portal metrics column is client-only; admin metrics (jobs need info, profiles, errors) only in admin portal */
+    html += '<button type="button" class="metric-card metric-open-signals" data-metric="radar" aria-label="Go to Inbox"><div class="metric-card-icon">' + iconHtml('fetch') + '</div><div class="metric-card-label">Open Sygnals</div><div class="metric-card-value">' + v1 + '</div></button>';
+    html += '<button type="button" class="metric-card metric-in-tracker" data-stage="Prospect" aria-label="' + labelTracker + '"><div class="metric-card-icon">' + iconHtml('target') + '</div><div class="metric-card-label">' + labelTracker + '</div><div class="metric-card-value">' + v2 + '</div></button>';
     html += '<button type="button" class="metric-card metric-applied" data-stage="Applied" aria-label="Filter by Applied"><div class="metric-card-icon">' + iconHtml('applied') + '</div><div class="metric-card-label">Applied</div><div class="metric-card-value">' + v3 + '</div></button>';
     html += '<button type="button" class="metric-card metric-interviewing" data-stage="Interview" aria-label="Filter by Interviewing"><div class="metric-card-icon">' + iconHtml('interviewing') + '</div><div class="metric-card-label">Interviewing</div><div class="metric-card-value">' + v4 + '</div></button>';
-    html += '<div class="metric-card metric-added-week"><div class="metric-card-icon">' + iconHtml('addedThisWeek') + '</div><div class="metric-card-label">Added this week</div><div class="metric-card-value">' + v5 + '</div></div>';
-    html += '<div style="margin-top:auto;padding-top:var(--space-3)"><button type="button" class="btn" style="width:100%;font-size:0.75rem" onclick="resetAllFilters()">Reset filters</button></div>';
+    html += '<div class="metric-card metric-added-week"><div class="metric-card-icon">' + iconHtml('addedThisWeek') + '</div><div class="metric-card-label">Added (7d)</div><div class="metric-card-value">' + v5 + '</div></div>';
+    if (isAdmin) {
+      var jobsNeedVal = dash.jobsNeedingEnrichment != null ? dash.jobsNeedingEnrichment : 0;
+      html += '<button type="button" class="metric-card metric-jobs-need-info" data-metric="admin-jobs" aria-label="Jobs need info"><div class="metric-card-icon">' + iconHtml('fetch') + '</div><div class="metric-card-label">Jobs need info</div><div class="metric-card-value">' + jobsNeedVal + '</div></button>';
+      var activeP = dash.activeProfiles != null ? dash.activeProfiles : 0;
+      var lockedP = dash.lockedProfiles != null ? dash.lockedProfiles : 0;
+      var profilesVal = lockedP > 0 ? (activeP + ' / ' + lockedP) : (activeP + ' active');
+      html += '<button type="button" class="metric-card metric-profiles" data-metric="admin" aria-label="Profiles"><div class="metric-card-icon">' + iconHtml('target') + '</div><div class="metric-card-label">Profiles</div><div class="metric-card-value">' + profilesVal + '</div></button>';
+      var errCount = dash.recentErrorsCount != null ? dash.recentErrorsCount : 0;
+      html += '<button type="button" class="metric-card metric-errors" data-metric="admin" aria-label="Errors"><div class="metric-card-icon">' + iconHtml('view') + '</div><div class="metric-card-label">Errors</div><div class="metric-card-value">' + errCount + '</div></button>';
+    }
     col.innerHTML = html;
     col.querySelectorAll('.metric-card[data-stage]').forEach(function(btn) {
       btn.addEventListener('click', function() {
@@ -803,16 +1123,24 @@
         }
       });
     });
-  }
-
-  function resetAllFilters() {
-    clearInboxFilters();
-    trackerFilter = { type: 'all' };
-    if (currentTab === 'tracker') {
-      renderTrackerPipeline();
-      renderTracker(getFilteredTrackerList());
-    }
-    showToast('Filters reset.', 'success');
+    col.querySelectorAll('.metric-card[data-metric="radar"]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        setTab('inbox');
+      });
+    });
+    col.querySelectorAll('.metric-card[data-metric="admin-jobs"]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        setTab('admin');
+        setTimeout(function() {
+          if (typeof window.showAdminSection === 'function') window.showAdminSection('jobsIntake');
+        }, 0);
+      });
+    });
+    col.querySelectorAll('.metric-card[data-metric="admin"]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        setTab('admin');
+      });
+    });
   }
 
   async function updateTracker(url, company, title) {
@@ -828,18 +1156,32 @@
 
     var rowWrap = document.querySelector('.tracker-card[data-tracker-key="' + h + '"]') || document.querySelector('.tracker-table-row[data-tracker-key="' + h + '"]');
     var saveBtn = rowWrap ? rowWrap.querySelector('.tracker-save-btn') : null;
+    var originalSaveHtml = saveBtn ? saveBtn.innerHTML : (iconHtml('save', 18) + ' Save');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
-    var res = await api('updateTracker', {
-      url: url,
-      company: company,
-      title: title,
-      status: status,
-      notes: notes,
-      dateApplied: dateApplied
-    });
+    var res;
+    try {
+      res = await api('updateTracker', {
+        url: url,
+        company: company,
+        title: title,
+        status: status,
+        notes: notes,
+        dateApplied: dateApplied
+      });
+    } catch (e) {
+      res = null;
+    }
 
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = res && res.ok ? '✓ Saved' : iconHtml('save', 18) + ' Save'; }
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      if (res && res.ok) {
+        saveBtn.innerHTML = '✓ Saved';
+        setTimeout(function() { saveBtn.innerHTML = originalSaveHtml; }, 1500);
+      } else {
+        saveBtn.innerHTML = originalSaveHtml;
+      }
+    }
     if (res && res.ok) {
       showToast('Saved.', 'success');
       var idx = trackerCache.findIndex(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
@@ -862,53 +1204,37 @@
   
   function hideManualAdd() {
     $('manualAddModal').classList.remove('visible');
-    $('manualUrl').value = '';
-    $('manualTitle').value = '';
-    $('manualCompany').value = '';
+    if ($('manualUrl')) $('manualUrl').value = '';
+    if ($('manualTitle')) $('manualTitle').value = '';
+    if ($('manualCompany')) $('manualCompany').value = '';
+    if ($('manualLocation')) $('manualLocation').value = '';
+    if ($('manualNotes')) $('manualNotes').value = '';
   }
   
   async function submitManualAdd() {
-    var url = $('manualUrl').value.trim();
-    var title = $('manualTitle').value.trim();
-    var company = $('manualCompany').value.trim();
-    
+    var url = ($('manualUrl') && $('manualUrl').value) ? $('manualUrl').value.trim() : '';
+    var title = ($('manualTitle') && $('manualTitle').value) ? $('manualTitle').value.trim() : '';
+    var company = ($('manualCompany') && $('manualCompany').value) ? $('manualCompany').value.trim() : '';
+    var location = ($('manualLocation') && $('manualLocation').value) ? $('manualLocation').value.trim() : '';
+    var notes = ($('manualNotes') && $('manualNotes').value) ? $('manualNotes').value.trim() : '';
+
     if (!title || !company) {
       showToast('Title and Company are required', 'error');
       return;
     }
-    
+
     hideManualAdd();
     setLoading(true, 'Adding to Tracker...');
-    
-    var job = {
-      url: url || '',
-      title: title,
-      company: company,
-      source: 'manual',
-      location: 'Unknown',
-      tier: 'C',
-      score: 0,
-      jobSummary: 'Manually added',
-      whyFit: '',
-      status: 'Prospect',
-      notes: '',
-      dateApplied: ''
-    };
-    
-    var res = await api('promote', job);
-    
+
+    var res = await api('manualAdd', { title: title, company: company, url: url, location: location, notes: notes });
+
     if (res && res.ok) {
       showToast('Added to Tracker.', 'success');
-      trackerCache.push(job);
-      updateCommandBarCounts();
-      if (currentTab === 'tracker') {
-        renderTrackerPipeline();
-        renderTracker(getFilteredTrackerList());
-      }
+      await loadTracker();
     } else {
       showToast('❌ ' + (res && res.message ? res.message : 'Failed to add'), 'error');
     }
-    
+
     setLoading(false);
   }
 
@@ -922,7 +1248,8 @@
       container.innerHTML =
         '<div class="empty-state">' +
           '<div class="empty-icon">' + iconHtml('openSignals', 48) + '</div>' +
-          '<div class="empty-title">No roles yet — click \'Fetch New Roles\' to start the hunt.</div>' +
+          '<div class="empty-title">No fresh sygnals yet</div>' +
+          '<div class="empty-subtitle">Run Scan or check back after the next run.</div>' +
         '</div>';
       return;
     }
@@ -931,13 +1258,26 @@
       var job = list[i];
       var key = jobKey(job);
       var tier = String(job.tier || 'C').toUpperCase();
-      var cardClass = tier === 'S' ? 'job-card tier-s' : 'job-card';
+      var tierSlug = tier.toLowerCase();
+      var cardClass = 'job-card tier-' + tierSlug;
       var card = document.createElement('div');
       card.className = cardClass;
       card.dataset.jobKey = key;
       var summary = (job.jobSummary || '').trim();
       var summaryEsc = summary ? esc(summary) : '';
-      var salaryDisplay = esc(formatSalary(job));
+      var salarySource = (job.salary_source && String(job.salary_source).trim()) || 'missing';
+      var salaryText = formatSalary(job);
+      var salaryChipClass = 'chip job-salary';
+      var salaryChipContent = salaryText;
+      var salaryChipTitle = '';
+      if (salarySource === 'inferred') {
+        salaryChipClass += ' job-salary-inferred';
+        salaryChipContent = salaryText;
+      } else if (salarySource === 'missing' || salaryText === 'Salary not listed') {
+        salaryChipClass += ' job-salary-missing';
+        salaryChipContent = 'Salary not listed';
+      }
+      var salaryChipHtml = '<span class="' + salaryChipClass + '"' + salaryChipTitle + '>' + esc(salaryChipContent) + '</span>';
       card.innerHTML =
         '<div class="job-card-front">' +
           '<div class="job-header">' +
@@ -946,10 +1286,10 @@
           '</div>' +
           '<div class="job-meta">' +
             '<span class="chip chip-tier chip-tier-' + tier.toLowerCase() + '">Tier ' + tier + ' · ' + esc(job.score) + '</span>' +
-            (job.laneLabel ? '<span class="chip chip-lane">' + esc(job.laneLabel) + '</span>' : '') +
+            (job.laneLabel ? '<span class="chip chip-role">' + esc(roleDisplayLabel(job.laneLabel)) + '</span>' : '') +
+            salaryChipHtml +
             '<span class="chip">' + esc(job.location || 'Remote') + '</span>' +
             '<span class="chip">' + esc(job.source) + '</span>' +
-            '<span class="chip job-salary">' + salaryDisplay + '</span>' +
           '</div>' +
           (summaryEsc ? '<div class="job-summary-preview">' + summaryEsc + '</div>' : '') +
           '<div class="job-actions">' +
@@ -964,23 +1304,43 @@
     container.querySelectorAll('[data-promote]').forEach(function(btn) {
       var k = btn.getAttribute('data-promote');
       var j = list.find(function(x) { return jobKey(x) === k; });
-      if (j) btn.addEventListener('click', function() { promote(j); });
+      if (j) btn.addEventListener('click', function() { promote(j, btn); });
     });
   }
 
-  function promote(job) {
+  function promote(job, optButton) {
+    var t_click = Date.now();
+    var key = jobKey(job);
+    var btn = optButton || (key ? document.querySelector('[data-promote="' + String(key).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]') : null);
+    if (btn && btn.disabled) return;
     if (isBusy) return;
-    setLoading(true, 'Adding to Tracker...');
+    var reqId = 'r_' + t_click + '_' + Math.random().toString(36).slice(2, 6);
+    timingLog('add_to_tracker', { t_click, reqId, profileId: typeof profileId !== 'undefined' ? profileId : null });
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = iconHtml('inTracker', 18) + ' In Tracker';
+    }
+    var t_optimistic_ui = Date.now();
+    timingLog('add_to_tracker', { t_optimistic_ui, reqId, phase: 'optimistic_ui' });
+    var t_request_start = Date.now();
     api('promote', job).then(function(res) {
+      var t_response = Date.now();
+      var deduped = !!(res && !res.ok && (res.message || '').indexOf('Already in Tracker') !== -1);
+      timingLog('add_to_tracker', { t_response, reqId, profileId: typeof profileId !== 'undefined' ? profileId : null, ok: !!(res && res.ok), deduped: deduped });
       if (res && res.ok) {
         showToast('Added to Tracker.', 'success');
         trackerCache.push(job);
         updateCommandBarCounts();
         if (currentTab === 'tracker') { renderTrackerPipeline(); renderTracker(getFilteredTrackerList()); }
       } else {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = iconHtml('addToTracker', 18) + ' Add to Tracker';
+        }
         showToast(res && res.message ? res.message : 'Already in Tracker.', 'error');
       }
-      setLoading(false);
+      var t_final_ui_settled = Date.now();
+      timingLog('add_to_tracker', { t_final_ui_settled, reqId, phase: 'settled' });
     });
   }
 
@@ -994,7 +1354,7 @@
       container.innerHTML =
         '<div class="empty-state">' +
           '<div class="empty-icon">' + iconHtml('star', 48) + '</div>' +
-          '<div class="empty-title">Nothing in your Tracker yet. Add roles you like from your Inbox.</div>' +
+          '<div class="empty-title">Nothing in your Tracker yet. Add roles you like from Radar.</div>' +
         '</div>';
       return;
     }
@@ -1017,7 +1377,7 @@
         var eyeHtml = eyeDisabled
           ? '<span class="icon-btn tracker-eye-btn tracker-eye-btn-disabled" aria-label="View job posting" title="No URL">' + iconHtml('view', 18) + '</span>'
           : '<a href="' + eyeHref + '" target="_blank" rel="noreferrer" class="icon-btn tracker-eye-btn" aria-label="View job posting" title="View job posting">' + iconHtml('view', 18) + '</a>';
-        var saveHtml = '<button type="button" class="btn btn-primary tracker-save-btn" onclick=\'updateTracker(' + JSON.stringify(job.url || '') + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>' + iconHtml('save', 18) + ' Save</button>';
+        var saveHtml = '<button type="button" class="btn btn-action tracker-save-btn" onclick=\'updateTracker(' + JSON.stringify(job.url || '') + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>' + iconHtml('save', 18) + ' Save</button>';
         tableHtml += '<tr class="tracker-table-row ' + stageClass + '" data-tracker-key="' + h + '">' +
           '<td class="tracker-table-title">' + esc(job.title) + '</td>' +
           '<td>' + esc(job.company) + '</td>' +
@@ -1074,11 +1434,11 @@
       html += '</div></div>';
       if (jobSum) html += '<div class="tracker-card-summary">' + esc(jobSum) + '</div>';
       html += '<div class="tracker-card-cta">';
-      if (job.url) html += '<a href="' + esc(job.url) + '" target="_blank" rel="noopener" class="btn btn-primary tracker-view-job-btn">' + iconHtml('view', 20) + ' View job</a>';
+      if (job.url) html += '<a href="' + esc(job.url) + '" target="_blank" rel="noopener" class="btn btn-primary tracker-view-job-btn">' + iconHtml('view', 18) + ' View job</a>';
       else html += '<span class="tracker-view-job-btn tracker-view-job-btn-disabled">View job</span>';
       html += '</div>';
       html += '<div class="tracker-card-footer">';
-      if (trackerFilter.type === 'all') html += '<button type="button" class="btn btn-sm tracker-goodfit-btn" data-tracker-key-full="' + esc(key) + '" title="GoodFit">' + iconHtml('goodFit', 18) + ' GoodFit</button>';
+      html += '<button type="button" class="btn btn-sm tracker-goodfit-btn" data-tracker-key-full="' + esc(key) + '" title="GoodFit">' + iconHtml('goodFit', 18) + ' GoodFit</button>';
       html += '</div>';
       html += '<div class="tracker-card-details">';
       html += '<div class="form-group"><label class="form-label">Status</label>';
@@ -1093,17 +1453,27 @@
       html += '<div class="form-group"><label class="form-label">Notes</label>';
       html += '<textarea class="form-textarea" id="no_' + h + '" placeholder="Add notes...">' + esc(job.notes || '') + '</textarea></div>';
       html += '<div class="tracker-card-details-actions">';
-      html += '<button type="button" class="btn btn-primary tracker-save-btn" onclick=\'updateTracker(' + JSON.stringify(job.url || '') + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>' + iconHtml('save', 18) + ' Save</button>';
+      html += '<button type="button" class="btn btn-action tracker-save-btn" onclick=\'updateTracker(' + JSON.stringify(job.url || '') + ',' + JSON.stringify(job.company) + ',' + JSON.stringify(job.title) + ')\'>' + iconHtml('save', 18) + ' Save</button>';
       html += '<button type="button" class="btn btn-icon btn-sm tracker-remove-btn" data-tracker-key-full="' + esc(key) + '" title="Remove from Tracker" aria-label="Remove from Tracker">' + iconHtml('trash', 18) + '</button>';
       html += '</div></div>';
       html += '</div>';
       html += '<div class="tracker-card-back">';
-      html += '<h3 class="good-fit-heading">Good Fit</h3>';
+      html += '<div class="tracker-card-back-job-summary">';
+      html += '<h3 class="tracker-card-back-section-heading">Job Summary</h3>';
+      html += '<div class="tracker-card-back-job-meta">';
+      html += '<div class="tracker-card-back-company">' + companyLine + '</div>';
+      html += '<div class="tracker-card-back-pill-row"><span class="tracker-salary-pill meta-pill">' + esc(salaryDisplay) + '</span><span class="status-pill meta-pill ' + stageClass + '">' + esc(statusLabel) + '</span></div>';
+      if (jobSum) html += '<div class="tracker-card-back-summary">' + esc(jobSum) + '</div>';
+      if (job.url) html += '<a href="' + esc(job.url) + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm tracker-card-back-view-job">' + iconHtml('view', 18) + ' View job</a>';
+      html += '</div></div>';
+      html += '<h3 class="good-fit-heading">GoodFit</h3>';
       html += '<div class="good-fit-back-content">' + goodFitBackHtml + '</div>';
       html += '<div class="tracker-card-back-notes">';
+      html += '<h4 class="tracker-card-back-saved-notes-heading">Saved Notes</h4>';
+      html += '<div class="tracker-card-back-saved-notes" data-tracker-key-full="' + esc(key) + '">' + (job.notes && String(job.notes).trim() ? esc(job.notes) : '<span class="color-text-dim">No notes yet.</span>') + '</div>';
       html += '<label class="form-label">Notes</label>';
-      html += '<textarea class="form-textarea tracker-card-back-notes-input" data-tracker-key-full="' + esc(key) + '" placeholder="Add notes...">' + esc(job.notes || '') + '</textarea>';
-      html += '<button type="button" class="btn btn-primary btn-sm tracker-card-back-notes-save" data-tracker-key-full="' + esc(key) + '">' + iconHtml('save', 18) + ' Save</button>';
+      html += '<textarea class="form-textarea tracker-card-back-notes-input" data-tracker-key-full="' + esc(key) + '" placeholder="Add notes..."></textarea>';
+      html += '<button type="button" class="btn btn-action tracker-save-btn tracker-card-back-notes-save" data-tracker-key-full="' + esc(key) + '">' + iconHtml('save', 18) + ' Save</button>';
       html += '</div>';
       html += '<button type="button" class="btn btn-sm good-fit-back-btn">← Back</button>';
       html += '</div>';
@@ -1117,25 +1487,27 @@
         e.stopPropagation();
         var card = btn.closest('.tracker-card');
         if (!card) return;
-        var expanded = card.getAttribute('data-expanded') === 'true';
-        card.setAttribute('data-expanded', !expanded);
-        card.classList.toggle('expanded', !expanded);
-        btn.innerHTML = !expanded ? 'Done' : iconHtml('pencil', 18);
-        btn.setAttribute('title', !expanded ? 'Done' : 'Edit');
-        btn.setAttribute('aria-label', !expanded ? 'Done' : 'Edit');
+        if (card.closest('#spotlightSlot')) {
+          closeGoodFitFocusMode();
+          return;
+        }
+        openEditFocusMode(card);
       });
     });
     container.querySelectorAll('.good-fit-back-btn').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
         var card = btn.closest('.tracker-card');
-        if (card) {
-          card.classList.remove('flipped');
-          card.style.height = '';
-          card.style.minHeight = '';
-          var listEl = $('trackerList');
-          if (listEl) listEl.classList.remove('has-flipped-card');
+        if (!card) return;
+        if (card.classList.contains('is-focus-mode')) {
+          closeGoodFitFocusMode();
+          return;
         }
+        card.classList.remove('flipped');
+        card.style.height = '';
+        card.style.minHeight = '';
+        var listEl = $('trackerList');
+        if (listEl) listEl.classList.remove('has-flipped-card');
       });
     });
     container.querySelectorAll('.tracker-remove-btn').forEach(function(btn) {
@@ -1170,45 +1542,7 @@
         e.stopPropagation();
         var card = btn.closest('.tracker-card');
         if (!card) return;
-        var key = card.getAttribute('data-tracker-key-full');
-        if (!key) return;
-        var listEl = $('trackerList');
-        if (listEl) listEl.classList.add('has-flipped-card');
-        card.classList.add('flipped');
-        var backPanel = card.querySelector('.tracker-card-back .good-fit-back-content');
-        if (backPanel && !backPanel.querySelector('.good-fit-statements')) {
-          var job = trackerCache.find(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
-            if (job && job.goodFit && String(job.goodFit).trim()) {
-              var statements = String(job.goodFit).trim().split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(Boolean);
-              var h = '<div class="good-fit-statements">';
-              statements.slice(0, 5).forEach(function(s) { h += '<p class="good-fit-statement">' + esc(s) + '</p>'; });
-              h += '</div>';
-              backPanel.innerHTML = h;
-            } else {
-              backPanel.innerHTML = '<p class="color-text-dim">Generating…</p>';
-              api('getOrCreateGoodFit', { trackerKey: key, force: false }).then(function(r) {
-                if (r && r.ok && r.goodFit) {
-                  var idx = trackerCache.findIndex(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
-                  if (idx !== -1) trackerCache[idx].goodFit = r.goodFit;
-                  var stmts = String(r.goodFit).trim().split(/\n\s*\n/).map(function(s) { return s.trim(); }).filter(Boolean);
-                  var html = '<div class="good-fit-statements">';
-                  stmts.slice(0, 5).forEach(function(s) { html += '<p class="good-fit-statement">' + esc(s) + '</p>'; });
-                  html += '</div>';
-                  var el = card.querySelector('.tracker-card-back .good-fit-back-content');
-                  if (el && el.parentNode) el.innerHTML = html;
-                  showToast('GoodFit generated.', 'success');
-                } else {
-                  var el2 = card.querySelector('.tracker-card-back .good-fit-back-content');
-                  if (el2 && el2.parentNode) el2.innerHTML = '<p class="color-text-dim good-fit-placeholder">Generation failed. Try again.</p>';
-                  showToast(r && r.message ? r.message : 'GoodFit failed', 'error');
-                }
-              }).catch(function() {
-                var el3 = card.querySelector('.tracker-card-back .good-fit-back-content');
-                if (el3 && el3.parentNode) el3.innerHTML = '<p class="color-text-dim good-fit-placeholder">Generation failed. Try again.</p>';
-                showToast('GoodFit failed', 'error');
-              });
-            }
-        }
+        openGoodFitFocusMode(card);
       });
     });
     container.querySelectorAll('.tracker-card-back-notes-save').forEach(function(btn) {
@@ -1218,9 +1552,11 @@
         if (!key) return;
         var card = btn.closest('.tracker-card');
         var notesEl = card ? card.querySelector('.tracker-card-back-notes-input') : null;
-        var notes = notesEl ? notesEl.value : '';
+        var newInput = (notesEl && notesEl.value) ? notesEl.value.trim() : '';
         var job = trackerCache.find(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
         if (!job) return;
+        var existingNotes = (job.notes && String(job.notes).trim()) ? String(job.notes).trim() : '';
+        var notes = newInput ? (existingNotes ? existingNotes + '\n\n' + newInput : newInput) : existingNotes;
         if (btn.disabled) return;
         btn.disabled = true;
         btn.innerHTML = 'Saving…';
@@ -1237,6 +1573,9 @@
           if (res && res.ok) {
             var idx = trackerCache.findIndex(function(j) { return (j.url || (j.company + '||' + j.title)) === key; });
             if (idx !== -1) trackerCache[idx].notes = notes;
+            var savedBlock = card ? card.querySelector('.tracker-card-back-saved-notes') : null;
+            if (savedBlock) savedBlock.innerHTML = notes ? esc(notes) : '<span class="color-text-dim">No notes yet.</span>';
+            if (notesEl) notesEl.value = '';
             showToast('Saved.', 'success');
           } else {
             showToast(res && res.message ? res.message : 'Save failed', 'error');

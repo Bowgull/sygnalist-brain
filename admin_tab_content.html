@@ -1,0 +1,253 @@
+<style>
+  #adminTabContent .admin-page { max-width: 960px; margin: 0 auto; padding: var(--space-6); }
+  #adminTabContent .admin-heading { font-size: 1.5rem; font-weight: 700; margin-bottom: var(--space-2); }
+  #adminTabContent .admin-sub { color: var(--color-text-muted); font-size: 0.875rem; margin-bottom: var(--space-4); }
+  #adminTabContent .admin-list { display: flex; flex-direction: column; gap: var(--space-3); }
+  #adminTabContent .admin-card {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap;
+    padding: var(--space-4); background: var(--color-bg-card); border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg); transition: border-color 0.15s ease;
+  }
+  #adminTabContent .admin-card:hover { border-color: rgba(106, 215, 163, 0.3); }
+  #adminTabContent .admin-card-info { flex: 1; min-width: 0; }
+  #adminTabContent .admin-card-name { font-weight: 600; font-size: 1rem; margin-bottom: var(--space-1); }
+  #adminTabContent .admin-card-id { font-size: 0.75rem; color: var(--color-text-dim); }
+  #adminTabContent .admin-card-meta { font-size: 0.75rem; color: var(--color-text-muted); margin-top: var(--space-1); }
+  #adminTabContent .admin-card-status {
+    font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 8px;
+    border-radius: var(--radius-pill); margin-top: var(--space-1);
+    display: inline-block;
+  }
+  #adminTabContent .admin-card-status.active { background: rgba(106, 215, 163, 0.2); color: var(--color-radar-mid); }
+  #adminTabContent .admin-card-status.inactive { background: rgba(156, 163, 175, 0.2); color: var(--color-text-muted); }
+  #adminTabContent .admin-card-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  #adminTabContent .field-missing { color: var(--color-tier-x, #DC2626); font-weight: 600; }
+  #adminTabContent .jobs-intake-card-form .form-group { margin-bottom: var(--space-3); }
+  #adminTabContent .jobs-intake-card-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  #adminTabContent .jobs-intake-check-wrap { margin: 0; flex-shrink: 0; }
+  #adminTabContent .admin-section { display: none; margin-top: var(--space-4); }
+  #adminTabContent .admin-section.active { display: block; }
+  #adminTabContent .admin-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-4); }
+  #adminTabContent .admin-table-wrap { overflow-x: auto; background: var(--color-bg-card); border-radius: var(--radius-lg); border: 1px solid var(--color-border); }
+  #adminTabContent .admin-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  #adminTabContent .admin-table th, #adminTabContent .admin-table td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--color-border); }
+  #adminTabContent .admin-table th { background: var(--color-bg-elevated); font-weight: 600; color: var(--color-text-muted); }
+  #adminTabContent .admin-table tr:last-child td { border-bottom: none; }
+  #adminTabContent .staging-row-new-lane { background: rgba(106, 215, 163, 0.08); }
+  #adminTabContent .staging-row-new-lane .td-role { box-shadow: 0 0 0 1px rgba(106, 215, 163, 0.35); border-radius: var(--radius-sm); padding-left: var(--space-2); }
+  #adminTabContent .badge-new-lane { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-pill); background: rgba(106, 215, 163, 0.25); color: var(--color-radar-mid); margin-left: 4px; }
+  #adminTabContent .btn-sm { font-size: 0.75rem; padding: var(--space-1) var(--space-2); }
+  #adminTabContent .field-missing { color: var(--color-tier-x); font-weight: 600; }
+  #adminTabContent .jobs-intake-check-wrap { display: inline-flex; align-items: center; margin-right: var(--space-2); flex-shrink: 0; }
+  #adminTabContent .jobs-intake-card-form .form-group { margin-bottom: var(--space-3); }
+  #adminTabContent .jobs-intake-card-form .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--color-text-muted); margin-bottom: var(--space-1); }
+  #adminTabContent .jobs-intake-card-form input, #adminTabContent .jobs-intake-card-form select, #adminTabContent .jobs-intake-card-form textarea { width: 100%; padding: var(--space-2); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-main); }
+  #adminTabContent .admin-select { min-width: 200px; padding: var(--space-2) var(--space-3); background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-main); }
+  #adminTabContent .admin-search { padding: var(--space-2) var(--space-3); background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-main); min-width: 180px; }
+  #adminTabContent .modal-overlay { position: fixed; inset: 0; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: rgba(5, 6, 10, 0.9); display: flex; align-items: center; justify-content: center; z-index: 3000; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+  #adminTabContent .modal-overlay.visible { opacity: 1; pointer-events: all; }
+  #adminTabContent .modal { background: var(--color-bg-card); border: 1px solid var(--color-divider); border-radius: var(--radius-xl); padding: var(--space-6); width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-card); margin-left: var(--space-3); margin-right: var(--space-3); }
+  #adminTabContent .modal-title { font-size: 1.125rem; font-weight: 700; margin-bottom: var(--space-4); }
+  #adminTabContent .modal-close { float: right; background: transparent; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-muted); cursor: pointer; padding: var(--space-1) var(--space-2); }
+  #adminTabContent .form-group { margin-bottom: var(--space-4); }
+  #adminTabContent .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--color-text-muted); margin-bottom: var(--space-1); }
+  #adminTabContent .form-group input, #adminTabContent .form-group textarea, #adminTabContent .form-group select { width: 100%; padding: var(--space-2); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-main); }
+  #adminTabContent .modal-actions { display: flex; gap: var(--space-3); margin-top: var(--space-5); }
+  #adminTabContent .toast-admin { position: fixed; bottom: var(--space-6); left: 50%; transform: translateX(-50%); padding: var(--space-3) var(--space-5); border-radius: var(--radius-md); background: var(--color-bg-elevated); border: 1px solid var(--color-border); z-index: 4000; font-size: 0.875rem; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+  #adminTabContent .toast-admin.visible { opacity: 1; }
+  #adminTabContent .toast-admin.error { border-color: var(--color-tier-x); color: #fca5a5; }
+  #adminTabContent .toast-admin.success { border-color: var(--color-radar-mid); color: var(--color-radar-light); }
+  #adminTabContent #analyticsKpiRow .metric-card-value.metric-card-value-date { font-size: 0.875rem; line-height: 1.3; }
+</style>
+<div id="adminTabContent">
+  <div class="admin-page">
+    <h1 class="admin-heading">Master Portal</h1>
+    <p class="admin-sub">Manage profiles, lanes, inbox, tracker, logs, and ops.</p>
+
+    <div class="tabs-container">
+      <div class="tabs-row">
+        <button type="button" class="tab-btn active" data-tab="profiles">Profiles</button>
+        <button type="button" class="tab-btn" data-tab="jobsIntake">Jobs Intake</button>
+        <button type="button" class="tab-btn" data-tab="jobLanes">Job Lanes</button>
+        <button type="button" class="tab-btn" data-tab="logs">Logs</button>
+        <button type="button" class="tab-btn" data-tab="analytics">Analytics</button>
+        <button type="button" class="tab-btn" data-tab="ops">Ops</button>
+      </div>
+    </div>
+
+    <div id="sectionProfiles" class="admin-section active">
+      <div class="admin-toolbar">
+        <input type="text" id="profileSearch" class="admin-search" placeholder="Search name or email..." />
+        <button type="button" class="btn btn-primary" id="btnAddProfile">Add profile</button>
+        <button type="button" class="btn btn-ghost" id="btnRefreshProfiles">Refresh</button>
+        <button type="button" class="btn btn-ghost" id="btnResumeParse">Resume parse</button>
+      </div>
+      <div class="admin-list" id="profileList"></div>
+    </div>
+
+    <div id="sectionJobLanes" class="admin-section">
+      <div id="jobLanesContextLine" class="admin-sub" style="margin-bottom: var(--space-2);">
+        <span id="jobLanesProfileLabel" style="display:none;">Editing lanes for: <strong id="jobLanesProfileNameEl"></strong></span>
+        <span id="jobLanesHint">Click <strong>Lanes</strong> on a profile card to edit that profile's lanes.</span>
+      </div>
+      <div class="admin-toolbar" id="jobLanesToolbar" style="display:none;">
+        <button type="button" class="btn btn-ghost" id="btnLoadJobLanes">Load</button>
+      </div>
+      <div id="jobLanesVerifyBlock" class="admin-card" style="margin-bottom: var(--space-4); display: none;">
+        <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">1. Verify parse suggestions</div>
+        <p class="admin-sub" style="margin-bottom: var(--space-2);">Resume parse suggested these roles. Check Include for roles to apply, then click Apply selected.</p>
+        <div class="admin-table-wrap" style="margin-bottom: var(--space-2);">
+          <table class="admin-table" id="jobLanesStagingTable"><thead><tr><th>Role</th><th>Keywords</th><th>Include</th><th class="th-add-to-bank" style="display:none;">Add to bank</th></tr></thead><tbody></tbody></table>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnApplyJobLanesSuggestions">Apply selected</button>
+      </div>
+      <div id="jobLanesTogglesBlock" class="admin-card">
+        <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">2. Profile lane toggles</div>
+        <p class="admin-sub" style="margin-bottom: var(--space-2);">Enable the lanes this profile should see. Add or remove by checking or unchecking.</p>
+        <div id="jobLanesTogglesContainer"></div>
+        <button type="button" class="btn btn-primary" id="btnSaveJobLaneControls" style="margin-top: var(--space-3);">Save lane toggles</button>
+      </div>
+    </div>
+
+    <div id="sectionLogs" class="admin-section">
+      <div class="admin-toolbar">
+        <input type="text" id="logsProfileFilter" class="admin-search" placeholder="Profile ID filter" />
+        <input type="text" id="logsActionFilter" class="admin-search" placeholder="Action filter" />
+        <button type="button" class="btn btn-ghost" id="btnLoadLogs">Load logs</button>
+        <button type="button" class="btn btn-primary" id="btnExportLogs">Export logs</button>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="logsTable"><thead><tr><th>Time</th><th>Profile</th><th>Action</th><th>Source</th><th>Details</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div id="sectionJobsIntake" class="admin-section">
+      <!-- Card-edit pattern: card forward + isolated + dimmed UI (same as GoodFit in client portal) -->
+      <div id="jobsIntakeSpotlightOverlay" class="jobs-intake-spotlight-overlay" aria-hidden="true"></div>
+      <div id="jobsIntakeSpotlightSlot" class="jobs-intake-spotlight-slot" aria-hidden="true"></div>
+      <div class="admin-toolbar">
+        <button type="button" class="btn btn-primary" id="btnIngestGmail">Ingest from Gmail</button>
+        <button type="button" class="btn btn-ghost" id="btnLoadJobsInbox">Load</button>
+        <button type="button" class="btn btn-ghost" id="btnDeleteSelectedJobs" disabled>Delete selected</button>
+        <button type="button" class="btn btn-action" id="btnAddToJobBank" disabled>Add to job bank</button>
+      </div>
+      <div class="jobs-intake-pipeline-header pipeline-layout" id="jobsIntakePipelineHeader">
+        <!-- Rendered by JS: All | New | Needs Enrichment | Enriched | Outliers -->
+      </div>
+      <div class="jobs-intake-list panel-body panel-body-full" id="jobsIntakeList">
+        <!-- Card grid rendered by JS -->
+      </div>
+      <div id="jobsIntakeEnrichment" class="admin-card" style="margin-top: var(--space-4); display: none;">
+        <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">Enrich job</div>
+        <input type="hidden" id="enrichJobId" />
+        <div class="form-group"><label>Company *</label><input type="text" id="enrichCompany" /></div>
+        <div class="form-group"><label>Location *</label><input type="text" id="enrichLocation" /></div>
+        <div class="form-group"><label>Work mode *</label><select id="enrichWorkMode"><option value="">—</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></div>
+        <div class="form-group"><label>Job family *</label><input type="text" id="enrichJobFamily" /></div>
+        <div class="form-group"><label>Description snippet *</label><textarea id="enrichDescSnippet" rows="3"></textarea></div>
+        <div class="form-group"><label>Promote to profile</label><select id="enrichPromoteProfileSelect" class="admin-select"><option value="">Select profile</option></select></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="btnEnrichCancel">Cancel</button>
+          <button type="button" class="btn btn-ghost" id="btnPromoteOutlierToJob" style="display:none;">Promote to job</button>
+          <button type="button" class="btn btn-primary" id="btnEnrichSave">Save enrichment</button>
+          <button type="button" class="btn btn-primary" id="btnPromoteJob">Promote to Role Bank</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="sectionAnalytics" class="admin-section">
+      <div class="admin-toolbar">
+        <button type="button" class="btn btn-primary" id="btnLoadAnalytics">Load analytics</button>
+        <button type="button" class="btn btn-ghost" id="btnRefreshAnalytics">Refresh Analytics</button>
+      </div>
+      <div id="analyticsDashboard" style="display: none;">
+        <div id="analyticsError" class="admin-sub" style="color: var(--color-tier-x); margin-bottom: var(--space-3); display: none;"></div>
+        <div id="analyticsKpiRow" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4);"></div>
+        <div style="margin-bottom: var(--space-4);">
+          <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">Inbox tier distribution</div>
+          <div id="analyticsTierChart" style="display: flex; flex-direction: column; gap: var(--space-2);"></div>
+        </div>
+        <div style="margin-bottom: var(--space-4);">
+          <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">Tracker by status</div>
+          <div id="analyticsStatusChart" style="display: flex; flex-direction: column; gap: var(--space-2);"></div>
+        </div>
+        <div style="margin-bottom: var(--space-4);">
+          <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">Top alerts (last 5 errors)</div>
+          <div id="analyticsTopErrors" class="admin-table-wrap"></div>
+        </div>
+      </div>
+      <p class="admin-sub">Load analytics to view KPIs and charts above. Refresh Analytics updates the 📊 Admin_Analytics sheet.</p>
+    </div>
+
+    <div id="sectionOps" class="admin-section">
+      <div class="admin-toolbar">
+        <button type="button" class="btn btn-primary" id="btnHealthCheck">Health check</button>
+        <button type="button" class="btn btn-ghost" id="btnInitEngineTables">Init engine tables</button>
+        <button type="button" class="btn btn-ghost" id="btnFormatLogs">Format Logs sheet</button>
+      </div>
+      <div id="healthReport" class="admin-card" style="margin-top: var(--space-4); white-space: pre-wrap; font-size: 0.875rem;"></div>
+    </div>
+  </div>
+
+  <div id="modalEdit" class="modal-overlay">
+    <div class="modal">
+      <button type="button" class="modal-close" id="modalEditClose">×</button>
+      <div class="modal-title">Edit profile</div>
+      <div id="editFormBody"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="editCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="editSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalCreate" class="modal-overlay">
+    <div class="modal">
+      <button type="button" class="modal-close" id="modalCreateClose">×</button>
+      <div class="modal-title">Add profile</div>
+      <div class="form-group"><label>Profile ID</label><input type="text" id="createProfileId" placeholder="e.g. josh, client1" /></div>
+      <div class="form-group"><label>Display name</label><input type="text" id="createDisplayName" placeholder="Display name" /></div>
+      <div class="form-group"><label>Email</label><input type="email" id="createEmail" placeholder="email@example.com" /></div>
+      <div class="form-group"><label>Remote preference</label><select id="createRemotePref"><option value="remote_only">Remote only</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></div>
+      <div class="form-group"><label>Salary min (0 = any)</label><input type="number" id="createSalaryMin" value="0" min="0" /></div>
+      <div class="form-group"><label>Preferred locations (comma-separated)</label><input type="text" id="createPreferredLocations" placeholder="United States, Canada" /></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="createCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="createSubmit">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalConfirm" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-title" id="confirmTitle">Confirm</div>
+      <p id="confirmMessage"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="confirmCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalResumeParse" class="modal-overlay">
+    <div class="modal">
+      <button type="button" class="modal-close" id="modalResumeParseClose">×</button>
+      <div class="modal-title">Resume parse</div>
+      <p class="admin-sub" style="margin-bottom: var(--space-3);">Paste the full resume text below (min 100 characters).</p>
+      <div class="form-group">
+        <label>Profile</label>
+        <select id="resumeParseProfileSelect" class="admin-select"><option value="">Select profile</option></select>
+      </div>
+      <div class="form-group">
+        <label>Resume text</label>
+        <textarea id="resumeParseText" class="admin-search" rows="14" placeholder="Paste full resume text (min 100 characters)..." style="min-height: 200px; resize: vertical;"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="resumeParseCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="resumeParseOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastAdmin" class="toast-admin"></div>
+</div>
