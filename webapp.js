@@ -18,81 +18,24 @@ function doGet(e) {
     const p = (e && e.parameter) ? e.parameter : {};
     const profileId = String(p.profile || p.profileId || "").trim();
     const view = String(p.view || "").trim().toLowerCase();
-    const mode = String(p.mode || "").trim().toLowerCase();
 
-    // Interview draft: generate and send Email #2 when user clicks link from Email #1
-    if (mode === "geninterviewdraft") {
-      const trackerKey = String(p.trackerKey || "").trim();
-      if (!profileId || !trackerKey) {
-        return ContentService.createTextOutput("Missing profileId or trackerKey.").setMimeType(ContentService.MimeType.TEXT);
-      }
-      try {
-        generateAndSendInterviewDraftEmail_(profileId, trackerKey);
-        return ContentService.createTextOutput("Draft generated and sent.").setMimeType(ContentService.MimeType.TEXT);
-      } catch (err) {
-        return ContentService.createTextOutput("Draft failed: " + (err && err.message ? err.message : String(err))).setMimeType(ContentService.MimeType.TEXT);
-      }
-    }
-
-    // No profile or view=admin → redirect to client portal with first admin profile
-    // Single admin path: embedded Admin tab only (no standalone admin_portal)
+    // Admin / Master portal: no profile or view=admin → show profile switcher
     if (!profileId || view === "admin") {
+      const profiles = getProfileListForAdmin_();
       const baseUrl = (typeof CONFIG !== "undefined" && CONFIG.WEB_APP_URL)
         ? String(CONFIG.WEB_APP_URL).split("?")[0]
         : "";
-      const profiles = loadProfiles_();
-      const adminProfile = profiles.find(function (p) { return p && p.isAdmin === true; });
-      if (adminProfile && baseUrl) {
-        const redirectUrl = baseUrl + "?profile=" + encodeURIComponent(adminProfile.profileId);
-        return HtmlService.createHtmlOutput(
-          "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"0;url=" + redirectUrl + "\"/>" +
-          "<script>window.location.replace(\"" + redirectUrl.replace(/"/g, "\\\"") + "\");</script>" +
-          "</head><body><p>Redirecting to admin…</p></body></html>"
-        ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-      }
-      return HtmlService.createHtmlOutput(
-        "<!DOCTYPE html><html><body><p style=\"font-family:sans-serif;padding:2rem\">No admin profile configured. Set isAdmin=TRUE for at least one profile in Admin_Profiles.</p></body></html>"
-      ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      const tpl = HtmlService.createTemplateFromFile("admin_portal");
+      tpl.PROFILES_JSON = JSON.stringify(profiles);
+      tpl.BASE_URL_JSON = JSON.stringify(baseUrl);
+      return tpl.evaluate()
+        .setTitle("Sygnalist — Admin")
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
 
     const boot = getProfileBootstrap_(profileId);
-    const baseUrl = (typeof CONFIG !== "undefined" && CONFIG.WEB_APP_URL)
-      ? String(CONFIG.WEB_APP_URL).split("?")[0]
-      : "";
-    const viewAs = p.viewAs === "1" || p.actingAs === "1" || p.viewAs === true;
-    const adminParam = String(p.admin || "").trim();
-    let showAdminUI = boot.profile.isAdmin;
-    let adminProfileId = "";
-    if (viewAs && adminParam) {
-      try {
-        const adminProfile = getProfileByIdOrThrow_(adminParam);
-        if (adminProfile.isAdmin) {
-          showAdminUI = true;
-          adminProfileId = adminProfile.profileId;
-        }
-      } catch (e) { /* invalid or non-admin */ }
-    }
     const tpl = HtmlService.createTemplateFromFile("client_portal");
     tpl.BOOTSTRAP_JSON = JSON.stringify(boot);
-    tpl.VIEW_AS_JSON = JSON.stringify(!!viewAs);
-    tpl.ADMIN_URL_JSON = JSON.stringify(baseUrl ? baseUrl + "?view=admin" : "");
-    tpl.SHOW_ADMIN_UI_JSON = JSON.stringify(!!showAdminUI);
-    tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(adminProfileId || "");
-    if (showAdminUI) {
-      const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
-      adminTpl.BASE_URL_JSON = JSON.stringify(baseUrl || "");
-      adminTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(adminProfileId || profileId);
-      tpl.ADMIN_TAB_HTML = adminTpl.evaluate().getContent();
-      const adminScriptTpl = HtmlService.createTemplateFromFile("admin_tab_script");
-      adminScriptTpl.BASE_URL_JSON = JSON.stringify(baseUrl || "");
-      adminScriptTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(adminProfileId || profileId);
-      var scriptContent = adminScriptTpl.evaluate().getContent();
-      // Prevent </script> in script from closing the HTML script tag (malformed HTML error)
-      tpl.ADMIN_TAB_SCRIPT = scriptContent.replace(/<\/script>/gi, "</scr' + 'ipt>");
-    } else {
-      tpl.ADMIN_TAB_HTML = "";
-      tpl.ADMIN_TAB_SCRIPT = "";
-    }
 
     return tpl.evaluate()
       .setTitle("Sygnalist — Client Portal")
@@ -132,20 +75,10 @@ function portal_api(profileId, req) {
 function portal_api_(profileId, req) {
   try {
     const profile = getProfileByIdOrThrow_(profileId);
+    assertProfileActiveOrThrow_(profile);
 
     const op = String(req && req.op || "").trim();
     const data = (req && req.data) || {};
-    const actingAdminId = (req && req.actingAdminId) ? String(req.actingAdminId).trim() : "";
-    const adminProfile = actingAdminId ? (function() {
-      try {
-        const p = getProfileByIdOrThrow_(actingAdminId);
-        return p.isAdmin ? p : null;
-      } catch (e) { return null; }
-    })() : null;
-    function adminCheck() {
-      if (adminProfile) return true;
-      return !!profile.isAdmin;
-    }
 
     if (!op) throw new Error("portal_api_: missing op");
 
@@ -153,38 +86,7 @@ function portal_api_(profileId, req) {
       case "ping":
         return { ok: true, version: Sygnalist_VERSION, message: "pong" };
 
-      case "getProfileList": {
-        if (!adminCheck()) {
-          return { ok: false, version: Sygnalist_VERSION, reason: "Forbidden" };
-        }
-        const list = getProfileListForAdmin_();
-        return { ok: true, version: Sygnalist_VERSION, profiles: list };
-      }
-
-      case "logAdminSwitch": {
-        if (!adminCheck()) return { ok: false, version: Sygnalist_VERSION };
-        const targetId = (data && data.targetProfileId) ? String(data.targetProfileId).trim() : "";
-        const fromId = adminProfile ? adminProfile.profileId : profile.profileId;
-        if (targetId) {
-          logEvent_({
-            timestamp: Date.now(),
-            profileId: fromId,
-            action: "admin",
-            source: "portal_switcher",
-            details: { level: "INFO", message: "Admin profile switch", meta: { from: fromId, to: targetId }, version: Sygnalist_VERSION }
-          });
-        }
-        return { ok: true, version: Sygnalist_VERSION };
-      }
-
       case "fetch": {
-        if (profile.status !== "active") {
-          return {
-            ok: false,
-            version: Sygnalist_VERSION,
-            message: "Scan is disabled. Your profile is inactive."
-          };
-        }
         // Fetch new jobs for this profile (with enrichment)
         const result = fetchForProfileWithEnrichment_(profile.profileId);
         if (!result || !result.ok) {
@@ -193,24 +95,6 @@ function portal_api_(profileId, req) {
             version: Sygnalist_VERSION,
             message: result && result.message ? result.message : "Fetch failed"
           };
-        }
-        try {
-          setProfileLastFetchAt_(profile.profileId, new Date().toISOString());
-        } catch (e) {
-          if (typeof logEvent_ === "function") {
-            logEvent_({
-              timestamp: Date.now(),
-              profileId: profile.profileId,
-              action: "error",
-              source: "webapp",
-              details: {
-                level: "WARN",
-                message: "Failed to update last scan",
-                meta: { error: (e && e.message) ? e.message : String(e) },
-                version: Sygnalist_VERSION
-              }
-            });
-          }
         }
         return { 
           ok: true, 
@@ -222,7 +106,7 @@ function portal_api_(profileId, req) {
       }
 
       case "getInbox": {
-        const rows = getMergedInboxCachedRaw_(profile.profileId);
+        const rows = readEngineSheetForProfile_("Engine_Inbox", profile.profileId);
         return { ok: true, version: Sygnalist_VERSION, inbox: rows.map(inboxRowToCardDto_) };
       }
 
@@ -235,33 +119,8 @@ function portal_api_(profileId, req) {
       }
 
       case "getTracker": {
-        const pid = profile.profileId;
-        const cacheKey = "tracker:" + pid;
-        try {
-          const cache = CacheService.getScriptCache();
-          const cached = cache.get(cacheKey);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (parsed && parsed.tracker && parsed.dashboard) return parsed;
-          }
-        } catch (e) { /* ignore cache errors */ }
-        try {
-          const rows = readEngineSheetForProfile_("Engine_Tracker", pid);
-          const tracker = rows.map(trackerRowToDto_);
-          const dashboard = getDashboardLight_(pid, rows);
-          const response = { ok: true, version: Sygnalist_VERSION, tracker: tracker, dashboard: dashboard };
-          try {
-            CacheService.getScriptCache().put(cacheKey, JSON.stringify(response), 45);
-          } catch (e) { /* cache put can fail if payload > 100KB */ }
-          return response;
-        } catch (e) {
-          try { CacheService.getScriptCache().remove(cacheKey); } catch (e2) { /* ignore */ }
-          return {
-            ok: false,
-            version: Sygnalist_VERSION,
-            message: (e && e.message) ? e.message : "Tracker load failed"
-          };
-        }
+        const rows = readEngineSheetForProfile_("Engine_Tracker", profile.profileId);
+        return { ok: true, version: Sygnalist_VERSION, tracker: rows.map(trackerRowToDto_) };
       }
 
       case "getTrackerItemDetails": {
@@ -283,47 +142,16 @@ function portal_api_(profileId, req) {
 
       case "getDashboard": {
         const dash = getDashboard_(profile.profileId);
-        if (profile.isAdmin) {
-          try {
-            const globals = getAdminDashboardGlobals_();
-            return {
-              ok: true,
-              version: Sygnalist_VERSION,
-              ...dash,
-              isAdminResponse: true,
-              inboxCountAll: globals.inboxCountAll,
-              trackerCountAll: globals.trackerCountAll,
-              byStatusAll: globals.byStatusAll,
-              addedLast7All: globals.addedLast7All,
-              jobsNeedingEnrichment: globals.jobsNeedingEnrichment,
-              activeProfiles: globals.activeProfiles,
-              lockedProfiles: globals.lockedProfiles,
-              recentErrorsCount: globals.recentErrorsCount
-            };
-          } catch (e) {
-            return { ok: true, version: Sygnalist_VERSION, ...dash, isAdminResponse: true, jobsNeedingEnrichment: 0, activeProfiles: 0, lockedProfiles: 0, recentErrorsCount: 0 };
-          }
-        }
         return { ok: true, version: Sygnalist_VERSION, ...dash };
       }
 
-      case "promote": {
-        const outPromote = promoteEnrichedJobToTracker_(profile.profileId, data);
-        if (outPromote && outPromote.ok) invalidateTrackerCache_(profile.profileId);
-        return outPromote;
-      }
-
-      case "manualAdd": {
-        const outManual = manualAddToTracker_(profile.profileId, data);
-        if (outManual && outManual.ok) invalidateTrackerCache_(profile.profileId);
-        return outManual;
-      }
+      case "promote":
+        return promoteEnrichedJobToTracker_(profile.profileId, data);
 
       case "updateTracker": {
         return withProfileLock_(profile.profileId, "tracker_update", () => {
           assertNotThrottled_(profile.profileId, "tracker_update", 800);
           const res = updateTrackerEntryForProfile_(profile.profileId, data);
-          invalidateTrackerCache_(profile.profileId);
           return { ok: true, version: Sygnalist_VERSION, updated: res.updated };
         });
       }
@@ -332,18 +160,6 @@ function portal_api_(profileId, req) {
         const trackerKey = (data && typeof data.trackerKey === "string" && data.trackerKey.trim()) ? data.trackerKey.trim() : (data && data.url ? data.url : (data && data.company && data.title ? data.company + "||" + data.title : ""));
         if (!trackerKey) return { ok: false, version: Sygnalist_VERSION, message: "removeFromTracker: trackerKey required" };
         const res = deleteTrackerEntryForProfile_(profile.profileId, trackerKey);
-        if (res.deleted) {
-          try {
-            logEvent_({
-              timestamp: Date.now(),
-              profileId: profile.profileId,
-              action: "remove_from_tracker",
-              source: "portal",
-              details: { level: "INFO", message: "Removed from tracker", meta: { trackerKey }, version: Sygnalist_VERSION }
-            });
-          } catch (logErr) { /* logs must not fail user action */ }
-        }
-        invalidateTrackerCache_(profile.profileId);
         return { ok: true, version: Sygnalist_VERSION, deleted: res.deleted };
       }
 
@@ -369,112 +185,6 @@ function portal_api_(profileId, req) {
 /****************************************************
  * Engine reads (bounded) + DTO mapping
  ****************************************************/
-
-/** Invalidate cached getTracker response for a profile so next load is fresh. */
-function invalidateTrackerCache_(profileId) {
-  try {
-    CacheService.getScriptCache().remove("tracker:" + (profileId || ""));
-  } catch (e) { /* ignore */ }
-}
-
-/**
- * Return merged inbox rows for a profile, from cache if valid (TTL 45s). Used by getInbox and getDashboardLight_.
- */
-function getMergedInboxCachedRaw_(profileId) {
-  const cacheKey = "inbox-raw:" + (profileId || "");
-  try {
-    const cache = CacheService.getScriptCache();
-    const cached = cache.get(cacheKey);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch (e) { /* ignore */ }
-  const rows = getMergedInboxForProfile_(profileId);
-  try {
-    CacheService.getScriptCache().put(cacheKey, JSON.stringify(rows), 45);
-  } catch (e) { /* cache put can fail if payload too large */ }
-  return rows;
-}
-
-/**
- * Merge global pool (Global_Job_Bank) + curated (Role_Bank) + Engine_Inbox for a profile. Dedupe by normalized URL; global first, then profile Role_Bank, then engine.
- */
-function getMergedInboxForProfile_(profileId) {
-  const seen = {};
-  const out = [];
-
-  const globalRows = typeof readGlobalJobBank_ === "function" ? readGlobalJobBank_() : [];
-  for (let g = 0; g < globalRows.length; g++) {
-    const c = globalRows[g];
-    const url = String(c.url || "").trim();
-    const norm = normalizeUrlForJobsInbox_(url);
-    if (!norm) continue;
-    if (seen[norm]) continue;
-    seen[norm] = true;
-    out.push({
-      company: String(c.company || ""),
-      title: String(c.title || ""),
-      url: url,
-      source: String(c.source || ""),
-      location: String(c.location || ""),
-      score: 0,
-      tier: "",
-      roleType: String(c.work_mode || ""),
-      laneLabel: String(c.job_family || ""),
-      category: "",
-      jobSummary: String(c.description_snippet || c.job_summary || ""),
-      salary: "—",
-      salary_source: "missing",
-      added_at: c.created_at
-    });
-  }
-
-  const curated = getCuratedJobsForProfile_(profileId);
-  for (let i = 0; i < curated.length; i++) {
-    const c = curated[i];
-    const url = String(c.url || "").trim();
-    const norm = normalizeUrlForJobsInbox_(url);
-    if (!norm) continue;
-    if (seen[norm]) continue;
-    seen[norm] = true;
-    out.push({
-      company: String(c.company || ""),
-      title: String(c.title || ""),
-      url: url,
-      source: String(c.source || ""),
-      location: String(c.location || ""),
-      score: 0,
-      tier: "",
-      roleType: String(c.work_mode || ""),
-      laneLabel: String(c.job_family || ""),
-      category: "",
-      jobSummary: String(c.description_snippet || c.job_summary || ""),
-      salary: "—",
-      salary_source: "missing",
-      added_at: c.created_at
-    });
-  }
-
-  const engineRows = readEngineSheetForProfile_("Engine_Inbox", profileId);
-  for (let j = 0; j < engineRows.length; j++) {
-    const e = engineRows[j];
-    const c = (e && e._canon) || {};
-    const url = String(e.url || c.url || "").trim();
-    const norm = normalizeUrlForJobsInbox_(url);
-    if (!norm) {
-      const fallback = buildFallbackKey_(e.company || c.company, e.title || c.title);
-      if (fallback && seen[fallback]) continue;
-      if (fallback) seen[fallback] = true;
-    } else {
-      if (seen[norm]) continue;
-      seen[norm] = true;
-    }
-    out.push(e);
-  }
-
-  return out;
-}
 
 /**
  * Reads a sheet for a given profileId.
@@ -529,18 +239,11 @@ function readEngineSheetForProfile_(sheetName, profileId) {
  * Uses bounded reads via readEngineSheetForProfile_.
  */
 function getDashboard_(profileId) {
-  const inboxRows = getMergedInboxForProfile_(profileId);
+  const inboxRows = readEngineSheetForProfile_("Engine_Inbox", profileId);
   const trackerRows = readEngineSheetForProfile_("Engine_Tracker", profileId);
-  return buildDashboardFromRows_(inboxRows, trackerRows);
-}
 
-/**
- * Build dashboard object from pre-fetched inbox and tracker rows (avoids duplicate sheet reads).
- * Used by getTracker to return dashboard without re-reading Engine_Tracker.
- */
-function buildDashboardFromRows_(inboxRows, trackerRows) {
   const byStatus = {};
-  for (let i = 0; i < (trackerRows || []).length; i++) {
+  for (let i = 0; i < trackerRows.length; i++) {
     const o = trackerRows[i];
     const c = (o && o._canon) || {};
     const s = String(o.status ?? c.status ?? "").trim();
@@ -550,7 +253,7 @@ function buildDashboardFromRows_(inboxRows, trackerRows) {
   const now = Date.now();
   const sevenDays = 7 * 24 * 60 * 60 * 1000;
   let inboxAddedLast7 = 0, trackerAddedLast7 = 0;
-  for (let i = 0; i < (inboxRows || []).length; i++) {
+  for (let i = 0; i < inboxRows.length; i++) {
     const o = inboxRows[i];
     const c = (o && o._canon) || {};
     const a = o.added_at ?? c.addedat;
@@ -559,7 +262,7 @@ function buildDashboardFromRows_(inboxRows, trackerRows) {
       if (!isNaN(t) && (now - t) < sevenDays) inboxAddedLast7++;
     }
   }
-  for (let i = 0; i < (trackerRows || []).length; i++) {
+  for (let i = 0; i < trackerRows.length; i++) {
     const o = trackerRows[i];
     const c = (o && o._canon) || {};
     const a = o.added_at ?? c.addedat;
@@ -570,21 +273,12 @@ function buildDashboardFromRows_(inboxRows, trackerRows) {
   }
 
   return {
-    inboxCount: (inboxRows || []).length,
-    trackerCount: (trackerRows || []).length,
+    inboxCount: inboxRows.length,
+    trackerCount: trackerRows.length,
     byStatus,
     inboxAddedLast7,
     trackerAddedLast7
   };
-}
-
-/**
- * Light dashboard for getTracker: uses pre-fetched tracker rows and one merged inbox read.
- * No duplicate Engine_Tracker read; admin globals are not included (client calls getDashboard for those).
- */
-function getDashboardLight_(profileId, trackerRows) {
-  const inboxRows = getMergedInboxCachedRaw_(profileId);
-  return buildDashboardFromRows_(inboxRows, trackerRows || []);
 }
 
 /**
@@ -656,14 +350,9 @@ function inboxRowToLightDto_(o) {
   };
 }
 
-/** Inbox card DTO: includes jobSummary and salary for card display (no whyFit). added_at for recency sort (ms or null). */
+/** Inbox card DTO: includes jobSummary and salary for card display (no whyFit). */
 function inboxRowToCardDto_(o) {
   const c = (o && o._canon) || {};
-  const a = o.added_at ?? c.addedat;
-  const addedAt =
-    a == null
-      ? null
-      : (a instanceof Date ? a.getTime() : typeof a === "number" ? a : new Date(a).getTime());
   return {
     company: String(o.company || c.company || ""),
     title: String(o.title || c.title || ""),
@@ -676,9 +365,7 @@ function inboxRowToCardDto_(o) {
     laneLabel: String(o.laneLabel || c.lanelabel || ""),
     category: String(o.category || c.category || ""),
     jobSummary: String(o.jobSummary || c.jobsummary || ""),
-    salary: String(o.salary || c.salary || "").trim() || "—",
-    salary_source: String(o.salary_source || c.salary_source || "").trim() || "missing",
-    added_at: isNaN(addedAt) ? null : addedAt
+    salary: String(o.salary || c.salary || "").trim() || "—"
   };
 }
 
@@ -704,7 +391,7 @@ function inboxRowToDto_(o) {
  * Find one inbox row by jobKey (url or company||title) and return detail only.
  */
 function getInboxDetailByKey_(profileId, jobKey) {
-  const rows = getMergedInboxForProfile_(profileId);
+  const rows = readEngineSheetForProfile_("Engine_Inbox", profileId);
   const keyStr = String(jobKey || "").trim();
   for (let i = 0; i < rows.length; i++) {
     const o = rows[i];
@@ -712,11 +399,7 @@ function getInboxDetailByKey_(profileId, jobKey) {
     const url = String(o.url || c.url || "").trim();
     const company = String(o.company || c.company || "").trim();
     const title = String(o.title || c.title || "").trim();
-    const normKey = normalizeUrlForJobsInbox_(keyStr);
-    const normUrl = normalizeUrlForJobsInbox_(url);
-    const match =
-      (url && (keyStr === url || (normKey && normUrl && normKey === normUrl))) ||
-      (company && title && keyStr === company + "||" + title);
+    const match = url && keyStr === url || (company && title && keyStr === company + "||" + title);
     if (match) {
       return {
         title,
