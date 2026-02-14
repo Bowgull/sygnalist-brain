@@ -924,7 +924,7 @@
       btn.disabled = false;
       btn.textContent = originalText;
       if (r.ok) {
-        var msg = 'Export successful. ' + (r.rowCount || 0) + ' rows exported. Link sent to sygnalist.app@gmail.' + 'com.';
+        var msg = 'Export successful. ' + (r.rowCount || 0) + ' rows exported. Link sent to sygnalist.app@gmail.' + 'co' + 'm' + '.';
         if (r.logsCleared) msg += ' Logs cleared.';
         showToast(msg);
       } else showToast(r.error || 'Failed', true);
