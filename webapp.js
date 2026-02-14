@@ -87,7 +87,12 @@ function doGet(e) {
       adminScriptTpl.BASE_URL_JSON = JSON.stringify(baseUrl || "");
       adminScriptTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(adminProfileId || profileId);
       var scriptContent = adminScriptTpl.evaluate().getContent();
-      // Inject as JSON so </script> and other sequences never break the HTML parser
+      if (scriptContent) {
+        // Prevent ?> in output from closing the scriptlet when client_portal is evaluated
+        scriptContent = scriptContent.replace(/\?>/g, "?' + '>");
+        // Prevent </script> in output from closing the script element
+        scriptContent = scriptContent.replace(/<\/script>/gi, "</scr' + 'ipt>");
+      }
       tpl.ADMIN_TAB_SCRIPT_JSON = scriptContent ? JSON.stringify(scriptContent) : "null";
     } else {
       tpl.ADMIN_TAB_HTML = "";
