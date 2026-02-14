@@ -152,3 +152,66 @@ function unlockProfile_(profileId) {
     return { ok: false, error: (e && e.message) ? e.message : String(e), version: Sygnalist_VERSION };
   }
 }
+
+/**
+ * Toggle isAdmin for a profile. Grant or revoke admin.
+ */
+function adminToggleAdmin_() {
+  const ui = SpreadsheetApp.getUi();
+  const res = ui.prompt("Toggle Admin", "Enter profileId (e.g., josh, client1)", ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+
+  const profileId = String(res.getResponseText() || "").trim();
+  if (!profileId) {
+    ui.alert("No profileId provided.");
+    return;
+  }
+
+  const sh = assertSheetExists_("Admin_Profiles");
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) {
+    ui.alert("Admin_Profiles has no data.");
+    return;
+  }
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  const headers = values[0].map(h => String(h).trim());
+  const idxId = headers.indexOf("profileId");
+  const idxAdmin = headers.indexOf("isAdmin");
+  if (idxId === -1 || idxAdmin === -1) {
+    ui.alert("Admin_Profiles missing profileId or isAdmin column.");
+    return;
+  }
+
+  let rowIndex = -1;
+  for (let r = 1; r < values.length; r++) {
+    if (String(values[r][idxId] || "").trim() === profileId) {
+      rowIndex = r;
+      break;
+    }
+  }
+  if (rowIndex === -1) {
+    ui.alert("Profile not found: " + profileId);
+    return;
+  }
+
+  const current = String(values[rowIndex][idxAdmin] || "").toUpperCase();
+  const next = (current === "TRUE" || current === "1") ? "FALSE" : "TRUE";
+  const rowNum = rowIndex + 1;
+  sh.getRange(rowNum, idxAdmin + 1).setValue(next);
+
+  logEvent_({
+    timestamp: Date.now(),
+    profileId: profileId,
+    action: "admin",
+    source: "soft_lock",
+    details: {
+      level: "INFO",
+      message: "Admin toggled: isAdmin = " + next,
+      meta: { profileId: profileId, isAdmin: next },
+      version: Sygnalist_VERSION
+    }
+  });
+
+  ui.alert("Admin for " + profileId + " is now " + next + ".");
+}

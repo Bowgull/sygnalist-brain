@@ -1,4 +1,6 @@
+/** DEPRECATED: Debug menu only. */
 function adminFetchJobsRawTest_() {
+  Logger.log("DEPRECATED: adminFetchJobsRawTest_ called");
   const ui = SpreadsheetApp.getUi();
   const res = ui.prompt("Fetch Raw Jobs", "Enter profileId (e.g. josh, client1)", ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;
@@ -15,7 +17,9 @@ function adminFetchJobsRawTest_() {
   ui.alert(`✅ Fetch complete\nJobs written: ${out.count}\nbatchId: ${out.batchId}\nCheck Engine_Inbox tab.`);
 }
 
+/** DEPRECATED: Debug menu only. */
 function adminClearInboxForProfile_() {
+  Logger.log("DEPRECATED: adminClearInboxForProfile_ called");
   const ui = SpreadsheetApp.getUi();
   const res = ui.prompt("Clear Inbox", "Enter profileId (e.g. josh, client1)", ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;

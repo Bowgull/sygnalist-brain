@@ -1,0 +1,11 @@
+{"location":"portal_scripts.html:tracker.dashboard","message":"dashboardCache set from getTracker","data":{"isAdminResponse":false},"timestamp":1771070510464,"hypothesisId":"H3"}
+{"location":"portal_scripts.html:renderMetrics","message":"renderMetrics called","data":{"isAdmin":false,"cardCount":5},"timestamp":1771070510464,"hypothesisId":"H4"}
+{"location":"portal_scripts.html:renderMetrics","message":"renderMetrics called","data":{"isAdmin":true,"cardCount":8},"timestamp":1771070511147,"hypothesisId":"H4"}
+{"location":"portal_scripts.html:tracker.dashboard","message":"dashboardCache set from getTracker","data":{"isAdminResponse":false},"timestamp":1771070514692,"hypothesisId":"H3"}
+{"location":"portal_scripts.html:renderMetrics","message":"renderMetrics called","data":{"isAdmin":false,"cardCount":5},"timestamp":1771070514693,"hypothesisId":"H4"}
+{"location":"portal_scripts.html:renderMetrics","message":"renderMetrics called","data":{"isAdmin":true,"cardCount":8},"timestamp":1771070527280,"hypothesisId":"H4"}
+{"location":"portal_scripts.html:renderMetrics","message":"renderMetrics called","data":{"isAdmin":true,"cardCount":8},"timestamp":1771070531749,"hypothesisId":"H4"}
+{"location":"portal_scripts.html:tracker.dashboard","message":"dashboardCache set from getTracker","data":{"isAdminResponse":false,"merged":false},"timestamp":1771070697146,"hypothesisId":"H3"}
+{"location":"portal_scripts.html:renderMetrics","message":"renderMetrics called","data":{"isAdmin":false,"cardCount":5},"timestamp":1771070697147,"hypothesisId":"H4"}
+{"location":"portal_scripts.html:renderMetrics","message":"renderMetrics called","data":{"isAdmin":true,"cardCount":8},"timestamp":1771070697628,"hypothesisId":"H4"}
+{"location":"portal_scripts.html:renderMetrics","message":"renderMetrics called","data":{"isAdmin":true,"cardCount":8},"timestamp":1771070713694,"hypothesisId":"H4"}

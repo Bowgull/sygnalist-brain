@@ -22,42 +22,150 @@ function promoteEnrichedJobToTracker_(profileId, enrichedJob) {
 
     // Hard idempotency: if already in tracker, do nothing + return DUPLICATE
     if (trackerHasDuplicateForProfile_(profile.profileId, entry)) {
-      logEvent_({
-        timestamp: Date.now(),
-        profileId: profile.profileId,
-        action: "promote",
-        source: "promote",
-        details: {
-          level: "WARN",
-          message: "Duplicate blocked",
-          meta: {
+      try {
+        logEvent_({
+          timestamp: Date.now(),
+          profileId: profile.profileId,
+          action: "promote",
+          source: "promote",
+          details: {
+            level: "WARN",
+            message: "Duplicate blocked",
+            meta: {
+              batchId,
+              url: String(entry.url || ""),
+              key: buildDedupKey_(entry)
+            },
             batchId,
-            url: String(entry.url || ""),
-            key: buildDedupKey_(entry)
-          },
-          batchId,
-          version: Sygnalist_VERSION
-        }
-      });
+            version: Sygnalist_VERSION
+          }
+        });
+      } catch (logErr) {
+        // Logs must not block or fail user-facing response
+      }
 
       return uiError_("DUPLICATE", "Already in Tracker.", { batchId });
     }
 
     appendTrackerEntry_(entry);
 
-    logEvent_({
-      timestamp: Date.now(),
+    try {
+      logEvent_({
+        timestamp: Date.now(),
+        profileId: profile.profileId,
+        action: "promote",
+        source: "promote",
+        details: {
+          level: "INFO",
+          message: "Promoted to Tracker",
+          meta: { batchId, url: String(entry.url || "") },
+          batchId,
+          version: Sygnalist_VERSION
+        }
+      });
+    } catch (logErr) {
+      // Logs must not block or fail user-facing response
+    }
+
+    return { ok: true, version: Sygnalist_VERSION, batchId };
+  });
+}
+
+/**
+ * Manual Add: same enrichment pipeline as ingestion.
+ * Builds a seed job, runs enrichJobsForProfile_, then appends to Engine_Tracker.
+ * Dedupes with same key strategy as promote (URL or company||title).
+ */
+function manualAddToTracker_(profileId, data) {
+  const profile = getProfileByIdOrThrow_(profileId);
+  assertProfileActiveOrThrow_(profile);
+
+  const title = (data && typeof data.title === "string") ? data.title.trim() : "";
+  const company = (data && typeof data.company === "string") ? data.company.trim() : "";
+  if (!title || !company) {
+    return uiError_("VALIDATION", "Title and Company are required.", {});
+  }
+
+  const batchId = newBatchId_();
+
+  return withProfileLock_(profile.profileId, "manual_add", () => {
+    assertNotThrottled_(profile.profileId, "manual_add", 1500);
+
+    const seed = {
+      title: title,
+      company: company,
+      url: (data && data.url && typeof data.url === "string") ? data.url.trim() : "",
+      location: (data && data.location && typeof data.location === "string") ? data.location.trim() : "",
+      description: "",
+      source: "manual"
+    };
+    if (!seed.location) seed.location = "Unknown";
+
+    const dedupeEntry = {
       profileId: profile.profileId,
-      action: "promote",
-      source: "promote",
-      details: {
-        level: "INFO",
-        message: "Promoted to Tracker",
-        meta: { batchId, url: String(entry.url || "") },
-        batchId,
-        version: Sygnalist_VERSION
-      }
-    });
+      company: seed.company,
+      title: seed.title,
+      url: seed.url
+    };
+    if (trackerHasDuplicateForProfile_(profile.profileId, dedupeEntry)) {
+      try {
+        logEvent_({
+          timestamp: Date.now(),
+          profileId: profile.profileId,
+          action: "manual_add",
+          source: "manual_add",
+          details: {
+            level: "WARN",
+            message: "Duplicate blocked",
+            meta: { batchId, key: buildDedupKey_(dedupeEntry) },
+            batchId,
+            version: Sygnalist_VERSION
+          }
+        });
+      } catch (logErr) { /* logs must not fail user action */ }
+      return uiError_("DUPLICATE", "Already in Tracker.", { batchId });
+    }
+
+    const enriched = enrichJobsForProfile_([seed], profile);
+    if (!enriched || enriched.length === 0) {
+      try {
+        logEvent_({
+          timestamp: Date.now(),
+          profileId: profile.profileId,
+          action: "manual_add",
+          source: "manual_add",
+          details: {
+            level: "WARN",
+            message: "Enrichment failed for manual add",
+            meta: { batchId, company: seed.company, title: seed.title },
+            batchId,
+            version: Sygnalist_VERSION
+          }
+        });
+      } catch (logErr) { /* logs must not fail user action */ }
+      return uiError_("ENRICHMENT_FAILED", "Enrichment failed; try again.", { batchId });
+    }
+
+    const entry = buildTrackerEntryFromEnrichedJob_(enriched[0], profile.profileId);
+    entry.notes = (data && data.notes && typeof data.notes === "string") ? data.notes.trim() : "";
+
+    appendTrackerEntry_(entry);
+
+    try {
+      logEvent_({
+        timestamp: Date.now(),
+        profileId: profile.profileId,
+        action: "manual_add",
+        source: "manual_add",
+        details: {
+          level: "INFO",
+          message: "Manual add + enrichment complete",
+          meta: { batchId, url: String(entry.url || "") },
+          batchId,
+          version: Sygnalist_VERSION
+        }
+      });
+    } catch (logErr) { /* logs must not fail user action */ }
 
     return { ok: true, version: Sygnalist_VERSION, batchId };
   });

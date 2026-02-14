@@ -1,7 +1,9 @@
 /****************************************************
  * menu.js
  * Sygnalist Admin Menu
- * 
+ *
+ * Sanity Report: see SANITY_REPORT.md (KEEP/DEPRECATE/REMOVE per function and menu item).
+ *
  * Organized for production use:
  * - Core actions at top
  * - Admin tools in middle
@@ -25,29 +27,31 @@ function onOpen() {
     .addItem("➕ Create New Profile", "openCreateProfileSidebar_")
     .addItem("🧬 Build Skill Profile", "openSkillProfileBuilder_")
     .addItem("🔗 List Profile URLs", "listProfileUrls_")
-    .addItem("🔒 Lock Profile", "adminPromptSoftLockProfile_")
-    .addItem("🔓 Unlock Profile", "adminPromptUnlockProfile_")
     .addSeparator()
     
     // ═══════════════════════════════════════════════════
-    // ADMIN & OPS
+    // ADMIN & OPS (Lock/Unlock/Toggle Admin are in Admin_Profiles sheet)
     // ═══════════════════════════════════════════════════
     .addItem("🧪 Health Check", "runHealthCheck_")
     .addItem("📊 Refresh Analytics", "refreshAdminAnalytics_")
-    .addItem("📤 Export Logs (Pretty)", "exportLogsToPrettySheet_")
+    .addItem("📤 Export Logs", "exportLogsWithChoice_")
+    .addItem("📓 Format Logs Sheet", "formatLogsSheet")
     .addItem("🧱 Init Engine Tables", "adminInitEngineTables_")
     .addSeparator()
     
     // ═══════════════════════════════════════════════════
-    // DEBUG & TESTING (can remove later)
+    // DEBUG & TESTING (deprecated; in submenu until removed)
     // ═══════════════════════════════════════════════════
-    .addItem("👤 List Profiles", "debugListProfiles_")
-    .addItem("🔍 Inspect Profile", "debugInspectProfileRow_")
-    .addItem("🧪 Test Bootstrap", "debugBootstrap_")
-    .addItem("⭐ Test Tracker Write", "adminTestTrackerWrite_")
-    .addItem("📥 Fetch Jobs (Raw)", "adminFetchJobsRawTest_")
-    .addItem("🧹 Clear Inbox", "adminClearInboxForProfile_")
-    .addItem("🧾 Debug Scores", "adminDebugScoresTop10_")
+    .addSubMenu(ui.createMenu("🔧 Debug")
+      .addItem("👤 List Profiles", "debugListProfiles_")
+      .addItem("🔍 Inspect Profile", "debugInspectProfileRow_")
+      .addItem("🧪 Test Bootstrap", "debugBootstrap_")
+      .addItem("⭐ Test Tracker Write", "adminTestTrackerWrite_")
+      .addItem("📥 Fetch Jobs (Raw)", "adminFetchJobsRawTest_")
+      .addItem("🧹 Clear Inbox", "adminClearInboxForProfile_")
+      .addItem("🧾 Debug Scores", "adminDebugScoresTop10_")
+      .addItem("✅ Apply Approved Lanes (legacy)", "applyApprovedLanes_")
+      .addItem("🧪 Lane Bank + Resolver Tests", "runLaneBankResolverTests_"))
     .addSeparator()
     
     // ═══════════════════════════════════════════════════

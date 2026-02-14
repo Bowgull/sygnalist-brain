@@ -101,10 +101,74 @@ function rowToProfile_(headers, row) {
     signatureStories: parseStories_(get("signatureStories")),
 
     roleTracks: parseRoleTracks_(get("roleTracksJSON")),
+    laneControls: parseLaneControls_(get("laneControlsJSON")),
 
     portalSpreadsheetId: String(get("portalSpreadsheetId") || "").trim(),
     webAppUrl: String(get("webAppUrl") || "").trim(),
     isAdmin: toBool_(get("isAdmin")),
-    clientCopyLink: String(get("clientCopyLink") || "").trim()
+    clientCopyLink: String(get("clientCopyLink") || "").trim(),
+
+    last_fetch_at: (function () {
+      const v = get("last_fetch_at");
+      if (v == null || v === "") return null;
+      const s = String(v).trim();
+      return s || null;
+    })()
   };
+}
+
+/**
+ * Update last_fetch_at for a profile (only call on successful fetch). Non-fatal: logs and returns on failure.
+ */
+function setProfileLastFetchAt_(profileId, isoString) {
+  try {
+    const pid = String(profileId || "").trim();
+    if (!pid) return;
+
+    const sh = assertSheetExists_("Admin_Profiles");
+    const lastRow = sh.getLastRow();
+    let lastCol = sh.getLastColumn();
+    if (lastRow < 2 || lastCol < 1) return;
+
+    const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+    const headers = values[0].map(function (h) { return String(h || "").trim(); });
+    const idxId = headers.indexOf("profileId");
+    if (idxId === -1) return;
+
+    let rowNum = -1;
+    for (let r = 1; r < values.length; r++) {
+      if (String(values[r][idxId] || "").trim() === pid) {
+        rowNum = r + 1;
+        break;
+      }
+    }
+    if (rowNum === -1) return;
+
+    let colNum;
+    const idxLastFetch = headers.indexOf("last_fetch_at");
+    if (idxLastFetch === -1) {
+      lastCol += 1;
+      sh.getRange(1, lastCol).setValue("last_fetch_at");
+      colNum = lastCol;
+    } else {
+      colNum = idxLastFetch + 1;
+    }
+
+    sh.getRange(rowNum, colNum).setValue(isoString);
+  } catch (e) {
+    if (typeof logEvent_ === "function") {
+      logEvent_({
+        timestamp: Date.now(),
+        profileId: profileId || null,
+        action: "error",
+        source: "profiles",
+        details: {
+          level: "WARN",
+          message: "Failed to update last scan",
+          meta: { error: (e && e.message) ? e.message : String(e) },
+          version: typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : ""
+        }
+      });
+    }
+  }
 }

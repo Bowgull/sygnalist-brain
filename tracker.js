@@ -133,7 +133,7 @@ function appendTrackerEntry_(entry) {
  * { url, company, title, status, notes, dateApplied }
  */
 function updateTrackerEntryForProfile_(profileId, patch) {
-  ensureEngineTables_();
+  ensureEngineTrackerSheet_();
 
   const pid = String(profileId || "").trim();
   if (!pid) throw new Error("updateTrackerEntryForProfile_: profileId empty.");
@@ -191,22 +191,57 @@ function updateTrackerEntryForProfile_(profileId, patch) {
 
     if (!match) continue;
 
-    // status only if provided (lets UI keep it stable)
-    if (newStatus) {
-      sh.getRange(r + 1, idxStatus + 1).setValue(newStatus);
-      if (idxStageChangedAt !== -1) sh.getRange(r + 1, idxStageChangedAt + 1).setValue(new Date());
+    const oldStatus = String(row[idxStatus] || "").trim();
+
+    // Batch write: one setValues for all updated cells (status, stageChangedAt, notes, dateApplied)
+    const indicesToUpdate = [idxStatus, idxNotes, idxDateApplied];
+    if (idxStageChangedAt !== -1) indicesToUpdate.push(idxStageChangedAt);
+    const minCol = Math.min.apply(null, indicesToUpdate);
+    const maxCol = Math.max.apply(null, indicesToUpdate);
+
+    const dateAppliedValue = newDate
+      ? (function () {
+          const d = new Date(newDate);
+          if (isNaN(d.getTime())) throw new Error("Invalid dateApplied: " + newDate);
+          return d;
+        })()
+      : "";
+
+    const slice = [];
+    for (let c = minCol; c <= maxCol; c++) {
+      let val = row[c];
+      if (c === idxStatus) val = newStatus ? newStatus : row[idxStatus];
+      else if (c === idxStageChangedAt) val = newStatus ? new Date() : row[idxStageChangedAt];
+      else if (c === idxNotes) val = newNotes;
+      else if (c === idxDateApplied) val = dateAppliedValue;
+      slice.push(val);
     }
+    sh.getRange(r + 1, minCol + 1, 1, slice.length).setValues([slice]);
 
-    // notes always set (allows clearing)
-    sh.getRange(r + 1, idxNotes + 1).setValue(newNotes);
-
-    // dateApplied: set to Date or clear
-    if (newDate) {
-      const d = new Date(newDate);
-      if (isNaN(d.getTime())) throw new Error("Invalid dateApplied: " + newDate);
-      sh.getRange(r + 1, idxDateApplied + 1).setValue(d);
-    } else {
-      sh.getRange(r + 1, idxDateApplied + 1).setValue("");
+    if (oldStatus !== newStatus && !isInterviewStatus_(oldStatus) && isInterviewStatus_(newStatus)) {
+      const trackerKey = (wantUrl && wantUrl.length) ? wantUrl : wantKey;
+      const rowObject = {};
+      for (let i = 0; i < headers.length; i++) {
+        if (headers[i]) rowObject[headers[i]] = row[i];
+      }
+      rowObject.status = newStatus;
+      rowObject.notes = newNotes;
+      rowObject.dateApplied = dateAppliedValue;
+      if (idxStageChangedAt !== -1) rowObject.stageChangedAt = newStatus ? new Date() : row[idxStageChangedAt];
+      const statusesAtOrAfterApplied = ["Applied", "Interview 1", "Interview 2", "Final Round", "Offer 🎉"];
+      let appliedCount = 0;
+      for (let i = 1; i < values.length; i++) {
+        if (String(values[i][idxProfile] || "").trim() !== pid) continue;
+        const s = (i === r) ? newStatus : String(values[i][idxStatus] || "").trim();
+        const lower = s.toLowerCase();
+        const match = statusesAtOrAfterApplied.indexOf(s) !== -1 || lower.indexOf("applied") === 0 || lower.indexOf("interview") === 0 || lower.indexOf("offer") !== -1;
+        if (match) appliedCount++;
+      }
+      try {
+        onMovedToInterview_(pid, trackerKey, { oldStatus, newStatus, transitionedAtMs: Date.now() }, { row: rowObject, appliedCount: appliedCount });
+      } catch (interviewErr) {
+        // Do not block tracker update; interview email failure is logged inside onMovedToInterview_
+      }
     }
 
     return { updated: 1 };

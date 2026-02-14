@@ -7,7 +7,12 @@
  *   skillProfileText: string,
  *   topSkills: string[],
  *   signatureStories: string[],
- *   suggestedRoles: [{ title: string, keywords: string[] }]
+ *   suggestedRoles: [{ title: string, keywords: string[] }],
+ *   yearsExperience: string,
+ *   preferredLocations: string[],
+ *   remotePreference: "remote_only"|"hybrid_ok"|"onsite_ok",
+ *   seniorityTarget: string,
+ *   industriesToAvoid: string[]
  * }
  ****************************************************/
 
@@ -22,6 +27,7 @@ function parseResumeToSkillProfile_(rawText) {
 `You are analyzing a resume to extract:
 1. A compact skill profile
 2. Target job roles this person should pursue
+3. Structured preferences for job matching (location, remote, seniority, experience)
 
 Return ONLY valid JSON. No markdown. No commentary.
 
@@ -35,7 +41,12 @@ JSON schema:
       "title": "Job title they should target (e.g., Customer Success Manager)",
       "keywords": ["3-6 search keywords for this role"]
     }
-  ]
+  ],
+  "yearsExperience": "string: total years relevant experience, e.g. '2-4', '5-7', '10+' or '0-1'",
+  "preferredLocations": ["city or region names from resume they prefer; empty array if not stated or open to anywhere"],
+  "remotePreference": "one of: remote_only, hybrid_ok, onsite_ok (infer from resume; default remote_only if unclear)",
+  "seniorityTarget": "one of: entry, mid, senior, lead (level they fit best for next role)",
+  "industriesToAvoid": ["industries to exclude if clearly stated; empty array otherwise"]
 }
 
 Rules for skills/stories:
@@ -45,11 +56,18 @@ Rules for skills/stories:
 
 Rules for suggestedRoles:
 - Suggest 3-6 job titles they're qualified for based on their experience.
-- Include a mix of exact matches and adjacent roles they could pivot to.
+- Include a mix of exact matches and adjacent roles they could pivot to (show options aren't limited to current field).
 - Keywords should be search terms that would find these jobs (job title variations, common abbreviations).
 - Examples: 
   - {"title": "Customer Success Manager", "keywords": ["customer success", "csm", "client success", "customer success manager"]}
   - {"title": "Implementation Specialist", "keywords": ["implementation", "onboarding", "solutions consultant"]}
+
+Rules for structured fields:
+- yearsExperience: infer from dates; use range like "3-5" or "10+".
+- preferredLocations: only if resume mentions location preference or current location; else [].
+- remotePreference: remote_only if they work remote or prefer it; hybrid_ok or onsite_ok if stated.
+- seniorityTarget: match their experience level; entry (0-2y), mid (3-6y), senior (7+), lead (if they led teams).
+- industriesToAvoid: only if resume explicitly says they want to leave an industry or avoid one.
 
 Resume text:
 """${clipped}"""`;
@@ -70,6 +88,11 @@ Resume text:
   const topSkills = normalizeStringArray_(obj.topSkills, 14);
   const signatureStories = normalizeStringArray_(obj.signatureStories, 6);
   const suggestedRoles = normalizeSuggestedRoles_(obj.suggestedRoles);
+  const yearsExperience = normalizeYearsExperience_(obj.yearsExperience);
+  const preferredLocations = normalizeStringArray_(obj.preferredLocations, 10);
+  const remotePreference = normalizeRemotePreference_(obj.remotePreference);
+  const seniorityTarget = normalizeSeniorityTarget_(obj.seniorityTarget);
+  const industriesToAvoid = normalizeStringArray_(obj.industriesToAvoid, 8);
 
   if (!skillProfileText) throw new Error("Resume parse missing skillProfileText.");
   if (topSkills.length < 3) throw new Error("Resume parse topSkills looks too empty.");
@@ -79,8 +102,35 @@ Resume text:
     skillProfileText: skillProfileText,
     topSkills: topSkills,
     signatureStories: signatureStories,
-    suggestedRoles: suggestedRoles
+    suggestedRoles: suggestedRoles,
+    yearsExperience: yearsExperience,
+    preferredLocations: preferredLocations,
+    remotePreference: remotePreference,
+    seniorityTarget: seniorityTarget,
+    industriesToAvoid: industriesToAvoid
   };
+}
+
+function normalizeYearsExperience_(val) {
+  const s = String(val || "").trim();
+  if (!s) return "";
+  return s.slice(0, 20);
+}
+
+function normalizeRemotePreference_(val) {
+  const s = String(val || "").trim().toLowerCase();
+  if (s === "remote_only" || s === "hybrid_ok" || s === "onsite_ok") return s;
+  if (s.indexOf("remote") !== -1) return "remote_only";
+  if (s.indexOf("hybrid") !== -1) return "hybrid_ok";
+  if (s.indexOf("onsite") !== -1 || s.indexOf("on-site") !== -1) return "onsite_ok";
+  return "remote_only";
+}
+
+function normalizeSeniorityTarget_(val) {
+  const s = String(val || "").trim().toLowerCase();
+  if (["entry", "mid", "senior", "lead"].indexOf(s) !== -1) return s;
+  if (s) return s.slice(0, 20);
+  return "";
 }
 
 /**

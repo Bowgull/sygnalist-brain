@@ -14,9 +14,8 @@ function buildProfileContextLine_(profile) {
 
 function getProfileBootstrap_(profileId) {
   const profile = getProfileByIdOrThrow_(profileId);
-  assertProfileActiveOrThrow_(profile);
 
-  // DTO only (no internals beyond what UI needs)
+  // DTO only (no internals beyond what UI needs). Locked profiles can load; fetch is gated in portal_api_.
   return {
     ok: true,
     version: Sygnalist_VERSION,
@@ -26,7 +25,8 @@ function getProfileBootstrap_(profileId) {
       status: profile.status,
       statusReason: profile.statusReason || "",
       isAdmin: !!profile.isAdmin,
-      profileContext: buildProfileContextLine_(profile)
+      profileContext: buildProfileContextLine_(profile),
+      last_fetch_at: profile.last_fetch_at || null
     }
   };
 }

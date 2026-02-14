@@ -50,7 +50,8 @@ function buildAiRequest_(prompt, model, apiKey) {
     headers: {
       "Authorization": "Bearer " + apiKey
     },
-    payload: JSON.stringify(payload)
+    payload: JSON.stringify(payload),
+    timeout: 12
   };
 }
 

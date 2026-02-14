@@ -47,7 +47,7 @@ function dedupeJobs_(jobs) {
  * - If below minimum threshold -> Unknown / Review JD / Unknown
  */
 function classifyJobsForProfile_(jobs, profile) {
-  const tracks = Array.isArray(profile.roleTracks) ? profile.roleTracks : [];
+  const tracks = getEffectiveRoleTracks_(profile);
 
   // Minimum threshold for classification (weighted score).
   // Blueprint says "below minimum threshold" -> Review JD.
@@ -221,6 +221,20 @@ function tierFromScore_(score) {
   if (score >= 60) return "B";
   if (score >= 0) return "C";
   return "F";
+}
+
+/**
+ * Tier gate: if any job has tier S/A/B/C/D, exclude all F-tier from the list.
+ * Only show F when there are zero S/A/B/C/D jobs (last-resort).
+ */
+function filterTierGate_(jobs) {
+  if (!jobs || !jobs.length) return jobs;
+  const hasUpper = (jobs || []).some(j => {
+    const t = String(j.tier || "").toUpperCase();
+    return t === "S" || t === "A" || t === "B" || t === "C" || t === "D";
+  });
+  if (!hasUpper) return jobs;
+  return jobs.filter(j => String(j.tier || "").toUpperCase() !== "F");
 }
 
 function hasAny_(text, phrases) {

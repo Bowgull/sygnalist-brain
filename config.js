@@ -2,13 +2,19 @@ const CONFIG = {
   // ═══════════════════════════════════════════════════════════════════════════
   // VERSION
   // ═══════════════════════════════════════════════════════════════════════════
-  Sygnalist_VERSION: "1.3.0",  // Bumped for parallel enrichment update
+  Sygnalist_VERSION: "2.2.6",
 
   // ═══════════════════════════════════════════════════════════════════════════
   // FETCH & SCORING
   // ═══════════════════════════════════════════════════════════════════════════
-  MAX_JOBS_PER_FETCH: 25,
+  MAX_JOBS_PER_FETCH: 12,
   MIN_SCORE_FOR_INBOX: 60,
+  MAX_SEARCH_TERMS: 4,
+  CORE_SOURCES: ["adzuna_us", "adzuna_ca", "usajobs", "jooble"],
+  CONDITIONAL_SOURCES: ["remotive", "remoteok"],
+  REMOTE_TECH_TERMS: ["remote", "software", "developer", "engineer", "tech", "programming"],
+  RAW_POOL_CAP: 200,
+  MAX_ENRICH_PER_FETCH: 12,
   DEFAULT_SOURCES: ["adzuna_us", "adzuna_ca", "usajobs", "jooble", "remotive", "remoteok"],
   FALLBACK_TERMS: ["customer service", "administrative", "entry level"],
   MIN_JOBS_BEFORE_FALLBACK: 3,
@@ -56,7 +62,15 @@ const CONFIG = {
 
   // Logs Export - set this to your Logs Export Google Sheet ID
   // Leave empty to be prompted each time
-  LOGS_EXPORT_SPREADSHEET_ID: ""
+  LOGS_EXPORT_SPREADSHEET_ID: "",
+
+  // Interview alert emails: recipients for admin-only interview notifications.
+  // Set ADMIN_EMAILS (array) or ADMIN_EMAIL (string). If both empty, falls back to Session.getEffectiveUser().getEmail().
+  ADMIN_EMAILS: [],
+  ADMIN_EMAIL: "",
+
+  // Admin audit inbox: interview emails (alert + draft) are sent TO this address only.
+  ADMIN_AUDIT_EMAIL: "sygnalist.app@gmail.com"
 };
 
 const FLAGS = {

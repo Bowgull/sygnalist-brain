@@ -61,7 +61,7 @@ function fetchForProfileWithEnrichment_(profileId) {
     const batchId = newBatchId_();
 
     return withProfileLock_(profile.profileId, "fetch_enriched", () => {
-      assertNotThrottled_(profile.profileId, "fetch_enriched", 45 * 1000);
+      assertNotThrottled_(profile.profileId, "fetch_enriched", (typeof CONFIG !== "undefined" && CONFIG.FETCH_THROTTLE_MS) ? CONFIG.FETCH_THROTTLE_MS : 45000);
 
       const plan = buildFetchRequestForProfile_(profile);
 
@@ -99,9 +99,33 @@ function fetchForProfileWithEnrichment_(profileId) {
       });
       // #endregion
 
-      // 1) Parallel raw fetch (all sources at once)
+      // 0) Pre-fill from global job bank (search pool first; all clients can see these)
+      var poolJobs = [];
+      if (typeof readGlobalJobBank_ === "function") {
+        try {
+          var globalRows = readGlobalJobBank_();
+          for (var gi = 0; gi < globalRows.length; gi++) {
+            var row = globalRows[gi];
+            poolJobs.push({
+              url: row.url,
+              company: row.company,
+              title: row.title,
+              source: row.source || "global_pool",
+              location: row.location,
+              description: String(row.description_snippet || row.job_summary || ""),
+              job_summary: row.job_summary,
+              why_fit: row.why_fit
+            });
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      // 1) Parallel raw fetch (wave loop: per-source zero-yield short-circuit + optional raw pool cap)
       const fetchItems = buildParallelFetchRequests_(plan, profile);
-      let jobs = [];
+      let jobs = poolJobs.slice();
+      var requestsAttempted = 0;
+      var resultsBySource = {};
+      var sourcesShortCircuited = [];
 
       // #region agent log - DEBUG: fetch items count
       logEvent_({
@@ -120,29 +144,58 @@ function fetchForProfileWithEnrichment_(profileId) {
 
       if (fetchItems.length > 0) {
         try {
-          const requests = fetchItems.map(function(item) { return item.request; });
-          const responses = UrlFetchApp.fetchAll(requests);
-          var httpCodes = [];
-          for (var i = 0; i < responses.length; i++) {
-            var code = responses[i].getResponseCode();
-            httpCodes.push({ source: fetchItems[i].source, term: fetchItems[i].term, code: code });
-            var parsed = parseParallelFetchResponse_(responses[i], fetchItems[i]);
-            jobs = jobs.concat(parsed);
-            logEvent_({
-              timestamp: Date.now(),
-              profileId: profile.profileId,
-              action: "fetch_enriched",
-              source: fetchItems[i].source,
-              details: {
-                level: "INFO",
-                message: "Fetched jobs",
-                meta: { batchId, source: fetchItems[i].source, term: fetchItems[i].term, count: parsed.length, httpCode: code },
-                batchId,
-                version: Sygnalist_VERSION
-              }
-            });
+          var itemsBySource = {};
+          for (var xi = 0; xi < fetchItems.length; xi++) {
+            var src = fetchItems[xi].source;
+            if (!itemsBySource[src]) itemsBySource[src] = [];
+            itemsBySource[src].push(fetchItems[xi]);
           }
-          // #region agent log - DEBUG: after parallel fetch
+          var sourceNames = Object.keys(itemsBySource);
+          var skippedSources = {};
+          var sourceYield = {};
+          sourceNames.forEach(function(s) { sourceYield[s] = 0; });
+
+          var tFetchStart = Date.now();
+          for (var waveIndex = 0; waveIndex < 10; waveIndex++) {
+            var waveItems = [];
+            var startIdx = waveIndex * 2;
+            var endIdx = startIdx + 2;
+            for (var si = 0; si < sourceNames.length; si++) {
+              var sn = sourceNames[si];
+              if (skippedSources[sn]) continue;
+              var arr = itemsBySource[sn] || [];
+              for (var ti = startIdx; ti < endIdx && ti < arr.length; ti++) {
+                waveItems.push(arr[ti]);
+              }
+            }
+            if (waveItems.length === 0) break;
+
+            var waveRequests = waveItems.map(function(item) { return item.request; });
+            requestsAttempted += waveRequests.length;
+            var waveResponses = UrlFetchApp.fetchAll(waveRequests);
+            for (var wi = 0; wi < waveResponses.length; wi++) {
+              var parsed = parseParallelFetchResponse_(waveResponses[wi], waveItems[wi]);
+              var so = waveItems[wi].source;
+              jobs = jobs.concat(parsed);
+              sourceYield[so] = (sourceYield[so] || 0) + parsed.length;
+            }
+
+            if (waveIndex === 0) {
+              for (var sk = 0; sk < sourceNames.length; sk++) {
+                var snk = sourceNames[sk];
+                if ((sourceYield[snk] || 0) === 0) {
+                  skippedSources[snk] = true;
+                  sourcesShortCircuited.push(snk);
+                }
+              }
+            }
+            for (var k in sourceYield) { if (sourceYield.hasOwnProperty(k)) resultsBySource[k] = sourceYield[k]; }
+
+            jobs = dedupeJobs_(jobs);
+            var rawCap = typeof CONFIG.RAW_POOL_CAP === "number" && CONFIG.RAW_POOL_CAP > 0 ? CONFIG.RAW_POOL_CAP : 0;
+            if (rawCap > 0 && jobs.length >= rawCap) break;
+          }
+
           logEvent_({
             timestamp: Date.now(),
             profileId: profile.profileId,
@@ -151,11 +204,10 @@ function fetchForProfileWithEnrichment_(profileId) {
             details: {
               level: "INFO",
               message: "After parallel fetch",
-              meta: { batchId: batchId, totalJobs: jobs.length, httpCodes: httpCodes },
+              meta: { batchId: batchId, totalJobs: jobs.length, requestsAttempted: requestsAttempted, resultsBySource: resultsBySource, sourcesShortCircuited: sourcesShortCircuited, fetchPhaseMs: Date.now() - tFetchStart },
               version: Sygnalist_VERSION
             }
           });
-          // #endregion
         } catch (e) {
           logEvent_({
             timestamp: Date.now(),
@@ -170,6 +222,9 @@ function fetchForProfileWithEnrichment_(profileId) {
               version: Sygnalist_VERSION
             }
           });
+          requestsAttempted = 0;
+          resultsBySource = {};
+          sourcesShortCircuited = [];
           for (var s = 0; s < plan.sources.length; s++) {
             for (var t = 0; t < plan.searchTerms.length; t++) {
               try {
@@ -296,23 +351,56 @@ function fetchForProfileWithEnrichment_(profileId) {
         }
       });
 
+      var maxEnrich = (typeof CONFIG.MAX_ENRICH_PER_FETCH === "number" && CONFIG.MAX_ENRICH_PER_FETCH > 0) ? CONFIG.MAX_ENRICH_PER_FETCH : (CONFIG.MAX_JOBS_PER_FETCH || 25);
+      var candidatesToEnrich = candidates.slice(0, maxEnrich);
+
+      logEvent_({
+        timestamp: Date.now(),
+        profileId: profile.profileId,
+        action: "fetch_enriched",
+        source: "debug",
+        details: {
+          level: "INFO",
+          message: "Fetch batch summary",
+          meta: {
+            batchId: batchId,
+            totalTermsUsed: (plan.searchTerms || []).length,
+            sourcesUsed: (plan.sources || []).length,
+            requestsAttempted: requestsAttempted,
+            resultsBySource: resultsBySource,
+            sourcesShortCircuited: sourcesShortCircuited,
+            totalFetchedBeforeDedupe: rawFetched,
+            afterDedupe: afterDedupe,
+            candidatesSelectedForEnrich: candidatesToEnrich.length
+          },
+          batchId,
+          version: Sygnalist_VERSION
+        }
+      });
+
       // 4) Enrich (skip failures inside enrichJobsForProfile_)
-      const enriched = enrichJobsForProfile_(candidates, profile)
+      const enriched = enrichJobsForProfile_(candidatesToEnrich, profile)
         .filter(j => String(j.jobSummary || "").trim() && String(j.whyFit || "").trim());
 
       // 5) Exclude jobs already in Tracker so they do not reappear in Inbox until released
       const trackerKeys = getTrackerKeyStringsForProfile_(profile.profileId);
-      const forInbox = enriched.filter(j => {
+      var forInbox = enriched.filter(j => {
         const u = normalizeUrl_(j.url);
         if (u && trackerKeys.has(u)) return false;
         const k = buildFallbackKey_(j.company, j.title);
         if (k && trackerKeys.has(k)) return false;
         return true;
       });
+      forInbox = filterTierGate_(forInbox);
 
       // 6) Write enriched inbox (replace profile inbox)
-      clearEngineInboxForProfile_(profile.profileId);
-      const written = writeEngineInboxEnriched_(forInbox, profile.profileId);
+      var written;
+      try {
+        clearEngineInboxForProfile_(profile.profileId);
+        written = writeEngineInboxEnriched_(forInbox, profile.profileId);
+      } catch (writeErr) {
+        return { ok: false, version: Sygnalist_VERSION, message: "Write failed (Engine_Inbox): " + (writeErr.message || String(writeErr)) };
+      }
 
       logEvent_({
         timestamp: Date.now(),
@@ -322,7 +410,7 @@ function fetchForProfileWithEnrichment_(profileId) {
         details: {
           level: "INFO",
           message: "Fetch+Enrich pipeline complete",
-          meta: { batchId, rawFetched, candidates: candidates.length, enriched: enriched.length, written },
+          meta: { batchId, rawFetched, candidates: candidates.length, enriched: enriched.length, written, enrichPhaseMs: Date.now() - tEnrichStart },
           batchId,
           version: Sygnalist_VERSION
         }
@@ -353,14 +441,32 @@ function formatSalaryDisplay_(salary) {
   const currency = (s.currency && String(s.currency).trim()) || "USD";
   if (min == null && max == null) return "—";
   const fmt = (n) => {
-    if (n >= 1000) return (n / 1000) + "k";
-    return String(n);
+    const num = Number(n);
+    if (isNaN(num)) return String(n);
+    if (num >= 1000) {
+      const x = num / 1000;
+      const rounded = Math.round(x * 10) / 10;
+      const str = rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
+      return str + "k";
+    }
+    const rounded = Math.round(num * 10) / 10;
+    return rounded % 1 === 0 ? String(Math.round(rounded)) : rounded.toFixed(1);
   };
   const sym = currency.toUpperCase() === "USD" ? "$" : "";
   if (min != null && max != null && min !== max) return sym + fmt(min) + "–" + fmt(max);
   if (max != null) return sym + fmt(max);
   if (min != null) return sym + fmt(min);
   return "—";
+}
+
+/** Derive salary_source for DTO: "listed" if job has salary object with min/max, else "missing". "inferred" reserved for future. */
+function deriveSalarySource_(salary) {
+  if (salary && typeof salary === "object") {
+    const s = salary;
+    if (s.min != null && Number(s.min) > 0) return "listed";
+    if (s.max != null && Number(s.max) > 0) return "listed";
+  }
+  return "missing";
 }
 
 /**
@@ -392,6 +498,7 @@ function writeEngineInboxEnriched_(jobs, profileId) {
         case "jobSummary": return String(j.jobSummary || "");
         case "whyFit": return ""; // Inbox: no GoodFit (Tracker-only, lazy-generated)
         case "salary": return formatSalaryDisplay_(j.salary);
+        case "salary_source": return deriveSalarySource_(j.salary);
         case "added_at": return now;
         default: return "";
       }
@@ -399,7 +506,10 @@ function writeEngineInboxEnriched_(jobs, profileId) {
   });
 
   if (rows.length) {
-    sh.getRange(sh.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+    var numRows = rows.length;
+    var numCols = headers.length;
+    if (numRows !== rows.length) throw new Error("Engine_Inbox write enriched: range rows " + numRows + " != data rows " + rows.length);
+    sh.getRange(sh.getLastRow() + 1, 1, numRows, numCols).setValues(rows);
   }
 
   return rows.length;

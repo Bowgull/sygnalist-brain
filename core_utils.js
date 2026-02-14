@@ -104,3 +104,15 @@ function truncateStr_(str, maxLen) {
   if (s.length <= maxLen) return s;
   return s.slice(0, maxLen - 3) + "...";
 }
+
+/**
+ * Set a row cell by header name. Shared by admin_create_profile and admin_debug.
+ * @param {string[]} headers - Row of header names
+ * @param {Array} row - Mutable row array
+ * @param {string} key - Header name
+ * @param {*} value - Value to set
+ */
+function setByHeader_(headers, row, key, value) {
+  var idx = headers.indexOf(key);
+  if (idx !== -1) row[idx] = value;
+}

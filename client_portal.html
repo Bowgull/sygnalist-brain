@@ -8,14 +8,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
     <?!= HtmlService.createHtmlOutputFromFile('portal_styles').getContent() ?>
+    <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Modal Styles -->
     <style>
+      .view-as-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-2) var(--space-4);
+        background: rgba(106, 215, 163, 0.15);
+        border: 1px solid var(--color-radar-mid);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--space-3);
+        font-size: 0.875rem;
+      }
+      .view-as-banner a { color: var(--color-radar-mid); font-weight: 600; }
       .modal-overlay {
         position: fixed;
         inset: 0;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         background: rgba(5, 6, 10, 0.9);
         display: flex;
         align-items: center;
@@ -38,6 +50,8 @@
         padding: var(--space-6);
         width: 100%;
         max-width: 420px;
+        margin-left: var(--space-3);
+        margin-right: var(--space-3);
         box-shadow: var(--shadow-card);
         transform: scale(0.95);
         transition: transform 0.25s ease;
@@ -60,8 +74,10 @@
       }
       
       .modal-close {
-        width: 32px;
-        height: 32px;
+        min-width: 44px;
+        min-height: 44px;
+        width: 44px;
+        height: 44px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -129,6 +145,9 @@
     <!-- Icon sprite (hidden; reference with <use href="#icon-name"/> ) -->
     <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
       <defs>
+        <linearGradient id="sygView" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9FFB5"/><stop offset="0.55" stop-color="#5EF2C7"/><stop offset="1" stop-color="#39D6FF"/></linearGradient>
+        <linearGradient id="sygFetch" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9FFB5"/><stop offset="0.55" stop-color="#5EF2C7"/><stop offset="1" stop-color="#39D6FF"/></linearGradient>
+        <linearGradient id="sygAdd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9FFB5"/><stop offset="0.55" stop-color="#5EF2C7"/><stop offset="1" stop-color="#39D6FF"/></linearGradient>
         <symbol id="icon-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1" opacity="0.6"/><path d="M12 6v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="10" r="1" fill="currentColor"/></symbol>
         <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
         <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
@@ -145,12 +164,16 @@
         <symbol id="icon-applied" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="18" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M4 7h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
         <symbol id="icon-interviewing" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M4 9h16M8 4v2M16 4v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M8 15h2M14 15h2M10 18h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.9"/></symbol>
         <symbol id="icon-added-this-week" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M4 10h16M9 3v4M15 3v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 15v4M10 17h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
-        <symbol id="icon-fetch" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1" opacity="0.6"/><path d="M12 6v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 16v4M12 20l-2-2M12 20l2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-        <symbol id="icon-add-to-tracker" viewBox="0 0 24 24"><rect x="5" y="4" width="12" height="9" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="7" y="8" width="12" height="9" rx="1" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.9"/><path d="M14 16h4M16 14v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+        <symbol id="icon-fetch" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2" stroke="url(#sygFetch)" stroke-width="1.8" opacity="0.35"/><circle cx="12" cy="12" r="4.6" stroke="url(#sygFetch)" stroke-width="1.4" opacity="0.55"/><path d="M12 12 L19 9.4 A8.2 8.2 0 0 0 15.6 4.9 Z" fill="url(#sygFetch)" opacity="0.16"/><path d="M12 12 L19 9.4" stroke="url(#sygFetch)" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/><circle cx="9.2" cy="9.4" r="0.9" fill="url(#sygFetch)" opacity="0.95"/><circle cx="15.6" cy="14.6" r="0.75" fill="url(#sygFetch)" opacity="0.75"/><circle cx="12" cy="12" r="1.05" fill="url(#sygFetch)" opacity="0.95"/></symbol>
+        <symbol id="icon-add-to-tracker" viewBox="0 0 24 24"><path d="M5.2 9.2h13.6l-1.3 8.4c-.1.8-.8 1.4-1.6 1.4H8.1c-.8 0-1.5-.6-1.6-1.4L5.2 9.2Z" stroke="url(#sygAdd)" stroke-width="1.8" stroke-linejoin="round" opacity="0.9"/><path d="M6.4 9.2 8.4 6.6h7.2l2 2.6" stroke="url(#sygAdd)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/><path d="M12 11.3v5.2M9.4 13.9h5.2" stroke="url(#sygAdd)" stroke-width="2" stroke-linecap="round" opacity="0.95"/><path d="M17.6 12.1c.7.2 1.2.7 1.2 1.4" stroke="url(#sygAdd)" stroke-width="1.6" stroke-linecap="round" opacity="0.45"/></symbol>
         <symbol id="icon-clear-filters" viewBox="0 0 24 24"><path d="M4 4h16l-4 8v8H8v-8L4 4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="none"/><path d="M10 12l4 4M14 12l-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
-        <symbol id="icon-view" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M2 12s3-6 10-6 10 6 10 6-3 6-10 6-10-6-10-6z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+        <symbol id="icon-view" viewBox="0 0 24 24"><path d="M2.2 12s3.7-6.8 9.8-6.8S21.8 12 21.8 12s-3.7 6.8-9.8 6.8S2.2 12 2.2 12Z" stroke="url(#sygView)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/><circle cx="12" cy="12" r="4.2" stroke="url(#sygView)" stroke-width="1.2" opacity="0.28"/><circle cx="12" cy="12" r="2.35" stroke="url(#sygView)" stroke-width="1.2" opacity="0.55"/><circle cx="12" cy="12" r="1.05" fill="url(#sygView)" opacity="0.95"/><path d="M12 12 L16.1 10.2" stroke="url(#sygView)" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/></symbol>
         <symbol id="icon-pencil" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
         <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="icon-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
+        <symbol id="icon-unlock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M7 11V7a5 5 0 019.9-1" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="icon-lanes" viewBox="0 0 24 24"><path d="M5 4v16M12 4v16M19 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
       </defs>
     </svg>
     <!-- Loading Overlay -->
@@ -199,79 +222,86 @@
             <label class="form-label">Job URL (optional)</label>
             <input class="form-input" type="text" id="manualUrl" placeholder="https://..." />
           </div>
+          <div class="form-group">
+            <label class="form-label">Location (optional)</label>
+            <input class="form-input" type="text" id="manualLocation" placeholder="e.g. Remote, NYC" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes (optional)</label>
+            <textarea class="form-textarea" id="manualNotes" placeholder="Add notes..." rows="2"></textarea>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="btn" onclick="hideManualAdd()">Cancel</button>
-          <button class="btn btn-primary" onclick="submitManualAdd()">Add to Tracker</button>
+          <button class="btn btn-action" onclick="submitManualAdd()">Add to Tracker</button>
         </div>
       </div>
     </div>
 
     <div class="app">
+      <div id="viewAsBanner" class="view-as-banner" style="display:none;" role="status">
+        <span>Viewing as <strong id="viewAsName"></strong></span>
+        <a id="viewAsExit" href="">Exit</a>
+      </div>
       <!-- ═══════════════════════════════════════════════════════════════════════
-           NAVBAR (always visible)
+           APP HEADER (3-column: brand | system pulse | actions + profile)
            ═══════════════════════════════════════════════════════════════════════ -->
-      <nav class="navbar">
+      <header class="app-header" data-testid="sygnalist-header-client" style="width:100%;display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:2rem;margin-left:-24px;margin-right:-24px;padding-left:24px;padding-right:24px;"><!-- header-build:20260207 -->
         <div class="navbar-backdrop" aria-hidden="true">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 140" preserveAspectRatio="none" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 220" preserveAspectRatio="none" aria-hidden="true">
             <defs>
-              <linearGradient id="header-beam" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0" stop-color="#00F5D4" stop-opacity="0"/>
-                <stop offset="0.5" stop-color="#00F5D4" stop-opacity="0.18"/>
-                <stop offset="1" stop-color="#00F5D4" stop-opacity="0"/>
+              <linearGradient id="header-bg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#0c141b"/>
+                <stop offset="100%" stop-color="#0a1117"/>
               </linearGradient>
-              <linearGradient id="header-beam2" x1="1" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#7C5CFF" stop-opacity="0"/>
-                <stop offset="0.55" stop-color="#7C5CFF" stop-opacity="0.14"/>
-                <stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/>
+              <linearGradient id="header-seamGlow" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#00ffc3" stop-opacity="0"/>
+                <stop offset="25%" stop-color="#00ffc3" stop-opacity="0.35"/>
+                <stop offset="50%" stop-color="#00ffc3" stop-opacity="0.58"/>
+                <stop offset="75%" stop-color="#6c63ff" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="#6c63ff" stop-opacity="0"/>
               </linearGradient>
-              <pattern id="header-grid" width="48" height="48" patternUnits="userSpaceOnUse">
-                <path d="M48 0H0V48" fill="none" stroke="#A9FFB5" stroke-opacity="0.06" stroke-width="1"/>
-              </pattern>
+              <filter id="header-blur">
+                <feGaussianBlur stdDeviation="3"/>
+              </filter>
             </defs>
-            <rect width="1200" height="140" fill="url(#header-grid)" opacity="0.55"/>
-            <path d="M-200 120 L500 -20 L560 -20 L-140 120 Z" fill="url(#header-beam)"/>
-            <path d="M600 160 L980 -20 L1040 -20 L660 160 Z" fill="url(#header-beam2)"/>
-            <g fill="#A9FFB5" opacity="0.20">
-              <circle cx="110" cy="46" r="2"/>
-              <circle cx="150" cy="58" r="1.5"/>
-              <circle cx="190" cy="42" r="1.5"/>
-              <circle cx="220" cy="66" r="2"/>
+            <rect width="1200" height="220" fill="url(#header-bg)"/>
+            <g class="banner-seam">
+              <rect x="0" y="109" width="1200" height="2" fill="url(#header-seamGlow)"/>
+              <rect x="0" y="101" width="1200" height="16" fill="url(#header-seamGlow)" opacity="0.25" filter="url(#header-blur)"/>
+              <g opacity="0.10">
+                <rect x="320" y="95" width="1" height="30" fill="#00ffc3"/>
+                <rect x="600" y="95" width="1" height="30" fill="#6c63ff"/>
+                <rect x="880" y="95" width="1" height="30" fill="#00ffc3"/>
+              </g>
             </g>
           </svg>
         </div>
-        <div class="brand">
-          <div class="brand-logo">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sygnalist">
-              <defs>
-                <linearGradient id="neo-logo" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#A9FFB5"/>
-                  <stop offset="0.55" stop-color="#5EF2C7"/>
-                  <stop offset="1" stop-color="#39D6FF"/>
-                </linearGradient>
-                <linearGradient id="bg-logo" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#0B1512"/>
-                  <stop offset="1" stop-color="#0F2A23"/>
-                </linearGradient>
+        <div class="header-zone-a">
+          <div class="brand">
+            <div class="brand-logo">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sygnalist">
+                <defs>
+                  <linearGradient id="neo-logo" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#A9FFB5"/>
+                    <stop offset="0.55" stop-color="#5EF2C7"/>
+                    <stop offset="1" stop-color="#39D6FF"/>
+                  </linearGradient>
+                  <linearGradient id="bg-logo" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#0B1512"/>
+                    <stop offset="1" stop-color="#0F2A23"/>
+                  </linearGradient>
               </defs>
-              <!-- badge -->
               <rect x="6" y="6" width="52" height="52" rx="14" fill="url(#bg-logo)"/>
               <rect x="6.5" y="6.5" width="51" height="51" rx="14" fill="none" stroke="url(#neo-logo)" opacity="0.20"/>
-              <!-- outer ring -->
               <circle cx="32" cy="32" r="17" fill="none" stroke="url(#neo-logo)" stroke-width="3.8" opacity="0.95"/>
-              <!-- etched inner ring (depth) -->
               <circle cx="32" cy="32" r="12.2" fill="none" stroke="#A9FFB5" stroke-width="2" opacity="0.10"/>
               <circle cx="32" cy="32" r="10" fill="none" stroke="#A9FFB5" stroke-width="2" opacity="0.16"/>
-              <!-- quadrant ticks (radar cue, minimal clutter) -->
               <path d="M32 13.5v3.2M32 47.3v3.2M13.5 32h3.2M47.3 32h3.2"
                     stroke="url(#neo-logo)" stroke-width="2" stroke-linecap="round" opacity="0.22"/>
-              <!-- sweep line (slightly less dominant) -->
               <path d="M32 32 L49 22" stroke="url(#neo-logo)" stroke-width="3" stroke-linecap="round" opacity="0.80"/>
-              <!-- ping dot (hero) -->
               <circle cx="49" cy="22" r="2.7" fill="#A9FFB5" opacity="0.95"/>
-              <!-- center core -->
               <circle cx="32" cy="32" r="4.4" fill="url(#neo-logo)"/>
-              <!-- yellow spark (intentional placement) -->
               <path d="M47.5 15.8 l1.3 2.5 2.5 1.3-2.5 1.3-1.3 2.5-1.3-2.5-2.5-1.3 2.5-1.3z"
                     fill="#FFD77A" opacity="0.95"/>
             </svg>
@@ -281,33 +311,22 @@
             <div class="brand-tagline">FIND THE SIGNAL</div>
           </div>
         </div>
-        <div class="profile-section">
-          <a class="nav-admin-link" id="navAdminLink" href="#">Admin</a>
-          <div class="profile-info">
-            <div class="profile-name" id="profileName"></div>
-            <div class="status-badge" id="statusBadge">
-              <svg class="status-dot" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="8" height="8">
-                <circle cx="4" cy="4" r="3" fill="currentColor"/>
-              </svg>
-              <span id="statusText"></span>
+        <div class="header-right" style="margin-left:auto;display:flex;align-items:center;">
+          <div class="header-zone-b">
+            <div class="header-status-cluster">
+              <span id="headerPrimaryMetaPrefix" class="header-username"></span>
+              <span class="header-active-chip">
+                <span id="headerPrimaryMetaDot" class="header-meta-dot"></span><span id="headerPrimaryMetaStatus"></span>
+              </span>
+              <span class="header-rule" aria-hidden="true"></span>
+              <span class="header-last-fetch-readout">
+                <span class="header-last-fetch-label">LAST SCAN</span> <span id="lastFetchTime" class="header-last-fetch-value"></span>
+              </span>
             </div>
+            <a class="nav-admin-link header-admin-badge" id="navAdminLink" href="#">Admin</a>
           </div>
-          <span class="nav-version" id="navVersion"></span>
         </div>
-      </nav>
-
-      <!-- ═══════════════════════════════════════════════════════════════════════
-           COMMAND BAR (app toolbar)
-           ═══════════════════════════════════════════════════════════════════════ -->
-      <div class="command-bar">
-        <div class="command-bar-left" id="commandBarLeft">
-          <!-- Buttons injected by JS (portal_scripts) so icons use registry -->
-        </div>
-        <div class="command-bar-right">
-          <span class="command-meta" id="lastFetchTime"></span>
-          <span class="command-meta" id="inboxTrackerCounts"></span>
-        </div>
-      </div>
+      </header>
 
       <!-- ═══════════════════════════════════════════════════════════════════════
            MAIN CONTENT: two columns (tabs + content left, metrics right)
@@ -315,10 +334,18 @@
       <div class="main-content">
         <div class="content-bay">
           <div class="main-content-left">
-            <div class="tabs-row">
-            <button class="tab-btn active" data-tab="inbox" id="tabBtnInbox">Inbox</button>
-            <button class="tab-btn" data-tab="tracker" id="tabBtnTracker">Tracker</button>
-          </div>
+            <div class="control-deck">
+              <div class="tabs-and-actions-row">
+                <div class="tabs-container">
+                  <div class="tabs-row">
+                    <button class="tab-btn active" data-tab="inbox" id="tabBtnInbox">Inbox</button>
+                    <button class="tab-btn" data-tab="tracker" id="tabBtnTracker">Tracker</button>
+                    <button class="tab-btn" data-tab="admin" id="tabBtnAdmin">Admin</button>
+                  </div>
+                </div>
+                <div class="content-bay-actions" id="contentBayActions"></div>
+              </div>
+            </div>
 
           <div class="tab-content" id="tabInbox">
             <div class="inbox-filters-row" id="inboxFiltersRow">
@@ -333,13 +360,15 @@
             <div class="tracker-header pipeline-layout" id="trackerHeader">
               <!-- Status pills rendered by JS -->
             </div>
-            <div class="tracker-filters-row" id="trackerFiltersRow" aria-label="Tracker filters">
+            <div class="tracker-filters-row control-deck-panel" id="trackerFiltersRow" aria-label="Tracker filters">
               <!-- Search + Sort rendered by JS when filter type is All -->
             </div>
             <div class="panel-body panel-body-full" id="trackerList">
               <!-- Rendered by JS -->
             </div>
           </div>
+
+          <div class="tab-content hidden" id="tabAdmin"><?!= ADMIN_TAB_HTML ?></div>
         </div>
         </div>
 
@@ -362,8 +391,13 @@
     <script>
       const BOOT = <?!= BOOTSTRAP_JSON ?>;
       const profileId = BOOT.profile.profileId;
+      const VIEW_AS = <?!= VIEW_AS_JSON ?>;
+      const ADMIN_URL = <?!= ADMIN_URL_JSON ?>;
+      const SHOW_ADMIN_UI = <?!= SHOW_ADMIN_UI_JSON || 'false' ?>;
+      const ADMIN_PROFILE_ID = <?!= ADMIN_PROFILE_ID_JSON || '""' ?>;
     </script>
     <?!= HtmlService.createHtmlOutputFromFile('statusConfig').getContent() ?>
     <?!= HtmlService.createHtmlOutputFromFile('portal_scripts').getContent() ?>
+    <script><?!= ADMIN_TAB_SCRIPT ?></script>
   </body>
 </html>

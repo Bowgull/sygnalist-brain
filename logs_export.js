@@ -8,8 +8,39 @@
  * - Human-readable details
  * - Proper column widths and row heights
  * 
- * Menu: 📤 Export Logs (Pretty)
+ * Menu: 📤 Export Logs (single entry; CSV or Pretty)
  ****************************************************/
+
+/**
+ * Single menu entry: prompt for CSV or Pretty, then run the chosen export and log.
+ */
+function exportLogsWithChoice_() {
+  var ui = SpreadsheetApp.getUi();
+  var choice = ui.prompt("Export Logs", "Enter 1 for CSV (date range + filters) or 2 for Pretty table:", ui.ButtonSet.OK_CANCEL);
+  if (choice.getSelectedButton() !== ui.Button.OK) return;
+  var v = String(choice.getResponseText() || "").trim();
+  if (v === "1") {
+    logEvent_({
+      timestamp: Date.now(),
+      profileId: null,
+      action: "admin",
+      source: "logs_export",
+      details: { level: "INFO", message: "Logs exported (CSV)", version: typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "" }
+    });
+    exportLogsToCsv_();
+  } else if (v === "2") {
+    logEvent_({
+      timestamp: Date.now(),
+      profileId: null,
+      action: "admin",
+      source: "logs_export",
+      details: { level: "INFO", message: "Logs exported (Pretty)", version: typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "" }
+    });
+    exportLogsToPrettySheet_();
+  } else {
+    ui.alert("Enter 1 or 2.");
+  }
+}
 
 function exportLogsToPrettySheet_() {
   const ui = SpreadsheetApp.getUi();
@@ -54,7 +85,7 @@ function exportLogsToSheet_(targetSpreadsheetId) {
     throw new Error("No log entries to export.");
   }
   
-  const sourceData = sourceSheet.getRange(1, 1, lastRow, 5).getValues();
+  const sourceData = sourceSheet.getRange(1, 1, lastRow, 7).getValues();
   const sourceHeaders = sourceData[0];
   const sourceRows = sourceData.slice(1);
   
@@ -65,8 +96,8 @@ function exportLogsToSheet_(targetSpreadsheetId) {
   if (!targetSheet) {
     targetSheet = targetSs.insertSheet("Logs Export");
   } else {
-    // Clear existing content
-    targetSheet.clear();
+    targetSs.deleteSheet(targetSheet);
+    targetSheet = targetSs.insertSheet("Logs Export");
   }
   
   // Delete default "Sheet1" if it exists and we just created this spreadsheet
@@ -78,12 +109,13 @@ function exportLogsToSheet_(targetSpreadsheetId) {
   // Set up headers
   const exportHeaders = [
     "🕐 Time",
-    "👤 Profile", 
+    "👤 Profile",
     "⚡ Action",
     "📡 Source",
     "📊 Result",
     "📝 Details",
-    "🔗 Batch"
+    "🔗 Batch",
+    "Level"
   ];
   
   targetSheet.getRange(1, 1, 1, exportHeaders.length).setValues([exportHeaders]);
@@ -101,32 +133,27 @@ function exportLogsToSheet_(targetSpreadsheetId) {
   
   for (let i = 0; i < sourceRows.length; i++) {
     const row = sourceRows[i];
-    const timestamp = row[0];
-    const profileId = row[1];
-    const action = row[2];
-    const source = row[3];
-    const detailsRaw = row[4];
-    
-    // Parse details JSON
+    // Source 📓 Logs: col1=emoji, col2=time, col3=profile, col4=action, col5=source, col6=details, col7=level
+    const timestamp = row[1];
+    const profileId = row[2];
+    const action = row[3];
+    const source = row[4];
+    const detailsRaw = row[5];
+    const level = row[6];
+
     let details = {};
     try {
       details = JSON.parse(detailsRaw || "{}");
     } catch (e) {
       details = { message: String(detailsRaw || "") };
     }
-    
-    // Determine result emoji and color
+    if (level !== undefined && level !== null && level !== "") details.level = String(level);
+
     const { emoji, bgColor } = getLogResultStyle_(action, details);
-    
-    // Format timestamp
     const timeStr = formatLogTimestamp_(timestamp);
-    
-    // Format details as human-readable
     const detailsStr = formatLogDetails_(action, details);
-    
-    // Extract batchId
     const batchId = details.batchId || (details.meta && details.meta.batchId) || "—";
-    
+
     exportRows.push([
       timeStr,
       profileId || "—",
@@ -134,41 +161,37 @@ function exportLogsToSheet_(targetSpreadsheetId) {
       source || "—",
       emoji,
       detailsStr,
-      batchId
+      batchId,
+      details.level || "INFO"
     ]);
-    
     rowColors.push(bgColor);
   }
   
   if (exportRows.length > 0) {
-    // Write data
     targetSheet.getRange(2, 1, exportRows.length, exportHeaders.length).setValues(exportRows);
-    
-    // Apply row colors
+
     for (let i = 0; i < rowColors.length; i++) {
-      targetSheet.getRange(i + 2, 1, 1, exportHeaders.length).setBackground(rowColors[i]);
+      targetSheet.getRange(i + 2, 1, i + 2, exportHeaders.length).setBackground(rowColors[i]);
     }
-    
-    // Set column widths
-    targetSheet.setColumnWidth(1, 140); // Time
-    targetSheet.setColumnWidth(2, 120); // Profile
-    targetSheet.setColumnWidth(3, 100); // Action
-    targetSheet.setColumnWidth(4, 100); // Source
-    targetSheet.setColumnWidth(5, 80);  // Result
-    targetSheet.setColumnWidth(6, 350); // Details
-    targetSheet.setColumnWidth(7, 120); // Batch
-    
-    // Set row heights (header + data)
+
+    targetSheet.setColumnWidth(1, 140);
+    targetSheet.setColumnWidth(2, 120);
+    targetSheet.setColumnWidth(3, 100);
+    targetSheet.setColumnWidth(4, 100);
+    targetSheet.setColumnWidth(5, 80);
+    targetSheet.setColumnWidth(6, 350);
+    targetSheet.setColumnWidth(7, 120);
+    targetSheet.setColumnWidth(8, 60);  // Level
+
     targetSheet.setRowHeight(1, 32);
     for (let i = 0; i < exportRows.length; i++) {
       targetSheet.setRowHeight(i + 2, 30);
     }
-    
-    // Text wrap on Details column
+
     targetSheet.getRange(2, 6, exportRows.length, 1).setWrap(true);
-    
-    // Vertical align all data
     targetSheet.getRange(2, 1, exportRows.length, exportHeaders.length).setVerticalAlignment("middle");
+
+    applyExportLogsConditionalFormat_(targetSheet, exportRows.length);
   }
   
   // Freeze header row and Time column
@@ -179,6 +202,52 @@ function exportLogsToSheet_(targetSpreadsheetId) {
     rowCount: exportRows.length,
     sheetUrl: targetSs.getUrl()
   };
+}
+
+/**
+ * Apply conditional format to export sheet: Level (col H) then Action (col D).
+ * Export data starts at row 2; cols 1-8 = Time, Profile, Action, Source, Result, Details, Batch, Level.
+ */
+function applyExportLogsConditionalFormat_(sheet, dataEndRow) {
+  if (dataEndRow < 1) return;
+  var dataRange = sheet.getRange(2, 1, dataEndRow, 8);
+  var rules = sheet.getConditionalFormatRules();
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=$H2="ERROR"')
+    .setBackground("#f8d7da")
+    .setRanges([dataRange])
+    .build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=$H2="WARN"')
+    .setBackground("#fff3cd")
+    .setRanges([dataRange])
+    .build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=LOWER($D2)="error"')
+    .setBackground("#f8d7da")
+    .setRanges([dataRange])
+    .build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=OR(REGEXMATCH(LOWER($D2),"fetch"),REGEXMATCH(LOWER($D2),"fetch_enriched"))')
+    .setBackground("#d4edda")
+    .setRanges([dataRange])
+    .build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=REGEXMATCH(LOWER($D2),"enrich")')
+    .setBackground("#d1fae5")
+    .setRanges([dataRange])
+    .build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=LOWER($D2)="promote"')
+    .setBackground("#fef3c7")
+    .setRanges([dataRange])
+    .build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=LOWER($D2)="admin"')
+    .setBackground("#e9d5ff")
+    .setRanges([dataRange])
+    .build());
+  sheet.setConditionalFormatRules(rules);
 }
 
 /****************************************************
@@ -255,6 +324,102 @@ function formatLogDetails_(action, details) {
   }
   
   return "—";
+}
+
+/**
+ * Export 📓 Logs to CSV with date range (required) and optional level/profileId filter.
+ * Menu: Export Logs (CSV)
+ */
+function exportLogsToCsv_() {
+  var ui = SpreadsheetApp.getUi();
+  var startRes = ui.prompt("Export Logs (CSV)", "Start date (YYYY-MM-DD), required:", ui.ButtonSet.OK_CANCEL);
+  if (startRes.getSelectedButton() !== ui.Button.OK) return;
+  var startStr = String(startRes.getResponseText() || "").trim();
+  if (!startStr) {
+    ui.alert("Start date is required.");
+    return;
+  }
+  var endRes = ui.prompt("Export Logs (CSV)", "End date (YYYY-MM-DD), required:", ui.ButtonSet.OK_CANCEL);
+  if (endRes.getSelectedButton() !== ui.Button.OK) return;
+  var endStr = String(endRes.getResponseText() || "").trim();
+  if (!endStr) {
+    ui.alert("End date is required.");
+    return;
+  }
+  var levelRes = ui.prompt("Export Logs (CSV)", "Filter by level (INFO, WARN, ERROR) or leave blank for all:", ui.ButtonSet.OK_CANCEL);
+  var levelFilter = (levelRes.getSelectedButton() === ui.Button.OK && levelRes.getResponseText()) ? String(levelRes.getResponseText()).trim().toUpperCase() : "";
+  var profileRes = ui.prompt("Export Logs (CSV)", "Filter by profileId (or leave blank for all):", ui.ButtonSet.OK_CANCEL);
+  var profileFilter = (profileRes.getSelectedButton() === ui.Button.OK && profileRes.getResponseText()) ? String(profileRes.getResponseText()).trim() : "";
+
+  var tz = Session.getScriptTimeZone();
+  var startDate;
+  var endDate;
+  try {
+    startDate = Utilities.parseDate(startStr, tz, "yyyy-MM-dd");
+    endDate = Utilities.parseDate(endStr, tz, "yyyy-MM-dd");
+  } catch (e) {
+    ui.alert("Invalid date format. Use YYYY-MM-DD.");
+    return;
+  }
+  var startTs = startDate.getTime();
+  var endTs = endDate.getTime() + 24 * 60 * 60 * 1000 - 1;
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("📓 Logs");
+  if (!sh) {
+    ui.alert("📓 Logs sheet not found.");
+    return;
+  }
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) {
+    ui.alert("No log entries to export.");
+    return;
+  }
+  // Logs: row 1 = headers, row 2+ = data
+  var data = sh.getRange(2, 1, lastRow, 7).getValues();
+  var headers = ["Emoji", "Time", "Profile", "Action", "Source", "Details", "Level"];
+  var rows = [];
+  var year = new Date().getFullYear();
+  for (var r = 0; r < data.length; r++) {
+    var row = data[r];
+    var timeStr = String(row[1] || "");
+    var profileId = String(row[2] || "").trim();
+    var action = String(row[3] || "").toLowerCase();
+    var detailsStr = String(row[5] || "");
+    var rowDate;
+    try {
+      rowDate = Utilities.parseDate(timeStr + " " + year, tz, "MMM d, h:mm a yyyy");
+    } catch (e) {
+      rowDate = new Date(0);
+    }
+    var ts = rowDate.getTime();
+    if (ts < startTs || ts > endTs) continue;
+    if (profileFilter && profileId !== profileFilter) continue;
+    if (levelFilter) {
+      if (levelFilter === "ERROR" && action !== "error" && detailsStr.indexOf("ERROR") === -1) continue;
+      if (levelFilter === "WARN" && detailsStr.indexOf("WARN") === -1) continue;
+      if (levelFilter === "INFO" && (action === "error" || detailsStr.indexOf("ERROR") !== -1)) continue;
+    }
+    rows.push(row);
+  }
+
+  function csvEscape(val) {
+    var s = String(val == null ? "" : val);
+    if (s.indexOf(",") !== -1 || s.indexOf('"') !== -1 || s.indexOf("\n") !== -1) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+  var csvLines = [headers.map(csvEscape).join(",")];
+  for (var i = 0; i < rows.length; i++) {
+    csvLines.push(rows[i].map(csvEscape).join(","));
+  }
+  var csv = csvLines.join("\n");
+
+  var name = "Sygnalist_Logs_" + startStr + "_to_" + endStr + ".csv";
+  var blob = Utilities.newBlob(csv, "text/csv", name);
+  var file = DriveApp.getRootFolder().createFile(blob);
+  ui.alert("✅ CSV exported (" + rows.length + " rows).\n\n" + file.getUrl());
 }
 
 // Note: truncateStr_() is now in core_utils.js

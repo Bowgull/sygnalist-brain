@@ -1,4 +1,6 @@
+/** DEPRECATED: Debug menu only. */
 function adminDebugScoresTop10_() {
+  Logger.log("DEPRECATED: adminDebugScoresTop10_ called");
   const ui = SpreadsheetApp.getUi();
   const res = ui.prompt("Debug Scores", "Enter profileId (e.g. josh, client1)", ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;

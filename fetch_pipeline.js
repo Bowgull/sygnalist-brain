@@ -67,10 +67,11 @@ function fetchJobsRawForProfile_(profileId) {
     jobs = dedupeJobs_(jobs);
 
     const classified = classifyJobsForProfile_(jobs, profile);
-    const scored = scoreJobsForProfile_(classified, profile)
+    var scored = scoreJobsForProfile_(classified, profile)
       .filter(j => !j.excluded && j.score >= CONFIG.MIN_SCORE_FOR_INBOX)
       .sort((a, b) => b.score - a.score)
       .slice(0, CONFIG.MAX_JOBS_PER_FETCH);
+    scored = filterTierGate_(scored);
 
     // Raw fetch phase: summary/whyFit are blank for now (by spec)
     const written = writeEngineInbox_(scored, profile.profileId);
@@ -93,12 +94,24 @@ function fetchJobsRawForProfile_(profileId) {
   });
 }
 
-function buildFetchRequestForProfile_(profile) {
-  const sources = Array.isArray(CONFIG.DEFAULT_SOURCES) ? CONFIG.DEFAULT_SOURCES.slice() : ["remotive", "remoteok"];
+function termsSuggestRemoteOrTech_(searchTerms) {
+  var list = Array.isArray(CONFIG.REMOTE_TECH_TERMS) ? CONFIG.REMOTE_TECH_TERMS : [];
+  for (var i = 0; i < (searchTerms || []).length; i++) {
+    var term = String(searchTerms[i] || "").toLowerCase();
+    for (var j = 0; j < list.length; j++) {
+      var keyword = String(list[j] || "").toLowerCase();
+      if (keyword && (term === keyword || term.indexOf(keyword) !== -1)) return true;
+    }
+  }
+  return false;
+}
 
-  // Terms: pull from roleTracks keywords + labels, keep it tight
+function buildFetchRequestForProfile_(profile) {
+  var sources = Array.isArray(CONFIG.CORE_SOURCES) ? CONFIG.CORE_SOURCES.slice() : (Array.isArray(CONFIG.DEFAULT_SOURCES) ? CONFIG.DEFAULT_SOURCES.slice() : ["remotive", "remoteok"]);
+
+  // Terms: from effective role tracks (lane controls or roleTracks fallback)
   const terms = [];
-  const tracks = Array.isArray(profile.roleTracks) ? profile.roleTracks : [];
+  const tracks = getEffectiveRoleTracks_(profile);
 
   tracks.forEach(t => {
     if (t && t.label) terms.push(String(t.label));
@@ -110,11 +123,11 @@ function buildFetchRequestForProfile_(profile) {
   // Fallback if someone has empty tracks
   if (terms.length === 0) terms.push("customer success");
 
-  // Normalize + dedupe terms
+  // Normalize + dedupe terms (punctuation to space, collapse spaces, trim, lowercase)
   const clean = [];
   const seen = new Set();
   for (const t of terms) {
-    const s = String(t || "").trim().toLowerCase();
+    var s = String(t || "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
     if (!s) continue;
     if (seen.has(s)) continue;
     seen.add(s);
@@ -122,8 +135,13 @@ function buildFetchRequestForProfile_(profile) {
   }
 
   // Cap terms to avoid runtime blowups
+  var maxTerms = (typeof CONFIG.MAX_SEARCH_TERMS === "number" && CONFIG.MAX_SEARCH_TERMS > 0) ? CONFIG.MAX_SEARCH_TERMS : 4;
+  var searchTerms = clean.slice(0, maxTerms);
+  if (Array.isArray(CONFIG.CONDITIONAL_SOURCES) && CONFIG.CONDITIONAL_SOURCES.length > 0 && termsSuggestRemoteOrTech_(searchTerms)) {
+    sources = sources.concat(CONFIG.CONDITIONAL_SOURCES);
+  }
   return {
-    sources,
-    searchTerms: clean.slice(0, 6)
+    sources: sources,
+    searchTerms: searchTerms
   };
 }

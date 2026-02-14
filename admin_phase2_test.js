@@ -9,7 +9,9 @@ function adminInitEngineTables_() {
   SpreadsheetApp.getUi().alert("✅ Engine tables ready: Engine_Inbox + Engine_Tracker");
 }
 
+/** DEPRECATED: Debug menu only. */
 function adminTestTrackerWrite_() {
+  Logger.log("DEPRECATED: adminTestTrackerWrite_ called");
   const ui = SpreadsheetApp.getUi();
 
   const res = ui.prompt(
@@ -52,4 +54,20 @@ function adminTestTrackerWrite_() {
   }
 
   ui.alert("✅ Promote OK\nbatchId: " + out.batchId + "\nCheck Engine_Tracker tab.");
+}
+
+/** DEPRECATED: No callers. Remove when confirmed no triggers use it. */
+function adminTestFilterTierGate_() {
+  Logger.log("DEPRECATED: adminTestFilterTierGate_ called");
+  const withS = filterTierGate_([{ tier: "S" }, { tier: "F" }]);
+  if (withS.length !== 1 || String(withS[0].tier).toUpperCase() !== "S") {
+    SpreadsheetApp.getUi().alert("FAIL: mixed S+F should return only S, got " + withS.length);
+    return;
+  }
+  const onlyF = filterTierGate_([{ tier: "F" }, { tier: "F" }]);
+  if (onlyF.length !== 2) {
+    SpreadsheetApp.getUi().alert("FAIL: F-only list should be unchanged, got " + onlyF.length);
+    return;
+  }
+  SpreadsheetApp.getUi().alert("✅ filterTierGate_ OK");
 }

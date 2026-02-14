@@ -10,6 +10,9 @@
 function ensureEngineTables_() {
   ensureEngineInboxSheet_();
   ensureEngineTrackerSheet_();
+  ensureJobsInboxSheet_();
+  ensureRoleBankSheet_();
+  if (typeof ensureGlobalJobBankSheet_ === "function") ensureGlobalJobBankSheet_();
 }
 
 function ensureEngineInboxSheet_() {
@@ -21,11 +24,12 @@ function ensureEngineInboxSheet_() {
     "company","title","url","source","location",
     "roleType","laneLabel","category",
     "jobSummary","whyFit",
-    "salary",
+    "salary","salary_source",
     "added_at"
   ];
 
   ensureHeaderRow_(sh, wanted);
+  formatEngineInboxSheet_(sh);
 }
 
 function ensureEngineTrackerSheet_() {
@@ -44,6 +48,7 @@ function ensureEngineTrackerSheet_() {
   ];
 
   ensureHeaderRow_(sh, wanted);
+  formatEngineTrackerSheet_(sh);
 }
 
 /****************************************************

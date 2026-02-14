@@ -35,3 +35,19 @@ function parseRoleTracks_(val) {
     return [];
   }
 }
+
+/**
+ * Parse laneControlsJSON: { "lane_key": { is_enabled, allowed_bank_role_ids } }.
+ * Returns object or null if empty/invalid.
+ */
+function parseLaneControls_(val) {
+  const s = String(val || "").trim();
+  if (!s) return null;
+  try {
+    const o = JSON.parse(s);
+    if (!o || typeof o !== "object") return null;
+    return o;
+  } catch (e) {
+    return null;
+  }
+}

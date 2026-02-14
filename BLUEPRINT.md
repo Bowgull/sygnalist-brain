@@ -1745,6 +1745,15 @@ Fails if:
 - Add debug views for Logs (last errors, last fetch per profile).
 - Implement `runHealthCheck_()`.
 
+### 15.8.5 Step 7 — Scoring & Feed Quality Guardrails
+
+- Implement scoring/feed-quality guardrails (tier gating, empty-state, S-tier glow). Do not change any ToS/fetch guardrails.
+- Tier visibility: if any S/A/B/C/D jobs exist, exclude all F-tier from Radar; F-tier only as last resort when zero S/A/B/C/D.
+- No "zero jobs fetched" dead-end: show compliant empty state ("No fresh sygnals yet" / "still scanning" style) with clear next-step copy.
+- Interview-first ordering: sort S → A → B → C → D → F (then by score within tier).
+- S-tier spotlight: lightweight CSS-only glow/highlight for S-tier cards in Radar, consistent with theme.
+- Tier gating applied at write (fetch_enriched, fetch_pipeline) and at render (portal).
+
 ### 15.9 Phase 7 — Web App UI (Sygnalist Dashboard)
 
 - Create HTML/CSS/JS UI matching the Brand & Visual System (Section 3) and the UI/UX spec (Section 13).

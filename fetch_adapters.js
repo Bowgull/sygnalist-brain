@@ -34,7 +34,8 @@ function buildRemotiveRequest_(term) {
     url: "https://remotive.com/api/remote-jobs?search=" + encodeURIComponent(term),
     method: "get",
     muteHttpExceptions: true,
-    followRedirects: true
+    followRedirects: true,
+    timeout: 12
   };
 }
 
@@ -120,7 +121,8 @@ function buildJoobleRequest_(term, location, apiKey) {
       location: String(location || "United States").trim(),
       page: 1
     }),
-    muteHttpExceptions: true
+    muteHttpExceptions: true,
+    timeout: 12
   };
 }
 
@@ -181,18 +183,28 @@ function parseAdzunaResponse_(resp, country) {
   }
   const results = json.results || [];
   const src = "adzuna_" + (String(country || "us").toLowerCase());
-  return results.map(j => ({
-    title: String(j.title || ""),
-    company: String((j.company && j.company.display_name) || j.company_name || ""),
-    url: String(j.redirect_url || j.url || ""),
-    source: src,
-    location: String((j.location && j.location.display_name) || j.location || "").trim() || null,
-    salary: parseSalary_(null),
-    description: String(j.description || ""),
-    remote: null,
-    tags: [],
-    raw: j
-  })).filter(j => j.title && (j.company || j.url));
+  return results.map(j => {
+    var salary = { min: null, max: null, currency: null };
+    if (j.salary_min != null || j.salary_max != null) {
+      salary.min = j.salary_min != null ? Number(j.salary_min) : null;
+      salary.max = j.salary_max != null ? Number(j.salary_max) : null;
+      salary.currency = (j.salary_currency && String(j.salary_currency).trim()) || "USD";
+    } else if (j.salary_display && String(j.salary_display).trim()) {
+      salary = parseSalary_(j.salary_display);
+    }
+    return {
+      title: String(j.title || ""),
+      company: String((j.company && j.company.display_name) || j.company_name || ""),
+      url: String(j.redirect_url || j.url || ""),
+      source: src,
+      location: String((j.location && j.location.display_name) || j.location || "").trim() || null,
+      salary: salary,
+      description: String(j.description || ""),
+      remote: null,
+      tags: [],
+      raw: j
+    };
+  }).filter(j => j.title && (j.company || j.url));
 }
 
 // ─── USAJobs (federal jobs; API key required - get free at developer.usajobs.gov)
@@ -211,7 +223,8 @@ function buildUSAJobsRequest_(term, apiKey) {
     url: "https://data.usajobs.gov/api/search?Keyword=" + encodeURIComponent(String(term || "").trim()) + "&ResultsPerPage=25",
     method: "get",
     muteHttpExceptions: true,
-    headers: headers
+    headers: headers,
+    timeout: 12
   };
 }
 
@@ -327,8 +340,50 @@ function parseParallelFetchResponse_(resp, item) {
   return [];
 }
 
+/**
+ * Parse salary string (e.g. "$68,000 - 90,000+", "£50k-60k") to { min, max, currency }.
+ * Also accepts null/empty -> returns nulls.
+ */
 function parseSalary_(salaryStr) {
   const s = String(salaryStr || "").trim();
   if (!s) return { min: null, max: null, currency: null };
-  return { min: null, max: null, currency: null };
+  var currency = "USD";
+  if (/£/.test(s)) currency = "GBP";
+  else if (/€/.test(s)) currency = "EUR";
+  var numStr = s.replace(/[^\d.,\s\-–—]/g, " ").replace(/\s+/g, " ");
+  var parts = numStr.split(/[\-–—]/).map(function (p) { return p.replace(/[,\s]/g, ""); }).filter(Boolean);
+  var min = null, max = null;
+  if (parts.length >= 2) {
+    var a = parseInt(parts[0], 10);
+    var b = parseInt(parts[1], 10);
+    if (!isNaN(a) && !isNaN(b)) {
+      min = Math.min(a, b);
+      max = Math.max(a, b);
+      if (min < 1000 && max < 1000 && (s.toLowerCase().indexOf("k") !== -1 || /000/.test(s))) {
+        min = min * 1000;
+        max = max * 1000;
+      }
+    }
+  } else if (parts.length === 1) {
+    var n = parseInt(parts[0], 10);
+    if (!isNaN(n)) {
+      if (s.toLowerCase().indexOf("k") !== -1 && n < 1000) n = n * 1000;
+      min = n;
+      max = n;
+    }
+  }
+  return { min: min, max: max, currency: currency };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

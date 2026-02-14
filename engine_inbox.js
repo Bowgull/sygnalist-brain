@@ -11,16 +11,23 @@ function clearEngineInboxForProfile_(profileId) {
   const idxProfile = headers.indexOf("profileId");
   if (idxProfile === -1) throw new Error("Engine_Inbox missing profileId header");
 
-  let removed = 0;
+  const targetId = String(profileId).trim();
+  const keptRows = values.slice(1).filter(function (row) {
+    return String(row[idxProfile] || "").trim() !== targetId;
+  });
+  const removed = (values.length - 1) - keptRows.length;
+  if (removed === 0) return 0;
 
-  // Delete bottom-up to avoid index shifting
-  for (let r = values.length - 1; r >= 1; r--) {
-    if (String(values[r][idxProfile] || "").trim() === String(profileId).trim()) {
-      sh.deleteRow(r + 1); // sheet rows are 1-indexed
-      removed++;
-    }
+  sh.getRange(1, 1, 1, lastCol).setValues([headers]);
+  if (keptRows.length > 0) {
+    var numRows = keptRows.length;
+    var numCols = lastCol;
+    if (numRows !== keptRows.length) throw new Error("Engine_Inbox clear: range rows " + numRows + " != data rows " + keptRows.length);
+    sh.getRange(2, 1, numRows, numCols).setValues(keptRows);
   }
-
+  for (let r = lastRow; r >= 2 + keptRows.length; r--) {
+    sh.deleteRow(r);
+  }
   return removed;
 }
 
@@ -50,6 +57,7 @@ function writeEngineInbox_(scoredJobs, profileId) {
         case "jobSummary": return ""; // NO AI YET
         case "whyFit": return "";     // NO AI YET
         case "salary": return "";
+        case "salary_source": return "missing";
         case "added_at": return now;
         default: return "";
       }
@@ -58,7 +66,10 @@ function writeEngineInbox_(scoredJobs, profileId) {
   });
 
   if (rows.length) {
-    sh.getRange(sh.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+    var numRows = rows.length;
+    var numCols = headers.length;
+    if (numRows !== rows.length) throw new Error("Engine_Inbox write: range rows " + numRows + " != data rows " + rows.length);
+    sh.getRange(sh.getLastRow() + 1, 1, numRows, numCols).setValues(rows);
   }
 
   return rows.length;

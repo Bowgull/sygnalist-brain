@@ -7,63 +7,44 @@
  ****************************************************/
 
 function logEvent_(event) {
-  const sheet = assertSheetExists_("📓 Logs");
-  
-  // Ensure headers exist
-  ensureLogHeaders_(sheet);
-  
-  const action = String(event.action || "").toLowerCase();
-  const details = event.details || {};
-  const level = String(details.level || "").toUpperCase();
-  
-  // Get emoji and color for this log type
-  const style = getLogStyle_(action, level);
-  
-  // Format timestamp nicely
-  const timestamp = new Date(event.timestamp || Date.now());
-  const tz = Session.getScriptTimeZone();
-  const timeStr = Utilities.formatDate(timestamp, tz, "MMM d, h:mm a");
-  
-  // Format details as readable text (not raw JSON)
-  const detailsStr = formatLogDetailsInline_(details);
-  
-  const row = [
-    style.emoji,
-    timeStr,
-    event.profileId || "—",
-    event.action || "—",
-    event.source || "—",
-    detailsStr
-  ];
-
-  sheet.appendRow(row);
-  
-  // Apply row color
-  const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow, 1, 1, 6).setBackground(style.bgColor);
+  try {
+    const sheet = assertSheetExists_("📓 Logs");
+    ensureLogHeaders_(sheet);
+    const action = String(event.action || "").toLowerCase();
+    const details = event.details || {};
+    const level = String(details.level || "").toUpperCase();
+    const style = getLogStyle_(action, level);
+    const timestamp = new Date(event.timestamp || Date.now());
+    const tz = Session.getScriptTimeZone();
+    const timeStr = Utilities.formatDate(timestamp, tz, "MMM d, h:mm a");
+    const detailsStr = formatLogDetailsInline_(details);
+    const levelStr = level || "INFO";
+    const row = [
+      style.emoji,
+      timeStr,
+      event.profileId || "—",
+      event.action || "—",
+      event.source || "—",
+      detailsStr,
+      levelStr
+    ];
+    sheet.appendRow(row);
+  } catch (e) {
+    // Logs must not break callers; swallow write failures
+  }
 }
 
 function ensureLogHeaders_(sheet) {
+  const headers = ["📊", "🕐 Time", "👤 Profile", "⚡ Action", "📡 Source", "📝 Details", "Level"];
+
   if (sheet.getLastRow() === 0) {
-    const headers = ["📊", "🕐 Time", "👤 Profile", "⚡ Action", "📡 Source", "📝 Details"];
-    sheet.appendRow(headers);
-    
-    // Style header row
-    const headerRange = sheet.getRange(1, 1, 1, 6);
-    headerRange.setBackground("#1f2937");
-    headerRange.setFontColor("#ffffff");
-    headerRange.setFontWeight("bold");
-    
-    // Set column widths
-    sheet.setColumnWidth(1, 40);   // Emoji
-    sheet.setColumnWidth(2, 130);  // Time
-    sheet.setColumnWidth(3, 100);  // Profile
-    sheet.setColumnWidth(4, 80);   // Action
-    sheet.setColumnWidth(5, 100);  // Source
-    sheet.setColumnWidth(6, 400);  // Details
-    
-    // Freeze header
-    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, 7).setValues([headers]);
+    return;
+  }
+  var r1 = sheet.getRange(1, 1, 1, 7).getValues()[0];
+  var looksLikeHeader = (r1[0] === "📊" || (r1[1] && String(r1[1]).indexOf("Time") >= 0) || (r1[2] && String(r1[2]).indexOf("Profile") >= 0));
+  if (!looksLikeHeader) {
+    sheet.getRange(1, 1, 1, 7).setValues([headers]);
   }
 }
 

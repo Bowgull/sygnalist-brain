@@ -1,5 +1,5 @@
 function assertSheetExists_(name) {
-  const ss = SpreadsheetApp.getActive();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(name);
 
   if (!sheet) {

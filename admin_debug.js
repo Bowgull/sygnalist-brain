@@ -3,7 +3,9 @@
  * Admin-only debug helpers
  ****************************************************/
 
+/** DEPRECATED: Debug only. Prefer List Profile URLs for production. */
 function debugListProfiles_() {
+  Logger.log("DEPRECATED: debugListProfiles_ called");
   const profiles = loadProfiles_();
   const msg = profiles.length
     ? profiles.map(p => `${p.profileId} — ${p.displayName} (${p.status})`).join("\n")
@@ -35,11 +37,15 @@ function listProfileUrls_() {
   ui.alert("📡 Profile Portal URLs\n\n" + lines.join("\n\n"));
 }
 
+/** DEPRECATED: No menu item; use "Build Skill Profile" instead. Zero callers. */
 function debugOpenSkillProfileBuilder_() {
+  Logger.log("DEPRECATED: debugOpenSkillProfileBuilder_ called");
   openSkillProfileBuilder_();
 }
 
+/** DEPRECATED: No menu item. Use "Create New Profile" sidebar instead. Zero callers. */
 function createProfileStub_() {
+  Logger.log("DEPRECATED: createProfileStub_ called");
   const ui = SpreadsheetApp.getUi();
   const sheet = assertSheetExists_("Admin_Profiles");
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -134,11 +140,7 @@ function showProfileCreatedDialog_(profileId, portalUrl) {
   SpreadsheetApp.getUi().showModalDialog(html, "✅ Profile Created");
 }
 
-function setByHeader_(headers, row, key, value) {
-  const idx = headers.indexOf(key);
-  if (idx === -1) return;
-  row[idx] = value;
-}
+// setByHeader_ is in core_utils.js (shared)
 
 /**
  * Quick profile inspector by profileId.
@@ -189,7 +191,9 @@ function debugInspectProfileRow_() {
   ui.alert(msg);
 }
 
+/** DEPRECATED: Debug menu only. */
 function debugBootstrap_() {
+  Logger.log("DEPRECATED: debugBootstrap_ called");
   const ui = SpreadsheetApp.getUi();
   const res = ui.prompt("Enter profileId", "Example: josh, client1", ui.ButtonSet.OK_CANCEL);
   if (res.getSelectedButton() !== ui.Button.OK) return;

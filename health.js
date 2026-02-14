@@ -93,11 +93,15 @@ function runHealthCheckReport_() {
 
   // --- Required Sheets ---
   report.checks.push(check_("Sheets exist", () => {
+    ensureEngineTables_();
     assertSheetExists_("Admin_Profiles");
     assertSheetExists_("📓 Logs");
     assertSheetExists_("📊 Admin_Analytics");
     assertSheetExists_("Engine_Inbox");
     assertSheetExists_("Engine_Tracker");
+    assertSheetExists_("Jobs_Inbox");
+    assertSheetExists_("Role_Bank");
+    assertSheetExists_("Global_Job_Bank");
     return { ok: true };
   }));
 

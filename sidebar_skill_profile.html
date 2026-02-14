@@ -188,82 +188,131 @@
         font-weight: 600;
         color: var(--radar-mid);
       }
+      
+      .panel { display: none; }
+      .panel.visible { display: block; }
+      .lane-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+      }
+      .lane-item input[type="checkbox"] { flex-shrink: 0; cursor: pointer; }
+      .lane-item label { margin: 0; cursor: pointer; flex: 1; font-size: 13px; }
+      .step-b-actions { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+      .btn-secondary {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-main);
+      }
+      .lane-list { max-height: 220px; overflow-y: auto; margin-bottom: 12px; }
+      .lane-controls-list { max-height: 320px; overflow-y: auto; margin-bottom: 12px; }
+      .lane-control-card {
+        margin-bottom: 14px;
+        padding: 12px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .lane-control-card h4 { font-size: 13px; margin-bottom: 8px; color: var(--radar-mid); display: flex; align-items: center; gap: 8px; }
+      .lane-control-card h4 input[type="checkbox"] { cursor: pointer; }
+      .lane-roles { margin-left: 24px; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .lane-roles label { margin: 0; font-weight: 400; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
     </style>
   </head>
   
   <body>
-    <h3>🧬 Skill Profile Builder</h3>
-    <div class="subtitle">
-      Paste resume text → AI extracts skills, stories, and target roles.
-      <div class="version">Engine v<?= version ?></div>
-    </div>
-    
-    <div class="field">
-      <label>Profile</label>
-      <select id="profileSelect">
-        <? for (var i = 0; i < (profiles || []).length; i++) { 
-             var p = profiles[i]; ?>
-          <option value="<?= p.profileId ?>">
-            <?= (p.displayName || p.profileId) ?> (<?= p.profileId ?>)
-          </option>
+    <div id="stepA" class="panel visible">
+      <h3>🧬 Skill Profile Builder</h3>
+      <div class="subtitle">
+        Paste resume text → AI extracts skills, stories, and target roles.
+        <div class="version">Engine v<?= version ?></div>
+      </div>
+      
+      <div class="field">
+        <label>Profile</label>
+        <select id="profileSelect">
+          <? for (var i = 0; i < (profiles || []).length; i++) { 
+               var p = profiles[i]; ?>
+            <option value="<?= p.profileId ?>">
+              <?= (p.displayName || p.profileId) ?> (<?= p.profileId ?>)
+            </option>
+          <? } ?>
+        </select>
+        <? if (!profiles || profiles.length === 0) { ?>
+          <div class="hint">No profiles found. Create one first.</div>
         <? } ?>
-      </select>
-      <? if (!profiles || profiles.length === 0) { ?>
-        <div class="hint">No profiles found. Create one first.</div>
-      <? } ?>
-    </div>
-    
-    <div class="field">
-      <label>Resume Text</label>
-      <textarea id="resumeText" placeholder="Paste the full resume text here..."></textarea>
-      <div class="hint">Plain text works best.</div>
-    </div>
-    
-    <button class="btn" id="runBtn" onclick="run()">🧬 Build + Save</button>
-    
-    <div class="status" id="status"></div>
-    
-    <div class="results" id="results">
-      <div class="result-group">
-        <div class="result-label">Target Roles</div>
-        <div class="role-chips" id="rolesOutput"></div>
       </div>
       
-      <div class="result-group">
-        <div class="result-label">Skills</div>
-        <div class="result-value" id="skillsOutput"></div>
+      <div class="field">
+        <label>Resume Text</label>
+        <textarea id="resumeText" placeholder="Paste the full resume text here..."></textarea>
+        <div class="hint">Plain text works best.</div>
       </div>
       
-      <div class="result-group">
-        <div class="result-label">Summary</div>
-        <div class="result-value" id="summaryOutput"></div>
+      <button class="btn" id="runBtn" onclick="run()">🧬 Build + Save</button>
+      <button class="btn btn-secondary" id="laneControlsBtn" onclick="openLaneControls()" style="margin-top:8px">Lane Controls</button>
+      
+      <div class="status" id="status"></div>
+      
+      <div class="results" id="results">
+        <div class="result-group">
+          <div class="result-label">Target Roles</div>
+          <div class="role-chips" id="rolesOutput"></div>
+        </div>
+        <div class="result-group">
+          <div class="result-label">Skills</div>
+          <div class="result-value" id="skillsOutput"></div>
+        </div>
+        <div class="result-group">
+          <div class="result-label">Summary</div>
+          <div class="result-value" id="summaryOutput"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="stepB" class="panel">
+      <h3>Lane Controls</h3>
+      <div class="subtitle">Enable lanes and pick allowed roles from the bank. Matching and apply use only these.</div>
+      <div class="status" id="statusStepB"></div>
+      <div id="laneControlsList" class="lane-controls-list"></div>
+      <div class="step-b-actions">
+        <button class="btn btn-secondary" onclick="laneControlsUseSuggestions()">Use parse suggestions</button>
+        <button class="btn btn-secondary" onclick="laneControlsClearRoles()">Clear roles</button>
+        <button class="btn" id="laneControlsSaveBtn" onclick="laneControlsSave()">Save</button>
+        <button class="btn btn-secondary" onclick="backToLaneControls()">Back</button>
       </div>
     </div>
     
     <script>
       function $(id) { return document.getElementById(id); }
       
+      var currentProfileIdForStepB = '';
+      var laneControlsBank = [];
+      var laneControlsByLane = {};
+      var laneControlsState = {};
+
       function showStatus(msg, type) {
         var el = $('status');
-        el.textContent = msg;
-        el.className = 'status visible ' + (type || '');
+        if (el) { el.textContent = msg; el.className = 'status visible ' + (type || ''); }
       }
-      
+      function showStatusStepB(msg, type) {
+        var el = $('statusStepB');
+        if (el) { el.textContent = msg; el.className = 'status visible ' + (type || ''); }
+      }
+
       function run() {
         var profileId = $('profileSelect').value;
         var text = $('resumeText').value;
-        
-        if (!profileId) {
-          return showStatus('Select a profile first.', 'error');
-        }
-        if (!text || text.trim().length < 100) {
-          return showStatus('Paste more resume text (at least 100 characters).', 'error');
-        }
-        
+        if (!profileId) return showStatus('Select a profile first.', 'error');
+        if (!text || text.trim().length < 100) return showStatus('Paste more resume text (at least 100 characters).', 'error');
         $('runBtn').disabled = true;
-        showStatus('🔄 Analyzing resume with AI... This may take 15-30 seconds.', 'loading');
+        showStatus('Analyzing resume with AI... This may take 15-30 seconds.', 'loading');
         $('results').classList.remove('visible');
-        
         google.script.run
           .withSuccessHandler(function(res) {
             $('runBtn').disabled = false;
@@ -271,15 +320,11 @@
               showStatus('❌ ' + (res.error || 'Unknown error'), 'error');
               return;
             }
-            
-            showStatus('✅ Saved to Admin_Profiles!', 'success');
-            
+            showStatus('✅ Skill profile saved.' + (res.stagingRows > 0 ? ' Use Lane Controls to pick roles.' : ''), 'success');
             if (res && res.parsed) {
               var roles = res.parsed.suggestedRoles || [];
               var rolesHtml = '';
-              for (var i = 0; i < roles.length; i++) {
-                rolesHtml += '<span class="role-chip">' + roles[i].title + '</span>';
-              }
+              for (var i = 0; i < roles.length; i++) rolesHtml += '<span class="role-chip">' + (roles[i].title || '') + '</span>';
               $('rolesOutput').innerHTML = rolesHtml || 'None';
               $('skillsOutput').textContent = (res.parsed.topSkills || []).join(', ') || 'None';
               $('summaryOutput').textContent = res.parsed.skillProfileText || 'None';
@@ -291,6 +336,163 @@
             showStatus('❌ ' + (err && err.message ? err.message : String(err)), 'error');
           })
           .skillProfileBuildAndSave(profileId, text);
+      }
+
+      function openLaneControls() {
+        var profileId = $('profileSelect').value;
+        if (!profileId) return showStatus('Select a profile first.', 'error');
+        currentProfileIdForStepB = profileId;
+        $('stepA').classList.remove('visible');
+        $('stepB').classList.add('visible');
+        loadLaneControls();
+      }
+
+      function loadLaneControls() {
+        showStatusStepB('Loading...', 'loading');
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.ok === false) {
+              showStatusStepB('❌ ' + (res.error || 'Failed to load bank'), 'error');
+              return;
+            }
+            laneControlsBank = res.bank || [];
+            laneControlsByLane = {};
+            for (var i = 0; i < laneControlsBank.length; i++) {
+            var b = laneControlsBank[i];
+              var k = b.lane_key || 'default';
+              if (!laneControlsByLane[k]) laneControlsByLane[k] = [];
+              laneControlsByLane[k].push(b);
+            }
+            google.script.run
+              .withSuccessHandler(function(ctrlRes) {
+                if (ctrlRes && ctrlRes.ok) {
+                  laneControlsState = ctrlRes.laneControls || {};
+                } else {
+                  laneControlsState = {};
+                }
+                renderLaneControls();
+                showStatusStepB('', '');
+              })
+              .withFailureHandler(function() { laneControlsState = {}; renderLaneControls(); showStatusStepB('', ''); })
+              .getProfileLaneControls(currentProfileIdForStepB);
+          })
+          .withFailureHandler(function(err) {
+            showStatusStepB('❌ ' + (err && err.message ? err.message : String(err)), 'error');
+          })
+          .getLaneRoleBank();
+      }
+
+      function renderLaneControls() {
+        var container = $('laneControlsList');
+        container.innerHTML = '';
+        var lanes = Object.keys(laneControlsByLane).sort();
+        if (lanes.length === 0) {
+          container.innerHTML = '<p class="subtitle">No lanes in bank. Add rows to Lane_Role_Bank sheet.</p>';
+          return;
+        }
+        for (var l = 0; l < lanes.length; l++) {
+          var laneKey = lanes[l];
+          var roles = laneControlsByLane[laneKey];
+          var ctrl = laneControlsState[laneKey] || {};
+          var isEnabled = ctrl.is_enabled === true;
+          var allowedIds = ctrl.allowed_bank_role_ids || [];
+          var card = document.createElement('div');
+          card.className = 'lane-control-card';
+          var enabledId = 'lane_enabled_' + l;
+          var title = laneKey.replace(/_/g, ' ');
+          card.innerHTML = '<h4><input type="checkbox" id="' + enabledId + '" data-lane-key="' + laneKey + '" ' + (isEnabled ? 'checked' : '') + '><span> ' + title + '</span></h4><div class="lane-roles" id="lane_roles_' + l + '"></div>';
+          container.appendChild(card);
+          var rolesDiv = document.getElementById('lane_roles_' + l);
+          for (var r = 0; r < roles.length; r++) {
+            var role = roles[r];
+            var checked = allowedIds.indexOf(role.id) !== -1;
+            var lab = document.createElement('label');
+            lab.innerHTML = '<input type="checkbox" data-lane="' + laneKey + '" data-role-id="' + role.id + '" ' + (checked ? 'checked' : '') + '> ' + (role.role_name || role.id);
+            rolesDiv.appendChild(lab);
+          }
+          (function(key) {
+            document.getElementById(enabledId).onchange = function(ev) {
+              if (!laneControlsState[key]) laneControlsState[key] = { is_enabled: false, allowed_bank_role_ids: [] };
+              laneControlsState[key].is_enabled = ev.target.checked;
+            };
+          })(laneKey);
+        }
+      }
+
+      function gatherLaneControlsFromDOM() {
+        var out = {};
+        var lanes = Object.keys(laneControlsByLane);
+        for (var l = 0; l < lanes.length; l++) {
+          var laneKey = lanes[l];
+          var enabledCb = document.getElementById('lane_enabled_' + l);
+          var isEnabled = enabledCb ? enabledCb.checked : false;
+          var allowedIds = [];
+          var checks = document.querySelectorAll('input[type="checkbox"][data-lane="' + laneKey + '"]');
+          for (var c = 0; c < checks.length; c++) {
+            if (checks[c].checked) allowedIds.push(checks[c].getAttribute('data-role-id'));
+          }
+          out[laneKey] = { is_enabled: isEnabled, allowed_bank_role_ids: allowedIds };
+        }
+        return out;
+      }
+
+      function laneControlsSave() {
+        var state = gatherLaneControlsFromDOM();
+        var btn = $('laneControlsSaveBtn');
+        if (btn) btn.disabled = true;
+        showStatusStepB('Saving...', 'loading');
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (btn) btn.disabled = false;
+            if (res && res.ok) {
+              laneControlsState = state;
+              showStatusStepB('Saved. Matching and fetch will use these controls.', 'success');
+            } else {
+              showStatusStepB('❌ ' + (res && res.error ? res.error : 'Save failed'), 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            if (btn) btn.disabled = false;
+            showStatusStepB('❌ ' + (err && err.message ? err.message : String(err)), 'error');
+          })
+          .setProfileLaneControls(currentProfileIdForStepB, state);
+      }
+
+      function laneControlsUseSuggestions() {
+        showStatusStepB('Loading suggestions...', 'loading');
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.ok && res.suggestedIds) {
+              for (var laneKey in res.suggestedIds) {
+                if (!res.suggestedIds.hasOwnProperty(laneKey)) continue;
+                laneControlsState[laneKey] = { is_enabled: true, allowed_bank_role_ids: res.suggestedIds[laneKey] || [] };
+              }
+              renderLaneControls();
+              showStatusStepB('Suggestions applied. Click Save to persist.', 'success');
+            } else {
+              showStatusStepB('No suggestions or error.', 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            showStatusStepB('❌ ' + (err && err.message ? err.message : String(err)), 'error');
+          })
+          .getSuggestedBankRoleIdsForProfile(currentProfileIdForStepB);
+      }
+
+      function laneControlsClearRoles() {
+        var lanes = Object.keys(laneControlsByLane);
+        for (var l = 0; l < lanes.length; l++) {
+          var laneKey = lanes[l];
+          laneControlsState[laneKey] = { is_enabled: false, allowed_bank_role_ids: [] };
+        }
+        renderLaneControls();
+        showStatusStepB('Roles cleared. Click Save to persist.', 'success');
+      }
+
+      function backToLaneControls() {
+        $('stepB').classList.remove('visible');
+        $('stepA').classList.add('visible');
+        showStatusStepB('', '');
       }
     </script>
   </body>
