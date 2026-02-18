@@ -10,6 +10,9 @@
   // BOOT and profileId are defined in the main template (client_portal.html)
   let isBusy = false;
 
+  /** Admin script load timeout (cold start can be slow). */
+  var ADMIN_SCRIPT_LOAD_TIMEOUT_MS = 50000;
+
   // ─────────────────────────────────────────────────────────────────────────────
   // STATE (tab + caches)
   // ─────────────────────────────────────────────────────────────────────────────
@@ -298,13 +301,17 @@
         timeoutId = setTimeout(function() {
           if (didSucceed) return;
           onAdminFailed('Admin took too long to load. Try again.');
-        }, 20000);
+        }, ADMIN_SCRIPT_LOAD_TIMEOUT_MS);
         document.addEventListener('sygnalist-admin-ready', function onAdminScriptReady() {
           didSucceed = true;
           if (timeoutId) clearTimeout(timeoutId);
           timeoutId = null;
           document.removeEventListener('sygnalist-admin-ready', onAdminScriptReady);
           hideAdminLoadError();
+          if (window.__ADMIN_SCRIPT_SERVER_ERROR) {
+            showAdminLoadError('Admin couldn\'t load. Try again later.');
+            return;
+          }
           if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
           if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
         });
@@ -338,6 +345,10 @@
   document.addEventListener('sygnalist-admin-ready', function onAdminReady() {
     document.removeEventListener('sygnalist-admin-ready', onAdminReady);
     hideAdminLoadError();
+    if (window.__ADMIN_SCRIPT_SERVER_ERROR) {
+      showAdminLoadError('Admin couldn\'t load. Try again later.');
+      return;
+    }
     if (currentTab === 'admin' && typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
   });
 

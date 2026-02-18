@@ -26,6 +26,16 @@ function escapeJsonForScriptTag_(jsonStr) {
     .replace(/<\//g, "<\\/");
 }
 
+/** Escapes a string for safe inclusion in HTML (prevents broken markup and XSS). */
+function escapeHtml_(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function doGet(e) {
   try {
     const p = (e && e.parameter) ? e.parameter : {};
@@ -50,8 +60,14 @@ function doGet(e) {
     // Serve admin script as a separate asset (avoids HtmlService "Malformed HTML" from large inline script)
     const asset = String(p.asset || "").trim().toLowerCase();
     if (asset === "admin") {
-      const adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
-      return ContentService.createTextOutput(adminScriptRaw).setMimeType(ContentService.MimeType.JAVASCRIPT);
+      try {
+        const adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+        return ContentService.createTextOutput(adminScriptRaw).setMimeType(ContentService.MimeType.JAVASCRIPT);
+      } catch (assetErr) {
+        // Return JS (not HTML) so the script tag does not trigger onerror; client can show message on sygnalist-admin-ready
+        var fallbackJs = "(function(){window.__ADMIN_SCRIPT_SERVER_ERROR=true;if(typeof document.dispatchEvent==='function'){var e=document.createEvent('Event');e.initEvent('sygnalist-admin-ready',true,true);document.dispatchEvent(e);}})();";
+        return ContentService.createTextOutput(fallbackJs).setMimeType(ContentService.MimeType.JAVASCRIPT);
+      }
     }
 
     // No profile or view=admin → redirect to client portal with first admin profile
@@ -103,10 +119,8 @@ function doGet(e) {
     tpl.ADMIN_URL_JSON = JSON.stringify(sanitizedBaseUrl ? sanitizedBaseUrl + "?view=admin" : "");
     tpl.SHOW_ADMIN_UI_JSON = JSON.stringify(!!showAdminUI);
     tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(sanitizedAdminProfileId);
-    // When showAdminUI is true, always provide a script URL (absolute if baseUrl set, else relative).
-    var adminScriptSrc = showAdminUI
-      ? (sanitizedBaseUrl ? sanitizedBaseUrl + "?asset=admin" : "?asset=admin")
-      : "";
+    // When showAdminUI is true, use relative URL so script loads from same deployment as the page (avoids URL mismatch).
+    var adminScriptSrc = showAdminUI ? "?asset=admin" : "";
     if (showAdminUI) {
       const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
       adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
@@ -127,8 +141,14 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
   } catch (err) {
+    var msg = err && err.message ? err.message : String(err);
+    var safeMsg = escapeHtml_(msg);
+    var body = "<p>Portal load failed. Try again later.</p>";
+    if (safeMsg) {
+      body += "<pre style=\"font-size:0.75rem;color:#888;margin-top:1rem;overflow:auto;\">" + safeMsg + "</pre>";
+    }
     return HtmlService
-      .createHtmlOutput("Portal load failed:\n" + String(err && err.message ? err.message : err))
+      .createHtmlOutput("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"/><title>Error</title></head><body style=\"font-family:sans-serif;padding:2rem;\">" + body + "</body></html>")
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 }
