@@ -1,4 +1,7 @@
 (function() {
+  // #region agent log
+  try { fetch('http://127.0.0.1:7242/ingest/168d44e5-9176-4826-95db-e44890701604',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dd2a3d'},body:JSON.stringify({sessionId:'dd2a3d',location:'admin_tab_script.html:IIFE start',message:'Admin script started',data:{hasADMIN_BOOT:!!window.ADMIN_BOOT},timestamp:Date.now(),hypothesisId:'H2'})}).catch(function(){}); } catch (e) {}
+  // #endregion
   if (typeof console !== 'undefined' && console.log) console.log('[ADMIN_BOOT] admin script executed');
   // Define immediately so portal_scripts always finds a function; delegates to real impl when ready
   window.loadAdminProfiles = function() {
@@ -37,6 +40,9 @@
   }
 
   var root = document.getElementById('adminTabContent');
+  // #region agent log
+  try { fetch('http://127.0.0.1:7242/ingest/168d44e5-9176-4826-95db-e44890701604',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dd2a3d'},body:JSON.stringify({sessionId:'dd2a3d',location:'admin_tab_script.html:root check',message:'Admin DOM check',data:{rootNull:!root,hasProfileList:!!document.getElementById('profileList'),hasToastAdmin:!!document.getElementById('toastAdmin')},timestamp:Date.now(),hypothesisId:'H3'})}).catch(function(){}); } catch (e) {}
+  // #endregion
   if (!root) {
     showRootNullError();
   } else {
@@ -1120,6 +1126,9 @@
   });
 
   } catch (e) {
+    // #region agent log
+    try { fetch('http://127.0.0.1:7242/ingest/168d44e5-9176-4826-95db-e44890701604',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dd2a3d'},body:JSON.stringify({sessionId:'dd2a3d',location:'admin_tab_script.html:catch',message:'Admin script threw',data:{errMsg:(e&&e.message)||String(e),errName:(e&&e.name)||''},timestamp:Date.now(),hypothesisId:'H4'})}).catch(function(){}); } catch (e2) {}
+    // #endregion
     if (typeof console !== 'undefined' && console.error) console.error('Admin tab failed to load', e);
     if (root) {
       var errEl = document.createElement('div');
@@ -1133,6 +1142,9 @@
     if (typeof loadProfiles === 'function') loadProfiles();
   }
   }
+  // #region agent log
+  try { fetch('http://127.0.0.1:7242/ingest/168d44e5-9176-4826-95db-e44890701604',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dd2a3d'},body:JSON.stringify({sessionId:'dd2a3d',location:'admin_tab_script.html:before dispatch',message:'Admin script about to dispatch ready',data:{},timestamp:Date.now(),hypothesisId:'H5'})}).catch(function(){}); } catch (e) {}
+  // #endregion
   window._adminScriptLoaded = true;
   try {
     if (typeof document.dispatchEvent === 'function') {

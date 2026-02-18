@@ -77,55 +77,10 @@ function doGet(e) {
       }
     }
 
-    // view=admin → serve standalone admin-only page (one response, no redirect, no second request)
-    if (view === "admin") {
-      const baseUrl = (typeof CONFIG !== "undefined" && CONFIG.WEB_APP_URL)
-        ? String(CONFIG.WEB_APP_URL).split("?")[0]
-        : "";
-      const profiles = loadProfiles_();
-      const adminProfile = profiles.find(function (p) { return p && p.isAdmin === true; });
-      if (!adminProfile) {
-        return HtmlService.createHtmlOutput(
-          "<!DOCTYPE html><html><body><p style=\"font-family:sans-serif;padding:2rem\">No admin profile configured. Set isAdmin=TRUE for at least one profile in Admin_Profiles.</p></body></html>"
-        ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-      }
-      const sanitizedBaseUrl = sanitizeForScriptlet_(baseUrl);
-      const sanitizedProfileId = sanitizeForScriptlet_(adminProfile.profileId);
-      const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
-      adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
-      adminTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(sanitizedProfileId);
-      var adminContentHtml = adminTpl.evaluate().getContent();
-      adminContentHtml = adminContentHtml.replace(/\?>/g, "?\\u003e");
-      var adminBoot = { BASE_URL: sanitizedBaseUrl, CURRENT_PROFILE_ID: sanitizedProfileId };
-      var bootJsonStr = JSON.stringify(adminBoot);
-      var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
-      var adminBootScriptTag = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
-      var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
-      var adminScriptInline = escapeForInlineScript_(adminScriptRaw);
-      const adminOnlyTpl = HtmlService.createTemplateFromFile("admin_only");
-      adminOnlyTpl.ADMIN_CONTENT_HTML = adminContentHtml;
-      adminOnlyTpl.ADMIN_BOOT_SCRIPT_TAG = adminBootScriptTag;
-      adminOnlyTpl.ADMIN_SCRIPT_INLINE = adminScriptInline;
-      return adminOnlyTpl.evaluate()
-        .setTitle("Sygnalist — Admin")
-        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-    }
-
-    // No profile → redirect to admin (so bare URL works for admin)
+    // No profile → show message only (admin is via profile isAdmin true + Admin tab, no redirect)
     if (!profileId) {
-      const baseUrl = (typeof CONFIG !== "undefined" && CONFIG.WEB_APP_URL)
-        ? String(CONFIG.WEB_APP_URL).split("?")[0]
-        : "";
-      if (baseUrl) {
-        const redirectUrl = baseUrl + "?view=admin";
-        return HtmlService.createHtmlOutput(
-          "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"0;url=" + redirectUrl + "\"/>" +
-          "<script>window.location.replace(\"" + redirectUrl.replace(/"/g, "\\\"") + "\");</script>" +
-          "</head><body><p>Redirecting…</p></body></html>"
-        ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-      }
       return HtmlService.createHtmlOutput(
-        "<!DOCTYPE html><html><body><p style=\"font-family:sans-serif;padding:2rem\">No profile. Use ?profile=... or ?view=admin</p></body></html>"
+        "<!DOCTYPE html><html><body><p style=\"font-family:sans-serif;padding:2rem\">No profile. Use ?profile=... to open the app.</p></body></html>"
       ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
 
@@ -154,7 +109,7 @@ function doGet(e) {
     var bootJson = JSON.stringify(boot);
     tpl.BOOTSTRAP_JSON = bootJson.replace(/\?>/g, "?\\u003e");
     tpl.VIEW_AS_JSON = JSON.stringify(!!viewAs);
-    tpl.ADMIN_URL_JSON = JSON.stringify(sanitizedBaseUrl ? sanitizedBaseUrl + "?view=admin" : "");
+    tpl.ADMIN_URL_JSON = JSON.stringify("");
     tpl.SHOW_ADMIN_UI_JSON = JSON.stringify(!!showAdminUI);
     tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(sanitizedAdminProfileId);
     // When showAdminUI is true, inline the admin script so the tab works without a second request (avoids timeout/cold start and URL issues).
