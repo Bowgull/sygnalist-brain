@@ -216,6 +216,36 @@
   // ─────────────────────────────────────────────────────────────────────────────
   // TAB STATE + ROUTING
   // ─────────────────────────────────────────────────────────────────────────────
+  function showAdminLoadError(message) {
+    if (window._adminLoadErrorShown) return;
+    window._adminLoadErrorShown = true;
+    var el = document.getElementById('adminLoadError');
+    var msgEl = document.getElementById('adminLoadErrorMsg');
+    if (el) {
+      if (msgEl) msgEl.textContent = message || 'Admin failed to load. Check your connection and try again.';
+      el.classList.add('visible');
+      var retryBtn = document.getElementById('adminLoadErrorRetry');
+      if (retryBtn && !retryBtn._adminRetryWired) {
+        retryBtn._adminRetryWired = true;
+        retryBtn.addEventListener('click', function() {
+          window._adminScriptRequested = false;
+          window._adminScriptFailed = false;
+          window._adminLoadErrorShown = false;
+          var errEl = document.getElementById('adminLoadError');
+          if (errEl) errEl.classList.remove('visible');
+          setTab('inbox');
+          setTab('admin');
+        });
+      }
+    }
+  }
+
+  function hideAdminLoadError() {
+    window._adminLoadErrorShown = false;
+    var el = document.getElementById('adminLoadError');
+    if (el) el.classList.remove('visible');
+  }
+
   function setTab(tab) {
     var t_switch_start = Date.now();
     if (tab === 'tracker') timingLog('tab_switch', { t_switch_start, profileId: typeof profileId !== 'undefined' ? profileId : null, cacheHadData: trackerCache.length > 0 });
@@ -235,23 +265,52 @@
     if (tab === 'admin') {
       var lo = document.getElementById('loadingOverlay');
       if (lo) lo.classList.remove('visible');
-      if (typeof window.loadAdminProfiles === 'function') {
+      if (typeof window.loadAdminProfiles === 'function' && window._adminScriptLoaded) {
+        hideAdminLoadError();
         if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
         window.loadAdminProfiles();
       } else if (!window._adminScriptRequested) {
         var adminScriptSrc = document.body.getAttribute('data-admin-script-src');
-        if (adminScriptSrc) {
-          window._adminScriptRequested = true;
-          var script = document.createElement('script');
-          script.src = adminScriptSrc;
-          script.async = true;
-          document.body.appendChild(script);
-          document.addEventListener('sygnalist-admin-ready', function onAdminScriptReady() {
-            document.removeEventListener('sygnalist-admin-ready', onAdminScriptReady);
-            if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
-            if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
-          });
+        if (!adminScriptSrc || !adminScriptSrc.trim()) {
+          showAdminLoadError('Admin is not configured for this page.');
+          return;
         }
+        var resolvedSrc = adminScriptSrc;
+        if (adminScriptSrc.indexOf('http') !== 0) {
+          var base = window.location.origin + window.location.pathname;
+          resolvedSrc = base + (adminScriptSrc.charAt(0) === '?' ? adminScriptSrc : '?' + adminScriptSrc);
+        }
+        window._adminScriptRequested = true;
+        window._adminLoadErrorShown = false;
+        var script = document.createElement('script');
+        script.src = resolvedSrc;
+        script.async = true;
+        var timeoutId = null;
+        var didSucceed = false;
+        function onAdminFailed(msg) {
+          if (didSucceed) return;
+          if (timeoutId) clearTimeout(timeoutId);
+          window._adminScriptRequested = false;
+          window._adminScriptFailed = true;
+          showAdminLoadError(msg || 'Admin failed to load. Check your connection and try again.');
+        }
+        script.onerror = function() { onAdminFailed('Admin script failed to load. Try again.'); };
+        timeoutId = setTimeout(function() {
+          if (didSucceed) return;
+          onAdminFailed('Admin took too long to load. Try again.');
+        }, 20000);
+        document.addEventListener('sygnalist-admin-ready', function onAdminScriptReady() {
+          didSucceed = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = null;
+          document.removeEventListener('sygnalist-admin-ready', onAdminScriptReady);
+          hideAdminLoadError();
+          if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
+          if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
+        });
+        document.body.appendChild(script);
+      } else if (window._adminScriptFailed) {
+        showAdminLoadError('Admin failed to load. Check your connection and try again.');
       }
     }
     updateCommandBarCounts();
@@ -278,6 +337,7 @@
 
   document.addEventListener('sygnalist-admin-ready', function onAdminReady() {
     document.removeEventListener('sygnalist-admin-ready', onAdminReady);
+    hideAdminLoadError();
     if (currentTab === 'admin' && typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
   });
 

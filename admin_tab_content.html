@@ -58,8 +58,16 @@
   #adminTabContent .toast-admin.error { border-color: var(--color-tier-x); color: #fca5a5; }
   #adminTabContent .toast-admin.success { border-color: var(--color-radar-mid); color: var(--color-radar-light); }
   #adminTabContent #analyticsKpiRow .metric-card-value.metric-card-value-date { font-size: 0.875rem; line-height: 1.3; }
+  #adminTabContent .admin-load-error { display: none; padding: var(--space-4); margin-bottom: var(--space-4); background: rgba(220, 38, 38, 0.1); border: 1px solid var(--color-tier-x, #DC2626); border-radius: var(--radius-lg); color: var(--color-tier-x, #fca5a5); font-size: 0.875rem; }
+  #adminTabContent .admin-load-error.visible { display: block; }
+  #adminTabContent .admin-load-error .admin-load-error-msg { margin-bottom: var(--space-3); }
+  #adminTabContent .admin-load-error .btn { margin-top: var(--space-2); }
 </style>
 <div id="adminTabContent">
+  <div id="adminLoadError" class="admin-load-error" role="alert" aria-live="polite">
+    <p class="admin-load-error-msg" id="adminLoadErrorMsg">Admin failed to load. Check your connection and try again.</p>
+    <button type="button" class="btn btn-primary" id="adminLoadErrorRetry">Retry</button>
+  </div>
   <div class="admin-page">
     <h1 class="admin-heading">Master Portal</h1>
     <p class="admin-sub">Manage profiles, lanes, inbox, tracker, logs, and ops.</p>
