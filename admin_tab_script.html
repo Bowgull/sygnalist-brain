@@ -24,10 +24,37 @@
     }
   }
 
+  function validateAdminDOM() {
+    var required = ['adminTabContent', 'profileList', 'toastAdmin'];
+    for (var i = 0; i < required.length; i++) {
+      if (!document.getElementById(required[i])) {
+        if (typeof console !== 'undefined' && console.error) console.error('[ADMIN_BOOT] Missing required node: ' + required[i]);
+        return false;
+      }
+    }
+    return true;
+  }
+
   var root = document.getElementById('adminTabContent');
   if (!root) {
     showRootNullError();
   } else {
+    var breadcrumb = document.createElement('span');
+    breadcrumb.id = 'adminBootBreadcrumb';
+    breadcrumb.setAttribute('style', 'position:fixed;top:0;left:0;z-index:9999;font-size:10px;color:lime;background:rgba(0,0,0,0.8);padding:2px 6px;');
+    breadcrumb.textContent = 'Admin boot: OK';
+    document.body.appendChild(breadcrumb);
+    setTimeout(function() { if (breadcrumb && breadcrumb.parentNode) breadcrumb.remove(); }, 2500);
+    if (!validateAdminDOM()) {
+      var tabAdmin = document.getElementById('tabAdmin');
+      if (tabAdmin) {
+        var err = document.createElement('p');
+        err.className = 'admin-sub';
+        err.style.cssText = 'color:var(--color-tier-x);padding:2rem;margin:0;';
+        err.textContent = 'Admin tab is missing required elements. Refresh the page.';
+        tabAdmin.insertBefore(err, tabAdmin.firstChild);
+      }
+    }
     try {
   var BASE_URL = <?!= BASE_URL_JSON ?>;
   var CURRENT_PROFILE_ID = '';
@@ -508,7 +535,7 @@
               if (tr.classList.contains('staging-row-new-lane')) return;
               if (addTd) addTd.style.display = newLaneCount > 0 ? '' : 'none';
             });
-            if (newLaneCount > 0) showToast(newLaneCount + ' suggested role(s) aren\'t in the lane bank yet—add them to expand options.');
+            if (newLaneCount > 0) showToast(newLaneCount + ' suggested role(s) aren\'t in the lane bank yet. Add them to expand options.');
           }
         }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminGetLaneBank();
       }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminGetLaneControls(id);
@@ -662,8 +689,8 @@
       html += '<div class="jobs-intake-card ' + stageClass + '" data-job-id="' + jid + '">';
       html += '<div class="jobs-intake-card-summary">';
       html += '<label class="jobs-intake-check-wrap"><input type="checkbox" class="jobs-intake-check" data-job-id="' + jid + '" aria-label="Select for commit" /></label>';
-      html += '<div class="job-header"><div class="job-title">' + esc(row.title) + '</div><div class="job-company">' + esc(row.company || '—') + '</div></div>';
-      html += '<div class="job-meta"><span class="chip">' + esc(row.source || '—') + '</span><span class="status-pill ' + stageClass + '">' + esc(status) + '</span>';
+      html += '<div class="job-header"><div class="job-title">' + esc(row.title) + '</div><div class="job-company">' + esc(row.company || '-') + '</div></div>';
+      html += '<div class="job-meta"><span class="chip">' + esc(row.source || '-') + '</span><span class="status-pill ' + stageClass + '">' + esc(status) + '</span>';
       if (missing) html += '<span class="chip chip-missing">' + esc(missing) + '</span>';
       html += '<span class="chip chip-muted">' + esc(row.created_at) + '</span></div>';
       html += '<div class="job-actions"><a class="btn btn-ghost btn-card" href="' + esc(row.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">View</a>';
@@ -671,14 +698,14 @@
       html += '<div class="jobs-intake-card-form" style="display:none;">';
       html += '<div class="form-group"><label>Title</label><input type="text" class="jobs-intake-field" data-field="title" value="' + esc(row.title || '') + '" /></div>';
       html += '<div class="form-group"><label class="' + (!(row.company || '').trim() ? 'field-missing' : '') + '">Company *</label><input type="text" class="jobs-intake-field" data-field="company" value="' + esc(row.company || '') + '" /></div>';
-      html += '<div class="form-group"><label>URL</label><div class="jobs-intake-url-readonly">' + (row.url ? '<a href="' + esc(row.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + esc(String(row.url).length > 50 ? String(row.url).slice(0, 50) + '\u2026' : row.url) + '</a>' : '—') + '</div></div>';
+      html += '<div class="form-group"><label>URL</label><div class="jobs-intake-url-readonly">' + (row.url ? '<a href="' + esc(row.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + esc(String(row.url).length > 50 ? String(row.url).slice(0, 50) + '\u2026' : row.url) + '</a>' : '-') + '</div></div>';
       html += '<div class="form-group"><label>Source</label><input type="text" class="jobs-intake-field" data-field="source" value="' + esc(row.source || '') + '" /></div>';
       html += '<div class="form-group"><label class="' + (!(row.location || '').trim() ? 'field-missing' : '') + '">Location *</label><input type="text" class="jobs-intake-field" data-field="location" value="' + esc(row.location || '') + '" /></div>';
-      html += '<div class="form-group"><label class="' + (!(row.work_mode || '').trim() ? 'field-missing' : '') + '">Work mode *</label><select class="jobs-intake-field" data-field="work_mode"><option value="">—</option><option value="remote"' + (row.work_mode === 'remote' ? ' selected' : '') + '>Remote</option><option value="hybrid"' + (row.work_mode === 'hybrid' ? ' selected' : '') + '>Hybrid</option><option value="onsite"' + (row.work_mode === 'onsite' ? ' selected' : '') + '>On-site</option></select></div>';
+      html += '<div class="form-group"><label class="' + (!(row.work_mode || '').trim() ? 'field-missing' : '') + '">Work mode *</label><select class="jobs-intake-field" data-field="work_mode"><option value="">-</option><option value="remote"' + (row.work_mode === 'remote' ? ' selected' : '') + '>Remote</option><option value="hybrid"' + (row.work_mode === 'hybrid' ? ' selected' : '') + '>Hybrid</option><option value="onsite"' + (row.work_mode === 'onsite' ? ' selected' : '') + '>On-site</option></select></div>';
       html += '<div class="form-group"><label class="' + (!(row.job_family || '').trim() ? 'field-missing' : '') + '">Job family *</label><input type="text" class="jobs-intake-field" data-field="job_family" value="' + esc(row.job_family || '') + '" /></div>';
       html += '<div class="form-group"><label class="' + (!(row.description_snippet || '').trim() ? 'field-missing' : '') + '">Description snippet *</label><textarea class="jobs-intake-field" data-field="description_snippet" rows="2">' + esc(row.description_snippet || '') + '</textarea></div>';
       html += '<div class="form-group"><label>Job summary</label><textarea class="jobs-intake-field" data-field="job_summary" rows="2">' + esc(row.job_summary || '') + '</textarea></div>';
-      html += '<div class="form-group"><label>Why fit</label><div class="jobs-intake-why-fit-readonly" aria-readonly="true">' + (row.why_fit ? esc(row.why_fit) : '— Set when auto-enriched or committed to job bank.') + '</div></div>';
+      html += '<div class="form-group"><label>Why fit</label><div class="jobs-intake-why-fit-readonly" aria-readonly="true">' + (row.why_fit ? esc(row.why_fit) : '- Set when auto-enriched or committed to job bank.') + '</div></div>';
       html += '<div class="form-group"><label>Notes</label><input type="text" class="jobs-intake-field" data-field="notes" value="' + esc(row.notes || '') + '" /></div>';
       html += '<div class="modal-actions"><button type="button" class="btn btn-ghost btn-job-form-cancel">Cancel</button><button type="button" class="btn btn-primary btn-job-form-save">Save</button></div>';
       html += '</div></div>';
@@ -969,14 +996,14 @@
         ['Added (7d)', k.addedThisWeek],
         ['S-tier', k.sTier],
         ['F-tier', k.fTier],
-        ['% F-tier', (k.pctFTier != null ? k.pctFTier + '%' : '—')],
+        ['% F-tier', (k.pctFTier != null ? k.pctFTier + '%' : '-')],
         ['Last scan', k.lastFetchTime],
         ['Fetch events', k.fetchEventsRecent],
         ['Enrich events', k.enrichEventsRecent]
       ];
       function formatCompactDateTime(ms) {
         var d = new Date(ms);
-        if (isNaN(d.getTime())) return '—';
+        if (isNaN(d.getTime())) return '-';
         return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
       }
       kpiRow.innerHTML = '';
@@ -984,8 +1011,8 @@
         var label = item[0];
         var raw = item[1];
         var valueStr = (label === 'Last scan')
-          ? (raw != null ? formatCompactDateTime(raw) : '—')
-          : String(raw != null ? raw : '—');
+          ? (raw != null ? formatCompactDateTime(raw) : '-')
+          : String(raw != null ? raw : '-');
         var valueClass = (label === 'Last scan') ? 'metric-card-value metric-card-value-date' : 'metric-card-value';
         var div = document.createElement('div');
         div.className = 'metric-card metric-added-week';

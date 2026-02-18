@@ -93,7 +93,12 @@ function doGet(e) {
         // Prevent </script> in output from closing the script element
         scriptContent = scriptContent.replace(/<\/script>/gi, "</scr' + 'ipt>");
       }
-      tpl.ADMIN_TAB_SCRIPT_JSON = scriptContent ? JSON.stringify(scriptContent) : "null";
+      var adminScriptJson = scriptContent ? JSON.stringify(scriptContent) : "null";
+      if (scriptContent && adminScriptJson.indexOf("?>") !== -1) {
+        scriptContent = scriptContent.replace(/\?>/g, "?' + '>");
+        adminScriptJson = JSON.stringify(scriptContent);
+      }
+      tpl.ADMIN_TAB_SCRIPT_JSON = adminScriptJson;
     } else {
       tpl.ADMIN_TAB_HTML = "";
       tpl.ADMIN_TAB_SCRIPT_JSON = "null";
