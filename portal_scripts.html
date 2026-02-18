@@ -236,23 +236,7 @@
       var lo = document.getElementById('loadingOverlay');
       if (lo) lo.classList.remove('visible');
       if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
-      if (window._adminScriptLoaded) {
-        if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
-      } else if (!window._adminScriptLoading) {
-        window._adminScriptLoading = true;
-        var script = document.createElement('script');
-        script.src = window.location.pathname + '?asset=admin';
-        script.onload = function() {
-          window._adminScriptLoaded = true;
-          window._adminScriptLoading = false;
-          if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
-        };
-        script.onerror = function() {
-          window._adminScriptLoading = false;
-          showToast('Admin failed to load. Refresh the page.', 'error');
-        };
-        document.body.appendChild(script);
-      }
+      if (window._adminScriptLoaded && typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
     }
     updateCommandBarCounts();
     if (tab === 'inbox') {

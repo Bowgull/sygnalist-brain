@@ -1,4 +1,5 @@
 (function() {
+  if (typeof console !== 'undefined' && console.log) console.log('[ADMIN_BOOT] admin script executed');
   // Define immediately so portal_scripts always finds a function; delegates to real impl when ready
   window.loadAdminProfiles = function() {
     if (typeof window._adminLoadProfiles === 'function') {

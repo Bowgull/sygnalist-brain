@@ -33,12 +33,6 @@ function doGet(e) {
     const view = String(p.view || "").trim().toLowerCase();
     const mode = String(p.mode || "").trim().toLowerCase();
 
-    // Admin JS asset: avoid inlining large script into template (fixes Malformed HTML)
-    if (String(p.asset || "").trim() === "admin") {
-      var adminScript = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
-      return ContentService.createTextOutput(adminScript).setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-
     // Interview draft: generate and send Email #2 when user clicks link from Email #1
     if (mode === "geninterviewdraft") {
       const trackerKey = String(p.trackerKey || "").trim();
@@ -111,9 +105,12 @@ function doGet(e) {
       var bootJsonStr = JSON.stringify(adminBoot);
       var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
       tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
+      var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+      tpl.ADMIN_SCRIPT_CONTENT = sanitizeForScriptlet_(adminScriptRaw);
     } else {
       tpl.ADMIN_TAB_HTML = "";
       tpl.ADMIN_BOOT_SCRIPT_TAG = "";
+      tpl.ADMIN_SCRIPT_CONTENT = "";
     }
 
     return tpl.evaluate()
