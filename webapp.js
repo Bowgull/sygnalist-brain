@@ -26,13 +26,6 @@ function escapeJsonForScriptTag_(jsonStr) {
     .replace(/<\//g, "<\\/");
 }
 
-/** Sanitizes JS content for inline <script> injection: prevents </script> from closing the tag and ?> from closing the scriptlet. */
-function sanitizeScriptContentForInline_(s) {
-  return String(s || "")
-    .replace(/<\/script>/gi, "<\\/script>")
-    .replace(/\?>/g, "?\\u003e");
-}
-
 function doGet(e) {
   try {
     const p = (e && e.parameter) ? e.parameter : {};
@@ -52,6 +45,13 @@ function doGet(e) {
       } catch (err) {
         return ContentService.createTextOutput("Draft failed: " + (err && err.message ? err.message : String(err))).setMimeType(ContentService.MimeType.TEXT);
       }
+    }
+
+    // Serve admin script as a separate asset (avoids HtmlService "Malformed HTML" from large inline script)
+    const asset = String(p.asset || "").trim().toLowerCase();
+    if (asset === "admin") {
+      const adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+      return ContentService.createTextOutput(adminScriptRaw).setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
 
     // No profile or view=admin → redirect to client portal with first admin profile
@@ -112,12 +112,11 @@ function doGet(e) {
       var bootJsonStr = JSON.stringify(adminBoot);
       var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
       tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
-      var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
-      tpl.ADMIN_SCRIPT_CONTENT = sanitizeScriptContentForInline_(adminScriptRaw);
+      tpl.ADMIN_SCRIPT_SRC = sanitizedBaseUrl ? sanitizedBaseUrl + "?asset=admin" : "";
     } else {
       tpl.ADMIN_TAB_HTML = "";
       tpl.ADMIN_BOOT_SCRIPT_TAG = "";
-      tpl.ADMIN_SCRIPT_CONTENT = "";
+      tpl.ADMIN_SCRIPT_SRC = "";
     }
 
     return tpl.evaluate()
