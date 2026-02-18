@@ -39,12 +39,6 @@
   if (!root) {
     showRootNullError();
   } else {
-    var breadcrumb = document.createElement('span');
-    breadcrumb.id = 'adminBootBreadcrumb';
-    breadcrumb.setAttribute('style', 'position:fixed;top:0;left:0;z-index:9999;font-size:10px;color:lime;background:rgba(0,0,0,0.8);padding:2px 6px;');
-    breadcrumb.textContent = 'Admin boot: OK';
-    document.body.appendChild(breadcrumb);
-    setTimeout(function() { if (breadcrumb && breadcrumb.parentNode) breadcrumb.remove(); }, 2500);
     if (!validateAdminDOM()) {
       var tabAdmin = document.getElementById('tabAdmin');
       if (tabAdmin) {
@@ -135,13 +129,20 @@
     else if (tab === 'jobsIntake') loadJobsInbox();
   };
 
-  root.querySelectorAll('.tab-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var tab = this.getAttribute('data-tab');
-      window.showAdminSection(tab);
+  function bindAdminUIOnce() {
+    if (window._adminBound) return;
+    if (!root || !root.querySelectorAll('.tab-btn').length) return;
+    window._adminBound = true;
+    root.querySelectorAll('.tab-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var tab = this.getAttribute('data-tab');
+        window.showAdminSection(tab);
+      });
     });
-  });
-  updateJobLanesContext();
+    updateJobLanesContext();
+  }
+  bindAdminUIOnce();
+  window.bindAdminUIOnce = bindAdminUIOnce;
 
   function renderProfileList(profiles) {
     var list = document.getElementById('profileList');

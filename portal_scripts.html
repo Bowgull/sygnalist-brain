@@ -233,6 +233,9 @@
     if (fetchBtn) fetchBtn.style.display = (tab === 'inbox') ? '' : 'none';
     if (addBtn) addBtn.style.display = (tab === 'admin') ? 'none' : '';
     if (tab === 'admin') {
+      var lo = document.getElementById('loadingOverlay');
+      if (lo) lo.classList.remove('visible');
+      if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
       if (window._adminScriptLoaded) {
         if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
       } else if (!window._adminScriptLoading) {
