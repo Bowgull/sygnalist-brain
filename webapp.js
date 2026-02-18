@@ -13,6 +13,11 @@
  * - Always return shaped responses (never "undefined")
  ****************************************************/
 
+/** Replaces ?> with ?\u003e so scriptlet output never closes the tag. Leaves runtime value unchanged. */
+function sanitizeForScriptlet_(s) {
+  return String(s || "").replace(/\?>/g, "?\\u003e");
+}
+
 function doGet(e) {
   try {
     const p = (e && e.parameter) ? e.parameter : {};
@@ -72,20 +77,25 @@ function doGet(e) {
         }
       } catch (e) { /* invalid or non-admin */ }
     }
+    // Sanitize for scriptlet output only (prevents ?> from closing scriptlet tag)
+    const sanitizedBaseUrl = sanitizeForScriptlet_(baseUrl);
+    const sanitizedProfileId = sanitizeForScriptlet_(adminProfileId || profileId);
+    const sanitizedAdminProfileId = sanitizeForScriptlet_(adminProfileId || "");
     const tpl = HtmlService.createTemplateFromFile("client_portal");
-    tpl.BOOTSTRAP_JSON = JSON.stringify(boot);
+    var bootJson = JSON.stringify(boot);
+    tpl.BOOTSTRAP_JSON = bootJson.replace(/\?>/g, "?\\u003e");
     tpl.VIEW_AS_JSON = JSON.stringify(!!viewAs);
-    tpl.ADMIN_URL_JSON = JSON.stringify(baseUrl ? baseUrl + "?view=admin" : "");
+    tpl.ADMIN_URL_JSON = JSON.stringify(sanitizedBaseUrl ? sanitizedBaseUrl + "?view=admin" : "");
     tpl.SHOW_ADMIN_UI_JSON = JSON.stringify(!!showAdminUI);
-    tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(adminProfileId || "");
+    tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(sanitizedAdminProfileId);
     if (showAdminUI) {
       const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
-      adminTpl.BASE_URL_JSON = JSON.stringify(baseUrl || "");
-      adminTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(adminProfileId || profileId);
+      adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
+      adminTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(sanitizedProfileId);
       tpl.ADMIN_TAB_HTML = adminTpl.evaluate().getContent();
       const adminScriptTpl = HtmlService.createTemplateFromFile("admin_tab_script");
-      adminScriptTpl.BASE_URL_JSON = JSON.stringify(baseUrl || "");
-      adminScriptTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(adminProfileId || profileId);
+      adminScriptTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
+      adminScriptTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(sanitizedProfileId);
       var scriptContent = adminScriptTpl.evaluate().getContent();
       if (scriptContent) {
         // Prevent ?> in output from closing the scriptlet when client_portal is evaluated
