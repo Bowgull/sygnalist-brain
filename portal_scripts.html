@@ -272,6 +272,11 @@
         hideAdminLoadError();
         if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
         window.loadAdminProfiles();
+      } else if (document.body.getAttribute('data-admin-script-src') === 'inline') {
+        // Admin script was inlined in the page; it runs on load so we just bind and load.
+        hideAdminLoadError();
+        if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
+        if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
       } else if (!window._adminScriptRequested) {
         var adminScriptSrc = document.body.getAttribute('data-admin-script-src');
         if (!adminScriptSrc || !adminScriptSrc.trim()) {

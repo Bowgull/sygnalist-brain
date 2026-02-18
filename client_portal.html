@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <? if (ADMIN_SCRIPT_SRC) { ?><link rel="preload" href="<?= ADMIN_SCRIPT_SRC ?>" as="script"><? } ?>
+    <? if (ADMIN_SCRIPT_SRC && ADMIN_SCRIPT_SRC !== 'inline') { ?><link rel="preload" href="<?= ADMIN_SCRIPT_SRC ?>" as="script"><? } ?>
     <?!= HtmlService.createHtmlOutputFromFile('portal_styles').getContent() ?>
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -411,5 +411,6 @@
         } catch (e) { if (typeof console !== 'undefined') console.error('Admin boot JSON error', e); }
       })();
     </script>
+    <? if (ADMIN_SCRIPT_INLINE) { ?><script><?!= ADMIN_SCRIPT_INLINE ?></script><? } ?>
   </body>
 </html>

@@ -157,8 +157,9 @@ function doGet(e) {
     tpl.ADMIN_URL_JSON = JSON.stringify(sanitizedBaseUrl ? sanitizedBaseUrl + "?view=admin" : "");
     tpl.SHOW_ADMIN_UI_JSON = JSON.stringify(!!showAdminUI);
     tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(sanitizedAdminProfileId);
-    // When showAdminUI is true, use relative URL so script loads from same deployment as the page (avoids URL mismatch).
-    var adminScriptSrc = showAdminUI ? "?asset=admin" : "";
+    // When showAdminUI is true, inline the admin script so the tab works without a second request (avoids timeout/cold start and URL issues).
+    var adminScriptSrc = "";
+    var adminScriptInline = "";
     if (showAdminUI) {
       const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
       adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
@@ -168,11 +169,20 @@ function doGet(e) {
       var bootJsonStr = JSON.stringify(adminBoot);
       var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
       tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
+      try {
+        var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+        adminScriptInline = escapeForInlineScript_(adminScriptRaw);
+        adminScriptSrc = "inline";
+      } catch (inlineErr) {
+        // Fallback: load via ?asset=admin so admin tab can still work after retry
+        adminScriptSrc = "?asset=admin";
+      }
     } else {
       tpl.ADMIN_TAB_HTML = "";
       tpl.ADMIN_BOOT_SCRIPT_TAG = "";
     }
     tpl.ADMIN_SCRIPT_SRC = adminScriptSrc;
+    tpl.ADMIN_SCRIPT_INLINE = adminScriptInline;
 
     return tpl.evaluate()
       .setTitle("Sygnalist — Client Portal")
