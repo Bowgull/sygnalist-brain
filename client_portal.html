@@ -407,10 +407,7 @@
         try {
           var boot = JSON.parse(el.textContent);
           window.ADMIN_BOOT = { BASE_URL: boot.BASE_URL || '', CURRENT_PROFILE_ID: boot.CURRENT_PROFILE_ID || '' };
-          if (boot.adminScript && typeof boot.adminScript === 'string') {
-            eval(boot.adminScript);
-          }
-        } catch (e) { if (typeof console !== 'undefined') console.error('Admin script error', e); }
+        } catch (e) { if (typeof console !== 'undefined') console.error('Admin boot JSON error', e); }
       })();
     </script>
   </body>

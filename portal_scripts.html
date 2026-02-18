@@ -233,10 +233,22 @@
     if (fetchBtn) fetchBtn.style.display = (tab === 'inbox') ? '' : 'none';
     if (addBtn) addBtn.style.display = (tab === 'admin') ? 'none' : '';
     if (tab === 'admin') {
-      if (typeof window.loadAdminProfiles === 'function') {
-        window.loadAdminProfiles();
-      } else {
-        showToast('Admin tab not ready. Refresh the page.', 'error');
+      if (window._adminScriptLoaded) {
+        if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
+      } else if (!window._adminScriptLoading) {
+        window._adminScriptLoading = true;
+        var script = document.createElement('script');
+        script.src = window.location.pathname + '?asset=admin';
+        script.onload = function() {
+          window._adminScriptLoaded = true;
+          window._adminScriptLoading = false;
+          if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
+        };
+        script.onerror = function() {
+          window._adminScriptLoading = false;
+          showToast('Admin failed to load. Refresh the page.', 'error');
+        };
+        document.body.appendChild(script);
       }
     }
     updateCommandBarCounts();

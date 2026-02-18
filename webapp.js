@@ -22,7 +22,8 @@ function sanitizeForScriptlet_(s) {
 function escapeJsonForScriptTag_(jsonStr) {
   return String(jsonStr || "")
     .replace(/<\/script>/gi, "\\u003c/script>")
-    .replace(/\?>/g, "?\\u003e");
+    .replace(/\?>/g, "?\\u003e")
+    .replace(/<\//g, "<\\/");
 }
 
 function doGet(e) {
@@ -31,6 +32,12 @@ function doGet(e) {
     const profileId = String(p.profile || p.profileId || "").trim();
     const view = String(p.view || "").trim().toLowerCase();
     const mode = String(p.mode || "").trim().toLowerCase();
+
+    // Admin JS asset: avoid inlining large script into template (fixes Malformed HTML)
+    if (String(p.asset || "").trim() === "admin") {
+      var adminScript = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+      return ContentService.createTextOutput(adminScript).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
 
     // Interview draft: generate and send Email #2 when user clicks link from Email #1
     if (mode === "geninterviewdraft") {
@@ -100,12 +107,7 @@ function doGet(e) {
       adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
       adminTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(sanitizedProfileId);
       tpl.ADMIN_TAB_HTML = adminTpl.evaluate().getContent();
-      var scriptContent = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
-      var adminBoot = {
-        BASE_URL: sanitizedBaseUrl,
-        CURRENT_PROFILE_ID: sanitizedProfileId,
-        adminScript: scriptContent || ""
-      };
+      var adminBoot = { BASE_URL: sanitizedBaseUrl, CURRENT_PROFILE_ID: sanitizedProfileId };
       var bootJsonStr = JSON.stringify(adminBoot);
       var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
       tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
