@@ -103,6 +103,10 @@ function doGet(e) {
     tpl.ADMIN_URL_JSON = JSON.stringify(sanitizedBaseUrl ? sanitizedBaseUrl + "?view=admin" : "");
     tpl.SHOW_ADMIN_UI_JSON = JSON.stringify(!!showAdminUI);
     tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(sanitizedAdminProfileId);
+    // When showAdminUI is true, always provide a script URL (absolute if baseUrl set, else relative).
+    var adminScriptSrc = showAdminUI
+      ? (sanitizedBaseUrl ? sanitizedBaseUrl + "?asset=admin" : "?asset=admin")
+      : "";
     if (showAdminUI) {
       const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
       adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
@@ -112,12 +116,11 @@ function doGet(e) {
       var bootJsonStr = JSON.stringify(adminBoot);
       var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
       tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
-      tpl.ADMIN_SCRIPT_SRC = sanitizedBaseUrl ? sanitizedBaseUrl + "?asset=admin" : "";
     } else {
       tpl.ADMIN_TAB_HTML = "";
       tpl.ADMIN_BOOT_SCRIPT_TAG = "";
-      tpl.ADMIN_SCRIPT_SRC = "";
     }
+    tpl.ADMIN_SCRIPT_SRC = adminScriptSrc;
 
     return tpl.evaluate()
       .setTitle("Sygnalist — Client Portal")

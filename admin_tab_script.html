@@ -1134,4 +1134,11 @@
   }
   }
   window._adminScriptLoaded = true;
+  try {
+    if (typeof document.dispatchEvent === 'function') {
+      var ev = document.createEvent('Event');
+      ev.initEvent('sygnalist-admin-ready', true, true);
+      document.dispatchEvent(ev);
+    }
+  } catch (e) {}
 })();

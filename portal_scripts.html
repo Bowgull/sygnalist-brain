@@ -260,6 +260,11 @@
     }
   }
 
+  document.addEventListener('sygnalist-admin-ready', function onAdminReady() {
+    document.removeEventListener('sygnalist-admin-ready', onAdminReady);
+    if (currentTab === 'admin' && typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
+  });
+
   function updateCommandBarCounts() {
     var el = $('lastFetchTime');
     if (el) el.textContent = lastFetchTimeStr || '—';
