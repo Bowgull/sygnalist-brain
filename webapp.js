@@ -26,6 +26,13 @@ function escapeJsonForScriptTag_(jsonStr) {
     .replace(/<\//g, "<\\/");
 }
 
+/** Sanitizes JS content for inline <script> injection: prevents </script> from closing the tag and ?> from closing the scriptlet. */
+function sanitizeScriptContentForInline_(s) {
+  return String(s || "")
+    .replace(/<\/script>/gi, "<\\/script>")
+    .replace(/\?>/g, "?\\u003e");
+}
+
 function doGet(e) {
   try {
     const p = (e && e.parameter) ? e.parameter : {};
@@ -106,7 +113,7 @@ function doGet(e) {
       var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
       tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
       var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
-      tpl.ADMIN_SCRIPT_CONTENT = sanitizeForScriptlet_(adminScriptRaw);
+      tpl.ADMIN_SCRIPT_CONTENT = sanitizeScriptContentForInline_(adminScriptRaw);
     } else {
       tpl.ADMIN_TAB_HTML = "";
       tpl.ADMIN_BOOT_SCRIPT_TAG = "";
