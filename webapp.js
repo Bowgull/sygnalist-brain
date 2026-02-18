@@ -18,6 +18,13 @@ function sanitizeForScriptlet_(s) {
   return String(s || "").replace(/\?>/g, "?\\u003e");
 }
 
+/** Escapes a string so it can be embedded inside a scriptlet output without breaking the parser or closing a script tag. */
+function escapeJsonForScriptTag_(jsonStr) {
+  return String(jsonStr || "")
+    .replace(/<\/script>/gi, "\\u003c/script>")
+    .replace(/\?>/g, "?\\u003e");
+}
+
 function doGet(e) {
   try {
     const p = (e && e.parameter) ? e.parameter : {};
@@ -94,23 +101,17 @@ function doGet(e) {
       adminTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(sanitizedProfileId);
       tpl.ADMIN_TAB_HTML = adminTpl.evaluate().getContent();
       var scriptContent = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
-      scriptContent = scriptContent.replace("__BASE_URL_JSON__", JSON.stringify(sanitizedBaseUrl));
-      scriptContent = scriptContent.replace("__CURRENT_PROFILE_ID_JSON__", JSON.stringify(sanitizedProfileId));
-      if (scriptContent) {
-        // Prevent ?> in output from closing the scriptlet when client_portal is evaluated
-        scriptContent = scriptContent.replace(/\?>/g, "?' + '>");
-        // Prevent </script> in output from closing the script element
-        scriptContent = scriptContent.replace(/<\/script>/gi, "</scr' + 'ipt>");
-      }
-      var adminScriptJson = scriptContent ? JSON.stringify(scriptContent) : "null";
-      if (scriptContent && adminScriptJson.indexOf("?>") !== -1) {
-        scriptContent = scriptContent.replace(/\?>/g, "?' + '>");
-        adminScriptJson = JSON.stringify(scriptContent);
-      }
-      tpl.ADMIN_TAB_SCRIPT_JSON = adminScriptJson;
+      var adminBoot = {
+        BASE_URL: sanitizedBaseUrl,
+        CURRENT_PROFILE_ID: sanitizedProfileId,
+        adminScript: scriptContent || ""
+      };
+      var bootJsonStr = JSON.stringify(adminBoot);
+      var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
+      tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
     } else {
       tpl.ADMIN_TAB_HTML = "";
-      tpl.ADMIN_TAB_SCRIPT_JSON = "null";
+      tpl.ADMIN_BOOT_SCRIPT_TAG = "";
     }
 
     return tpl.evaluate()

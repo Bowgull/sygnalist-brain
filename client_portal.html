@@ -398,10 +398,19 @@
     </script>
     <?!= HtmlService.createHtmlOutputFromFile('statusConfig').getContent() ?>
     <?!= HtmlService.createHtmlOutputFromFile('portal_scripts').getContent() ?>
+    <?!= ADMIN_BOOT_SCRIPT_TAG ?>
     <script>
       (function(){
-        var s = <?!= ADMIN_TAB_SCRIPT_JSON ?>;
-        if (s && typeof s === 'string') { try { (function(){ eval(s); })(); } catch (e) { if (typeof console !== 'undefined') console.error('Admin script error', e); } }
+        if (typeof SHOW_ADMIN_UI === 'undefined' || !SHOW_ADMIN_UI) return;
+        var el = document.getElementById('ADMIN_BOOT_JSON');
+        if (!el || !el.textContent) return;
+        try {
+          var boot = JSON.parse(el.textContent);
+          window.ADMIN_BOOT = { BASE_URL: boot.BASE_URL || '', CURRENT_PROFILE_ID: boot.CURRENT_PROFILE_ID || '' };
+          if (boot.adminScript && typeof boot.adminScript === 'string') {
+            eval(boot.adminScript);
+          }
+        } catch (e) { if (typeof console !== 'undefined') console.error('Admin script error', e); }
       })();
     </script>
   </body>

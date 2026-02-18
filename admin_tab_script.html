@@ -56,9 +56,9 @@
       }
     }
     try {
-  var BASE_URL = __BASE_URL_JSON__;
-  var CURRENT_PROFILE_ID = '';
-  try { var _cp = __CURRENT_PROFILE_ID_JSON__; if (typeof _cp === 'string') CURRENT_PROFILE_ID = _cp; } catch (e) { }
+  var boot = window.ADMIN_BOOT || {};
+  var BASE_URL = boot.BASE_URL || '';
+  var CURRENT_PROFILE_ID = boot.CURRENT_PROFILE_ID || '';
   var profilesCache = [];
   var jobLanesProfileId = '';
   var jobLanesProfileName = '';
@@ -109,7 +109,7 @@
     var overlay = document.getElementById('loadingOverlay');
     var textEl = document.getElementById('loadingText');
     if (overlay) overlay.classList.add('visible');
-    if (textEl) textEl.textContent = msg || 'Loading…';
+    if (textEl) textEl.textContent = msg || 'Loading...';
   }
   function hideAdminLoad() {
     var overlay = document.getElementById('loadingOverlay');
@@ -219,7 +219,7 @@
         var id = this.getAttribute('data-id');
         var force = window.confirm('Force fetch (skip cooldown)?');
         if (!force && !id) return;
-        showAdminLoad('Fetching…');
+        showAdminLoad('Fetching...');
         google.script.run.withSuccessHandler(function(r) {
           hideAdminLoad();
           if (r.ok) showToast(r.message || 'Fetched ' + (r.written || 0) + ' jobs'); else showToast(r.error || 'Fetch failed', true);
@@ -235,14 +235,14 @@
         if (status === 'active') {
           var reason = window.prompt('Lock reason:', 'Locked from admin');
           if (reason === null) return;
-          showAdminLoad('Locking…');
+          showAdminLoad('Locking...');
           google.script.run.withSuccessHandler(function(r) {
             hideAdminLoad();
             if (r.ok) showToast('Profile locked'); else showToast(r.error || 'Failed', true);
             loadProfiles();
           }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminSoftLock(id, reason || 'Locked from admin');
         } else {
-          showAdminLoad('Unlocking…');
+          showAdminLoad('Unlocking...');
           google.script.run.withSuccessHandler(function(r) {
             hideAdminLoad();
             if (r.ok) showToast('Profile unlocked'); else showToast(r.error || 'Failed', true);
@@ -263,7 +263,7 @@
       if (listEl) listEl.innerHTML = '<p class="admin-sub" style="color:var(--color-tier-x);">Open this page from the deployed app link. Then try Refresh.</p>';
       return;
     }
-    if (listEl) listEl.innerHTML = '<p class="admin-sub">Loading…</p>';
+    if (listEl) listEl.innerHTML = '<p class="admin-sub">Loading...</p>';
     google.script.run.withSuccessHandler(function(r) {
       var errBanner = document.getElementById('adminTabError');
       if (errBanner) errBanner.remove();
@@ -327,7 +327,7 @@
     var text = ta ? ta.value : '';
     if (!profileId) { showToast('Select a profile', true); return; }
     if (String(text).trim().length < 100) { showToast('Resume text too short (min 100 chars)', true); return; }
-    showAdminLoad('Parsing resume…');
+    showAdminLoad('Parsing resume...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (r.ok) { showToast('Resume parsed; staging updated'); closeResumeParseModal(); loadProfiles(); }
@@ -337,7 +337,7 @@
 
   function openEditModal(profileId) {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
-    showAdminLoad('Loading profile…');
+    showAdminLoad('Loading profile...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (!r.ok) { showToast(r.error || 'Failed', true); return; }
@@ -361,8 +361,8 @@
     var btn = editSave;
     var originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Saving…';
-    showAdminLoad('Saving profile…');
+    btn.textContent = 'Saving...';
+    showAdminLoad('Saving profile...');
     var pid = document.getElementById('editProfileId').value;
     var patch = {
       displayName: document.getElementById('editDisplayName').value,
@@ -402,7 +402,7 @@
       preferredLocations: document.getElementById('createPreferredLocations').value.trim()
     };
     if (!data.profileId || !data.displayName) { showToast('Profile ID and Display name required', true); return; }
-    showAdminLoad('Creating profile…');
+    showAdminLoad('Creating profile...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (r.ok) { showToast('Profile created'); var m = document.getElementById('modalCreate'); if (m) m.classList.remove('visible'); loadProfiles(); }
@@ -419,7 +419,7 @@
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
     var id = jobLanesProfileId;
     if (!id) { showToast('Click Lanes on a profile card to edit that profile\'s lanes.', true); return; }
-    showAdminLoad('Loading job lanes…');
+    showAdminLoad('Loading job lanes...');
     google.script.run.withSuccessHandler(function(stagingResult) {
       hideAdminLoad();
       if (!stagingResult.ok) { showToast(stagingResult.error || 'Failed', true); return; }
@@ -514,7 +514,7 @@
                   if (!rTitle) return;
                   var btnEl = this;
                   btnEl.disabled = true;
-                  btnEl.textContent = 'Adding…';
+                  btnEl.textContent = 'Adding...';
                   google.script.run.withSuccessHandler(function(r) {
                     if (r.ok) { showToast('Added "' + rTitle + '" to lane bank'); loadJobLanes(); }
                     else { showToast(r.error || 'Failed', true); btnEl.disabled = false; btnEl.textContent = 'Add to bank'; }
@@ -568,7 +568,7 @@
     var btn = btnSaveJobLaneControls;
     var originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Saving…';
+    btn.textContent = 'Saving...';
     google.script.run.withSuccessHandler(function(r) {
       btn.disabled = false;
       btn.textContent = originalText;
@@ -754,8 +754,8 @@
         var allFilled = JOBS_INTAKE_REQUIRED_FIELDS.every(function(k) { return (patch[k] || '').trim().length > 0; });
         patch.enrichment_status = allFilled ? 'ENRICHED' : 'NEEDS_ENRICHMENT';
         b.disabled = true;
-        b.textContent = 'Saving…';
-        showAdminLoad('Saving…');
+        b.textContent = 'Saving...';
+        showAdminLoad('Saving...');
         google.script.run.withSuccessHandler(function(r) {
           hideAdminLoad();
           b.disabled = false;
@@ -778,7 +778,7 @@
     if (btnDelete) btnDelete.disabled = checked.length === 0;
   }
   function loadJobsInbox() {
-    showAdminLoad('Loading Jobs Inbox…');
+    showAdminLoad('Loading Jobs Inbox...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (!r.ok) { showToast(r.error || 'Failed', true); return; }
@@ -810,7 +810,7 @@
   if (btnIngestGmail) btnIngestGmail.addEventListener('click', function() {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
     btnIngestGmail.disabled = true;
-    showAdminLoad('Ingesting from Gmail…');
+    showAdminLoad('Ingesting from Gmail...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       btnIngestGmail.disabled = false;
@@ -834,7 +834,7 @@
     var jobIds = [];
     checked.forEach(function(cb) { jobIds.push(cb.getAttribute('data-job-id')); });
     if (!confirm('Permanently delete ' + jobIds.length + ' job(s) from Jobs Inbox? This cannot be undone.')) return;
-    showAdminLoad('Deleting…');
+    showAdminLoad('Deleting...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (!r.ok) { showToast(r.error || 'Delete failed', true); return; }
@@ -850,7 +850,7 @@
     var jobIds = [];
     checked.forEach(function(cb) { jobIds.push(cb.getAttribute('data-job-id')); });
     if (!confirm('Add ' + jobIds.length + ' job(s) to the global job bank? All clients will see them in their inbox.')) return;
-    showAdminLoad('Adding to job bank…');
+    showAdminLoad('Adding to job bank...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (!r.ok) { showToast(r.error || 'Failed', true); return; }
@@ -867,8 +867,8 @@
     var btn = btnEnrichSave;
     var originalText = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Saving…';
-    showAdminLoad('Saving enrichment…');
+    btn.textContent = 'Saving...';
+    showAdminLoad('Saving enrichment...');
     var company = document.getElementById('enrichCompany').value;
     var location = document.getElementById('enrichLocation').value;
     var work_mode = document.getElementById('enrichWorkMode').value;
@@ -903,7 +903,7 @@
     var profileId = document.getElementById('enrichPromoteProfileSelect') ? document.getElementById('enrichPromoteProfileSelect').value : '';
     if (!jobId) { showToast('No job selected', true); return; }
     if (!profileId) { showToast('Select a profile to promote to', true); return; }
-    showAdminLoad('Promoting…');
+    showAdminLoad('Promoting...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (r.ok) { showToast('Promoted to Role Bank'); closeEnrichPanel(); loadJobsInbox(); }
@@ -915,7 +915,7 @@
     var jobId = document.getElementById('enrichJobId').value;
     if (!jobId) { showToast('No job selected', true); return; }
     if (!confirm('Remove this job from Jobs Inbox permanently? This cannot be undone.')) return;
-    showAdminLoad('Removing…');
+    showAdminLoad('Removing...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (r.ok) { showToast('Job removed'); closeEnrichPanel(); loadJobsInbox(); }
@@ -927,7 +927,7 @@
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
     var profileFilter = document.getElementById('logsProfileFilter').value.trim();
     var actionFilter = document.getElementById('logsActionFilter').value.trim();
-    showAdminLoad('Loading logs…');
+    showAdminLoad('Loading logs...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (!r.ok) { showToast(r.error || 'Failed', true); return; }
@@ -943,9 +943,9 @@
   if (btnExportLogs) btnExportLogs.addEventListener('click', function() {
     var btn = btnExportLogs;
     var originalText = btn.textContent;
-    showAdminLoad('Exporting logs…');
+    showAdminLoad('Exporting logs...');
     btn.disabled = true;
-    btn.textContent = 'Exporting…';
+    btn.textContent = 'Exporting...';
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       btn.disabled = false;
@@ -972,10 +972,10 @@
     var statusChart = document.getElementById('analyticsStatusChart');
     var topErrorsEl = document.getElementById('analyticsTopErrors');
     if (!dash) return;
-    showAdminLoad('Loading analytics…');
+    showAdminLoad('Loading analytics...');
     errEl.style.display = 'none';
     dash.style.display = 'block';
-    kpiRow.innerHTML = '<span class="admin-sub">Loading…</span>';
+    kpiRow.innerHTML = '<span class="admin-sub">Loading...</span>';
     tierChart.innerHTML = '';
     statusChart.innerHTML = '';
     topErrorsEl.innerHTML = '';
@@ -1072,7 +1072,7 @@
 
   var btnRefreshAnalytics = document.getElementById('btnRefreshAnalytics');
   if (btnRefreshAnalytics) btnRefreshAnalytics.addEventListener('click', function() {
-    showAdminLoad('Refreshing analytics…');
+    showAdminLoad('Refreshing analytics...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (r.ok) showToast('Analytics refreshed'); else showToast(r.error || 'Failed', true);
@@ -1082,7 +1082,7 @@
   var btnHealthCheck = document.getElementById('btnHealthCheck');
   if (btnHealthCheck) btnHealthCheck.addEventListener('click', function() {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
-    showAdminLoad('Running health check…');
+    showAdminLoad('Running health check...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       var el = document.getElementById('healthReport');
@@ -1100,7 +1100,7 @@
   if (btnInitEngineTables) btnInitEngineTables.addEventListener('click', function() {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
     if (!window.confirm('Ensure Engine_Inbox and Engine_Tracker exist and are formatted. Continue?')) return;
-    showAdminLoad('Initializing engine tables…');
+    showAdminLoad('Initializing engine tables...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (r.ok) showToast('Engine tables ready'); else showToast(r.error || 'Failed', true);
@@ -1110,7 +1110,7 @@
   if (btnFormatLogs) btnFormatLogs.addEventListener('click', function() {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
     if (!window.confirm('Format the Logs sheet? This may change formatting.')) return;
-    showAdminLoad('Formatting logs…');
+    showAdminLoad('Formatting logs...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (r.ok) showToast('Logs sheet formatted'); else showToast(r.error || 'Failed', true);
