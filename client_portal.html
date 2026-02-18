@@ -115,7 +115,7 @@
     </style>
   </head>
 
-  <body>
+  <body<? if (ADMIN_SCRIPT_SRC) { ?> data-admin-script-src="<?= ADMIN_SCRIPT_SRC ?>"<? } ?>>
     <!-- Global background (single static SVG: abstract cyberpunk — sweep + dots + scanlines) -->
     <div class="app-background" aria-hidden="true">
       <svg xmlns="http://www.w3.org/2000/svg"
@@ -410,6 +410,5 @@
         } catch (e) { if (typeof console !== 'undefined') console.error('Admin boot JSON error', e); }
       })();
     </script>
-    <? if (ADMIN_SCRIPT_SRC) { ?><script src="<?= ADMIN_SCRIPT_SRC ?>"></script><? } ?>
   </body>
 </html>

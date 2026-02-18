@@ -235,8 +235,24 @@
     if (tab === 'admin') {
       var lo = document.getElementById('loadingOverlay');
       if (lo) lo.classList.remove('visible');
-      if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
-      if (window._adminScriptLoaded && typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
+      if (typeof window.loadAdminProfiles === 'function') {
+        if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
+        window.loadAdminProfiles();
+      } else if (!window._adminScriptRequested) {
+        var adminScriptSrc = document.body.getAttribute('data-admin-script-src');
+        if (adminScriptSrc) {
+          window._adminScriptRequested = true;
+          var script = document.createElement('script');
+          script.src = adminScriptSrc;
+          script.async = true;
+          document.body.appendChild(script);
+          document.addEventListener('sygnalist-admin-ready', function onAdminScriptReady() {
+            document.removeEventListener('sygnalist-admin-ready', onAdminScriptReady);
+            if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
+            if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
+          });
+        }
+      }
     }
     updateCommandBarCounts();
     if (tab === 'inbox') {
