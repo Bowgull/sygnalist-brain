@@ -56,9 +56,9 @@
       }
     }
     try {
-  var BASE_URL = <?!= BASE_URL_JSON ?>;
+  var BASE_URL = __BASE_URL_JSON__;
   var CURRENT_PROFILE_ID = '';
-  try { var _cp = <?!= CURRENT_PROFILE_ID_JSON || '""' ?>; if (typeof _cp === 'string') CURRENT_PROFILE_ID = _cp; } catch (e) { }
+  try { var _cp = __CURRENT_PROFILE_ID_JSON__; if (typeof _cp === 'string') CURRENT_PROFILE_ID = _cp; } catch (e) { }
   var profilesCache = [];
   var jobLanesProfileId = '';
   var jobLanesProfileName = '';

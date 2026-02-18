@@ -93,10 +93,9 @@ function doGet(e) {
       adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
       adminTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(sanitizedProfileId);
       tpl.ADMIN_TAB_HTML = adminTpl.evaluate().getContent();
-      const adminScriptTpl = HtmlService.createTemplateFromFile("admin_tab_script");
-      adminScriptTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
-      adminScriptTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(sanitizedProfileId);
-      var scriptContent = adminScriptTpl.evaluate().getContent();
+      var scriptContent = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+      scriptContent = scriptContent.replace("__BASE_URL_JSON__", JSON.stringify(sanitizedBaseUrl));
+      scriptContent = scriptContent.replace("__CURRENT_PROFILE_ID_JSON__", JSON.stringify(sanitizedProfileId));
       if (scriptContent) {
         // Prevent ?> in output from closing the scriptlet when client_portal is evaluated
         scriptContent = scriptContent.replace(/\?>/g, "?' + '>");
