@@ -36,6 +36,13 @@ function escapeHtml_(s) {
     .replace(/'/g, "&#39;");
 }
 
+/** Escapes script content for safe embedding inside a <script> tag (avoids closing tag and scriptlet). */
+function escapeForInlineScript_(content) {
+  return String(content || "")
+    .replace(/<\/script>/gi, "<\\/script>")
+    .replace(/\?>/g, "?\\u003e");
+}
+
 function doGet(e) {
   try {
     const p = (e && e.parameter) ? e.parameter : {};
@@ -70,24 +77,55 @@ function doGet(e) {
       }
     }
 
-    // No profile or view=admin → redirect to client portal with first admin profile
-    // Single admin path: embedded Admin tab only (no standalone admin_portal)
-    if (!profileId || view === "admin") {
+    // view=admin → serve standalone admin-only page (one response, no redirect, no second request)
+    if (view === "admin") {
       const baseUrl = (typeof CONFIG !== "undefined" && CONFIG.WEB_APP_URL)
         ? String(CONFIG.WEB_APP_URL).split("?")[0]
         : "";
       const profiles = loadProfiles_();
       const adminProfile = profiles.find(function (p) { return p && p.isAdmin === true; });
-      if (adminProfile && baseUrl) {
-        const redirectUrl = baseUrl + "?profile=" + encodeURIComponent(adminProfile.profileId);
+      if (!adminProfile) {
+        return HtmlService.createHtmlOutput(
+          "<!DOCTYPE html><html><body><p style=\"font-family:sans-serif;padding:2rem\">No admin profile configured. Set isAdmin=TRUE for at least one profile in Admin_Profiles.</p></body></html>"
+        ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      }
+      const sanitizedBaseUrl = sanitizeForScriptlet_(baseUrl);
+      const sanitizedProfileId = sanitizeForScriptlet_(adminProfile.profileId);
+      const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
+      adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
+      adminTpl.CURRENT_PROFILE_ID_JSON = JSON.stringify(sanitizedProfileId);
+      var adminContentHtml = adminTpl.evaluate().getContent();
+      adminContentHtml = adminContentHtml.replace(/\?>/g, "?\\u003e");
+      var adminBoot = { BASE_URL: sanitizedBaseUrl, CURRENT_PROFILE_ID: sanitizedProfileId };
+      var bootJsonStr = JSON.stringify(adminBoot);
+      var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
+      var adminBootScriptTag = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
+      var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+      var adminScriptInline = escapeForInlineScript_(adminScriptRaw);
+      const adminOnlyTpl = HtmlService.createTemplateFromFile("admin_only");
+      adminOnlyTpl.ADMIN_CONTENT_HTML = adminContentHtml;
+      adminOnlyTpl.ADMIN_BOOT_SCRIPT_TAG = adminBootScriptTag;
+      adminOnlyTpl.ADMIN_SCRIPT_INLINE = adminScriptInline;
+      return adminOnlyTpl.evaluate()
+        .setTitle("Sygnalist — Admin")
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+
+    // No profile → redirect to admin (so bare URL works for admin)
+    if (!profileId) {
+      const baseUrl = (typeof CONFIG !== "undefined" && CONFIG.WEB_APP_URL)
+        ? String(CONFIG.WEB_APP_URL).split("?")[0]
+        : "";
+      if (baseUrl) {
+        const redirectUrl = baseUrl + "?view=admin";
         return HtmlService.createHtmlOutput(
           "<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"0;url=" + redirectUrl + "\"/>" +
           "<script>window.location.replace(\"" + redirectUrl.replace(/"/g, "\\\"") + "\");</script>" +
-          "</head><body><p>Redirecting to admin…</p></body></html>"
+          "</head><body><p>Redirecting…</p></body></html>"
         ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
       }
       return HtmlService.createHtmlOutput(
-        "<!DOCTYPE html><html><body><p style=\"font-family:sans-serif;padding:2rem\">No admin profile configured. Set isAdmin=TRUE for at least one profile in Admin_Profiles.</p></body></html>"
+        "<!DOCTYPE html><html><body><p style=\"font-family:sans-serif;padding:2rem\">No profile. Use ?profile=... or ?view=admin</p></body></html>"
       ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }
 
