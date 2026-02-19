@@ -1,4 +1,5 @@
 (function() {
+  // Inlined into client_portal; do not add literal </script> or ?> — use string concat if needed (e.g. '</' + 'script>').
   if (typeof console !== 'undefined' && console.log) console.log('[ADMIN_BOOT] admin script executed');
   // Define immediately so portal_scripts always finds a function; delegates to real impl when ready
   window.loadAdminProfiles = function() {

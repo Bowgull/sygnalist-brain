@@ -36,9 +36,13 @@ function escapeHtml_(s) {
     .replace(/'/g, "&#39;");
 }
 
-/** Escapes script content for safe embedding inside a <script> tag (avoids closing tag and scriptlet). */
+/** Escapes script content for safe embedding inside a <script> tag (avoids closing tag and scriptlet).
+ *  All content injected into client_portal from admin_tab_script must pass through this so scriptlet
+ *  output never closes the <script> or contains ?>. */
 function escapeForInlineScript_(content) {
-  return String(content || "")
+  if (content == null || content === "") return "";
+  var s = String(content);
+  return s
     .replace(/<\/script>/gi, "<\\/script>")
     .replace(/\?>/g, "?\\u003e");
 }

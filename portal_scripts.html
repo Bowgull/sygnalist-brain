@@ -12,6 +12,8 @@
 
   /** Admin script load timeout (cold start can be slow). */
   var ADMIN_SCRIPT_LOAD_TIMEOUT_MS = 50000;
+  /** Shown when admin script fails to load so user can retry from bookmarked URL. */
+  var ADMIN_LOAD_HINT = ' If this keeps happening, open the app from your bookmarked deployment URL and try again.';
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STATE (tab + caches)
@@ -302,10 +304,10 @@
           window._adminScriptFailed = true;
           showAdminLoadError(msg || 'Admin failed to load. Check your connection and try again.');
         }
-        script.onerror = function() { onAdminFailed('Admin script failed to load. Try again.'); };
+        script.onerror = function() { onAdminFailed('Admin script failed to load. Try again.' + ADMIN_LOAD_HINT); };
         timeoutId = setTimeout(function() {
           if (didSucceed) return;
-          onAdminFailed('Admin took too long to load. Try again.');
+          onAdminFailed('Admin took too long to load. Try again.' + ADMIN_LOAD_HINT);
         }, ADMIN_SCRIPT_LOAD_TIMEOUT_MS);
         document.addEventListener('sygnalist-admin-ready', function onAdminScriptReady() {
           didSucceed = true;
@@ -322,7 +324,7 @@
         });
         document.body.appendChild(script);
       } else if (window._adminScriptFailed) {
-        showAdminLoadError('Admin failed to load. Check your connection and try again.');
+        showAdminLoadError('Admin failed to load. Check your connection and try again.' + ADMIN_LOAD_HINT);
       }
     }
     updateCommandBarCounts();
