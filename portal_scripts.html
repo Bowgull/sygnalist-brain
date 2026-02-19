@@ -268,13 +268,6 @@
     if (tab === 'admin') {
       var lo = document.getElementById('loadingOverlay');
       if (lo) lo.classList.remove('visible');
-      // #region agent log
-      var _adminScriptSrc = document.body.getAttribute('data-admin-script-src');
-      var _branch = (typeof window.loadAdminProfiles === 'function' && window._adminScriptLoaded) ? 'A_alreadyLoaded' : (_adminScriptSrc === 'inline' ? 'B_inline' : (!window._adminScriptRequested ? 'C_requesting' : 'D_failedBefore'));
-      try {
-        fetch('http://127.0.0.1:7242/ingest/168d44e5-9176-4826-95db-e44890701604',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dd2a3d'},body:JSON.stringify({sessionId:'dd2a3d',location:'portal_scripts.html:setTab(admin)',message:'Admin tab branch',data:{dataAdminScriptSrc:_adminScriptSrc,_adminScriptLoaded:!!window._adminScriptLoaded,hasLoadAdminProfiles:typeof window.loadAdminProfiles},branch:_branch,timestamp:Date.now()})}).catch(function(){});
-      } catch (e) {}
-      // #endregion
       if (typeof window.loadAdminProfiles === 'function' && window._adminScriptLoaded) {
         hideAdminLoadError();
         if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
@@ -432,10 +425,6 @@
     }, 60000);
     window.addEventListener('pagehide', function() { if (lastFetchIntervalId != null) { clearInterval(lastFetchIntervalId); lastFetchIntervalId = null; } });
     var adminLink = $('navAdminLink');
-    if (adminLink) {
-      adminLink.href = '#';
-      adminLink.addEventListener('click', function(e) { e.preventDefault(); setTab('admin'); });
-    }
     var baseUrl = window.location.href.split('?')[0];
     var showAdminUI = BOOT.profile.isAdmin;
     if (BOOT.profile.isAdmin && typeof VIEW_AS !== 'undefined' && !VIEW_AS) {
