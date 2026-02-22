@@ -1,3 +1,6 @@
+# Lindz Birthday (separate project, lives outside this repo)
+lindz-bday/
+
 # Clasp credentials (environment-specific)
 .clasp.json
 

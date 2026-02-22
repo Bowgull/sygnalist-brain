@@ -11,7 +11,7 @@
   let isBusy = false;
 
   /** Admin script load timeout (cold start can be slow). */
-  var ADMIN_SCRIPT_LOAD_TIMEOUT_MS = 50000;
+  var ADMIN_SCRIPT_LOAD_TIMEOUT_MS = 65000;
   /** Shown when admin script fails to load so user can retry from bookmarked URL. */
   var ADMIN_LOAD_HINT = ' If this keeps happening, open the app from your bookmarked deployment URL and try again.';
 
@@ -236,6 +236,7 @@
           window._adminScriptRequested = false;
           window._adminScriptFailed = false;
           window._adminLoadErrorShown = false;
+          window._adminScriptRetryCount = 0;
           var errEl = document.getElementById('adminLoadError');
           if (errEl) errEl.classList.remove('visible');
           setTab('inbox');
@@ -300,6 +301,15 @@
         function onAdminFailed(msg) {
           if (didSucceed) return;
           if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = null;
+          var retryCount = window._adminScriptRetryCount || 0;
+          if (retryCount < 1) {
+            window._adminScriptRetryCount = 1;
+            window._adminScriptRequested = false;
+            if (script.parentNode) script.parentNode.removeChild(script);
+            setTimeout(function() { setTab('admin'); }, 500);
+            return;
+          }
           window._adminScriptRequested = false;
           window._adminScriptFailed = true;
           showAdminLoadError(msg || 'Admin failed to load. Check your connection and try again.');

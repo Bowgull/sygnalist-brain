@@ -44,6 +44,7 @@ function escapeForInlineScript_(content) {
   var s = String(content);
   return s
     .replace(/<\/script>/gi, "<\\/script>")
+    .replace(/<\/script/gi, "<\\/script")
     .replace(/\?>/g, "?\\u003e");
 }
 
@@ -134,6 +135,7 @@ function doGet(e) {
         adminScriptSrc = "inline";
       } catch (inlineErr) {
         // Fallback: load via ?asset=admin so admin tab can still work after retry
+        try { Logger.log("Admin script inlining failed: " + (inlineErr && inlineErr.message ? inlineErr.message : String(inlineErr))); } catch (e) {}
         adminScriptSrc = "?asset=admin";
       }
     } else {
