@@ -121,6 +121,7 @@ function doGet(e) {
     // When showAdminUI is true, inline the admin script as Base64 so the template never outputs raw script (avoids Malformed HTML and escaping edge cases).
     var adminScriptSrc = "";
     var adminScriptB64JSON = "";
+    var adminInlineFailed = "";
     if (showAdminUI) {
       const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
       adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
@@ -139,6 +140,7 @@ function doGet(e) {
         // No asset fallback: inlining is the only path (asset=admin fails in iframe due to auth). Log and leave script empty.
         try { Logger.log("Admin script inlining failed: " + (inlineErr && inlineErr.message ? inlineErr.message : String(inlineErr))); } catch (e) {}
         adminScriptSrc = "";
+        adminInlineFailed = "1";
       }
     } else {
       tpl.ADMIN_TAB_HTML = "";
@@ -146,6 +148,7 @@ function doGet(e) {
     }
     tpl.ADMIN_SCRIPT_SRC = adminScriptSrc;
     tpl.ADMIN_SCRIPT_B64_JSON = adminScriptB64JSON;
+    tpl.ADMIN_INLINE_FAILED = adminInlineFailed;
 
     return tpl.evaluate()
       .setTitle("Sygnalist — Client Portal")
