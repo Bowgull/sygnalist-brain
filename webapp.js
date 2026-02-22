@@ -45,7 +45,8 @@ function escapeForInlineScript_(content) {
   return s
     .replace(/<\/script>/gi, "<\\/script>")
     .replace(/<\/script/gi, "<\\/script")
-    .replace(/\?>/g, "?\\u003e");
+    .replace(/\?>/g, "?\\u003e")
+    .replace(/<!--/g, "<\\!--");
 }
 
 function doGet(e) {
@@ -134,9 +135,10 @@ function doGet(e) {
         adminScriptInline = escapeForInlineScript_(adminScriptRaw);
         adminScriptSrc = "inline";
       } catch (inlineErr) {
-        // Fallback: load via ?asset=admin so admin tab can still work after retry
+        // No asset fallback: inlining is the only path (asset=admin fails in iframe due to auth). Log and leave script empty.
         try { Logger.log("Admin script inlining failed: " + (inlineErr && inlineErr.message ? inlineErr.message : String(inlineErr))); } catch (e) {}
-        adminScriptSrc = "?asset=admin";
+        adminScriptSrc = "";
+        adminScriptInline = "";
       }
     } else {
       tpl.ADMIN_TAB_HTML = "";
