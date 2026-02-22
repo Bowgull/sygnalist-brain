@@ -411,6 +411,6 @@
         } catch (e) { if (typeof console !== 'undefined') console.error('Admin boot JSON error', e); }
       })();
     </script>
-    <? if (ADMIN_SCRIPT_B64_JSON) { ?><script>(function(){ var __ab64 = <?!= ADMIN_SCRIPT_B64_JSON ?>; if (__ab64) { try { (new Function(atob(__ab64)))(); } catch (e) { if (typeof console !== 'undefined') console.error('Admin script error', e); try { if (typeof document.dispatchEvent === 'function') { var ev = document.createEvent('Event'); ev.initEvent('sygnalist-admin-ready', true, true); document.dispatchEvent(ev); } } catch (e2) {} } } })();</script><? } ?>
+    <? if (ADMIN_SCRIPT_B64_JSON) { ?><script>(function(){ var __ab64 = <?!= ADMIN_SCRIPT_B64_JSON ?>; if (__ab64) { try { (new Function(atob(__ab64)))(); } catch (e) { if (typeof console !== 'undefined') console.error('Admin script error', e); window.__ADMIN_INLINE_SCRIPT_ERROR = true; try { if (typeof document.dispatchEvent === 'function') { var ev = document.createEvent('Event'); ev.initEvent('sygnalist-admin-ready', true, true); document.dispatchEvent(ev); } } catch (e2) {} } } })();</script><? } ?>
   </body>
 </html>
