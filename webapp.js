@@ -49,6 +49,31 @@ function escapeForInlineScript_(content) {
     .replace(/<!--/g, "<\\!--");
 }
 
+/**
+ * Standalone debug: runs the same inlining path as doGet. Run from Apps Script editor and paste result into chat.
+ * Returns { ok, lenRaw?, lenB64?, head? } on success or { ok: false, name, message, stack } on error.
+ */
+function debug_admin_inline() {
+  try {
+    var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+    var adminScriptB64 = Utilities.base64Encode(Utilities.newBlob(adminScriptRaw).getBytes());
+    var head = adminScriptRaw.length > 120 ? adminScriptRaw.substring(0, 120) : adminScriptRaw;
+    return {
+      ok: true,
+      lenRaw: adminScriptRaw.length,
+      lenB64: adminScriptB64.length,
+      head: head
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      name: e.name || "",
+      message: e.message || String(e),
+      stack: String(e.stack || "")
+    };
+  }
+}
+
 function doGet(e) {
   try {
     const p = (e && e.parameter) ? e.parameter : {};
