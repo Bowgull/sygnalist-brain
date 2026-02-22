@@ -286,8 +286,12 @@
           showAdminLoadError('Admin is not configured for this page.');
           return;
         }
-        var resolvedSrc = adminScriptSrc;
-        if (adminScriptSrc.indexOf('http') !== 0) {
+        var resolvedSrc;
+        if (typeof ADMIN_URL !== 'undefined' && ADMIN_URL) {
+          resolvedSrc = ADMIN_URL.replace(/\?.*$/, '') + (adminScriptSrc.charAt(0) === '?' ? adminScriptSrc : '?' + adminScriptSrc);
+        } else if (adminScriptSrc.indexOf('http') === 0) {
+          resolvedSrc = adminScriptSrc;
+        } else {
           var base = window.location.origin + window.location.pathname;
           resolvedSrc = base + (adminScriptSrc.charAt(0) === '?' ? adminScriptSrc : '?' + adminScriptSrc);
         }

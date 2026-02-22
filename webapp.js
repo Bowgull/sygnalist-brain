@@ -114,7 +114,7 @@ function doGet(e) {
     var bootJson = JSON.stringify(boot);
     tpl.BOOTSTRAP_JSON = bootJson.replace(/\?>/g, "?\\u003e");
     tpl.VIEW_AS_JSON = JSON.stringify(!!viewAs);
-    tpl.ADMIN_URL_JSON = JSON.stringify("");
+    tpl.ADMIN_URL_JSON = JSON.stringify(showAdminUI ? sanitizedBaseUrl : "");
     tpl.SHOW_ADMIN_UI_JSON = JSON.stringify(!!showAdminUI);
     tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(sanitizedAdminProfileId);
     // When showAdminUI is true, inline the admin script so the tab works without a second request (avoids timeout/cold start and URL issues).
