@@ -287,14 +287,13 @@
           return;
         }
         var resolvedSrc;
-        if (typeof ADMIN_URL !== 'undefined' && ADMIN_URL) {
-          resolvedSrc = ADMIN_URL.replace(/\?.*$/, '') + (adminScriptSrc.charAt(0) === '?' ? adminScriptSrc : '?' + adminScriptSrc);
-        } else if (adminScriptSrc.indexOf('http') === 0) {
-          resolvedSrc = adminScriptSrc;
-        } else {
-          var base = window.location.origin + window.location.pathname;
+        if (adminScriptSrc.charAt(0) === '?' || adminScriptSrc.indexOf('http') !== 0) {
+          var base = (typeof ADMIN_URL !== 'undefined' && ADMIN_URL ? ADMIN_URL : '').split('?')[0];
           resolvedSrc = base + (adminScriptSrc.charAt(0) === '?' ? adminScriptSrc : '?' + adminScriptSrc);
+        } else {
+          resolvedSrc = adminScriptSrc;
         }
+        if (window.SYGNALIST_TIMING) console.log('[AdminLoader] resolvedSrc=', resolvedSrc);
         window._adminScriptRequested = true;
         window._adminLoadErrorShown = false;
         var script = document.createElement('script');
