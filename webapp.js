@@ -118,9 +118,9 @@ function doGet(e) {
     tpl.ADMIN_URL_JSON = JSON.stringify(showAdminUI ? sanitizedBaseUrl : "");
     tpl.SHOW_ADMIN_UI_JSON = JSON.stringify(!!showAdminUI);
     tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(sanitizedAdminProfileId);
-    // When showAdminUI is true, inline the admin script so the tab works without a second request (avoids timeout/cold start and URL issues).
+    // When showAdminUI is true, inline the admin script as Base64 so the template never outputs raw script (avoids Malformed HTML and escaping edge cases).
     var adminScriptSrc = "";
-    var adminScriptInline = "";
+    var adminScriptB64JSON = "";
     if (showAdminUI) {
       const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
       adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
@@ -132,20 +132,20 @@ function doGet(e) {
       tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
       try {
         var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
-        adminScriptInline = escapeForInlineScript_(adminScriptRaw);
+        var adminScriptB64 = Utilities.base64Encode(Utilities.newBlob(adminScriptRaw).getBytes());
+        adminScriptB64JSON = JSON.stringify(adminScriptB64);
         adminScriptSrc = "inline";
       } catch (inlineErr) {
         // No asset fallback: inlining is the only path (asset=admin fails in iframe due to auth). Log and leave script empty.
         try { Logger.log("Admin script inlining failed: " + (inlineErr && inlineErr.message ? inlineErr.message : String(inlineErr))); } catch (e) {}
         adminScriptSrc = "";
-        adminScriptInline = "";
       }
     } else {
       tpl.ADMIN_TAB_HTML = "";
       tpl.ADMIN_BOOT_SCRIPT_TAG = "";
     }
     tpl.ADMIN_SCRIPT_SRC = adminScriptSrc;
-    tpl.ADMIN_SCRIPT_INLINE = adminScriptInline;
+    tpl.ADMIN_SCRIPT_B64_JSON = adminScriptB64JSON;
 
     return tpl.evaluate()
       .setTitle("Sygnalist — Client Portal")
