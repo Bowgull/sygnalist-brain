@@ -221,13 +221,23 @@
   // ─────────────────────────────────────────────────────────────────────────────
   // TAB STATE + ROUTING
   // ─────────────────────────────────────────────────────────────────────────────
-  function showAdminLoadError(message) {
+  function showAdminLoadError(message, attemptedUrl) {
     if (window._adminLoadErrorShown) return;
     window._adminLoadErrorShown = true;
     var el = document.getElementById('adminLoadError');
     var msgEl = document.getElementById('adminLoadErrorMsg');
+    var urlEl = document.getElementById('adminLoadErrorUrl');
     if (el) {
       if (msgEl) msgEl.textContent = message || 'Admin failed to load. Check your connection and try again.';
+      if (urlEl) {
+        if (attemptedUrl) {
+          urlEl.textContent = 'Tried: ' + attemptedUrl;
+          urlEl.style.display = '';
+        } else {
+          urlEl.textContent = '';
+          urlEl.style.display = 'none';
+        }
+      }
       el.classList.add('visible');
       var retryBtn = document.getElementById('adminLoadErrorRetry');
       if (retryBtn && !retryBtn._adminRetryWired) {
@@ -248,7 +258,9 @@
   function hideAdminLoadError() {
     window._adminLoadErrorShown = false;
     var el = document.getElementById('adminLoadError');
+    var urlEl = document.getElementById('adminLoadErrorUrl');
     if (el) el.classList.remove('visible');
+    if (urlEl) { urlEl.textContent = ''; urlEl.style.display = 'none'; }
   }
 
   /**
@@ -265,12 +277,16 @@
     if (window._adminScriptInjected) return 'already-injected';
     var resolvedSrc;
     if (adminScriptSrc.charAt(0) === '?' || adminScriptSrc.indexOf('http') !== 0) {
-      var base = (typeof ADMIN_URL !== 'undefined' && ADMIN_URL ? ADMIN_URL : '').split('?')[0];
+      // Prefer current page URL so admin script always loads from the same deployment that served the page (avoids stale CONFIG.WEB_APP_URL).
+      var base = (typeof window !== 'undefined' && window.location && window.location.href)
+        ? String(window.location.href).split('?')[0]
+        : ((typeof ADMIN_URL !== 'undefined' && ADMIN_URL) ? String(ADMIN_URL).split('?')[0] : '');
       resolvedSrc = base + (adminScriptSrc.charAt(0) === '?' ? adminScriptSrc : '?' + adminScriptSrc);
     } else {
       resolvedSrc = adminScriptSrc;
     }
     if (window.SYGNALIST_TIMING) console.log('[AdminLoader] resolvedSrc=', resolvedSrc);
+    window._adminScriptAttemptedUrl = resolvedSrc;
     window._adminScriptInjected = true;
     window._adminLoadErrorShown = false;
     var script = document.createElement('script');
@@ -322,7 +338,7 @@
       if (timeoutId) clearTimeout(timeoutId);
       timeoutId = null;
       window._adminScriptFailed = true;
-      showAdminLoadError(msg || 'Admin failed to load. Check your connection and try again.' + ADMIN_LOAD_HINT);
+      showAdminLoadError(msg || 'Admin failed to load. Check your connection and try again.' + ADMIN_LOAD_HINT, window._adminScriptAttemptedUrl);
     }
 
     function onReady() {
