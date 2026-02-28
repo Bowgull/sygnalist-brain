@@ -390,6 +390,9 @@
         showAdminLoadError('Admin failed to load. Check your connection and try again.' + ADMIN_LOAD_HINT);
       } else {
         ensureAdminLoaded();
+        // Run bind + load in same click stack so google.script.run has user gesture (fixes dead admin UI).
+        if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
+        if (typeof window._adminLoadProfiles === 'function') window._adminLoadProfiles();
       }
     }
     updateCommandBarCounts();

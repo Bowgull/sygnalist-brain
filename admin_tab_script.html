@@ -146,8 +146,10 @@
 
   function bindAdminUIOnce() {
     if (window._adminBound) return;
-    if (!root || !root.querySelectorAll('.tab-btn').length) return;
+    var r = root || document.getElementById('adminTabContent');
+    if (!r || !r.querySelectorAll('.tab-btn').length) return;
     window._adminBound = true;
+    root = r;
     root.querySelectorAll('.tab-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var tab = this.getAttribute('data-tab');
