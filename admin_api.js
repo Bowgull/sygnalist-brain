@@ -5,11 +5,29 @@
  * All functions are callable via google.script.run from admin_tab_content.html (embedded Admin tab).
  */
 
+function logAdmin_(phase, message, meta) {
+  if (typeof logEvent_ !== "function") return;
+  try {
+    logEvent_({
+      timestamp: Date.now(),
+      profileId: (meta && meta.profileId) || "—",
+      action: "admin",
+      source: "admin_api",
+      details: {
+        level: phase === "error" ? "ERROR" : "INFO",
+        message: message,
+        meta: meta || {}
+      }
+    });
+  } catch (e) { /* ignore */ }
+}
+
 // ---------------------------------------------------------------------------
 // Profile and access
 // ---------------------------------------------------------------------------
 
 function adminGetProfiles() {
+  logAdmin_("start", "Get profiles started", {});
   try {
     var profiles = loadProfiles_();
     var list = profiles.map(function (p) {
@@ -22,8 +40,10 @@ function adminGetProfiles() {
         webAppUrl: p.webAppUrl || ""
       };
     });
+    logAdmin_("ok", "Get profiles completed", { count: (list && list.length) || 0 });
     return { ok: true, profiles: list };
   } catch (e) {
+    logAdmin_("error", "Get profiles failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -33,26 +53,33 @@ function adminGetProfiles() {
  * Callable from Master Portal. On error returns safe defaults.
  */
 function adminGetDashboardGlobals() {
+  logAdmin_("start", "Get dashboard globals started", {});
   try {
     var globals = getAdminDashboardGlobals_();
+    logAdmin_("ok", "Get dashboard globals completed", {});
     return { ok: true, jobsNeedingEnrichment: globals.jobsNeedingEnrichment != null ? globals.jobsNeedingEnrichment : 0, activeProfiles: globals.activeProfiles != null ? globals.activeProfiles : 0, lockedProfiles: globals.lockedProfiles != null ? globals.lockedProfiles : 0, recentErrorsCount: globals.recentErrorsCount != null ? globals.recentErrorsCount : 0 };
   } catch (e) {
+    logAdmin_("error", "Get dashboard globals failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: true, jobsNeedingEnrichment: 0, activeProfiles: 0, lockedProfiles: 0, recentErrorsCount: 0 };
   }
 }
 
 function adminGetProfileForEdit(profileId) {
+  logAdmin_("start", "Get profile for edit started", { profileId: profileId });
   try {
     var pid = String(profileId || "").trim();
     if (!pid) return { ok: false, error: "profileId is required." };
     var profile = getProfileByIdOrThrow_(pid);
+    logAdmin_("ok", "Get profile for edit completed", { profileId: pid });
     return { ok: true, profile: profile };
   } catch (e) {
+    logAdmin_("error", "Get profile for edit failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminUpdateProfile(profileId, patch) {
+  logAdmin_("start", "Profile update started", { profileId: profileId });
   try {
     var pid = String(profileId || "").trim();
     if (!pid) return { ok: false, error: "profileId is required." };
@@ -113,31 +140,40 @@ function adminUpdateProfile(profileId, patch) {
         details: { level: "INFO", message: "Profile updated", meta: { profileId: pid }, version: typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "" }
       });
     }
+    logAdmin_("ok", "Profile update completed", { profileId: pid });
     return { ok: true };
   } catch (e) {
+    logAdmin_("error", "Profile update failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminSoftLock(profileId, reason) {
+  logAdmin_("start", "Soft lock started", { profileId: profileId });
   try {
     var out = softLockProfile_(profileId, reason || "Locked from admin");
+    logAdmin_("ok", "Soft lock completed", { profileId: profileId });
     return out;
   } catch (e) {
+    logAdmin_("error", "Soft lock failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminUnlock(profileId) {
+  logAdmin_("start", "Unlock started", { profileId: profileId });
   try {
     var out = unlockProfile_(profileId);
+    logAdmin_("ok", "Unlock completed", { profileId: profileId });
     return out;
   } catch (e) {
+    logAdmin_("error", "Unlock failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminSetIsAdmin(profileId, isAdmin) {
+  logAdmin_("start", "Set isAdmin started", { profileId: profileId });
   try {
     var pid = String(profileId || "").trim();
     if (!pid) return { ok: false, error: "profileId is required." };
@@ -174,8 +210,10 @@ function adminSetIsAdmin(profileId, isAdmin) {
         details: { level: "INFO", message: "isAdmin set", meta: { profileId: pid, isAdmin: val }, version: typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "" }
       });
     }
+    logAdmin_("ok", "Set isAdmin completed", { profileId: pid });
     return { ok: true };
   } catch (e) {
+    logAdmin_("error", "Set isAdmin failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -184,11 +222,20 @@ function adminSetIsAdmin(profileId, isAdmin) {
  * Get the profile's web app URL (from sheet or build and save). Use for single "Get link" action.
  */
 function adminGetProfileWebAppUrl(profileId) {
-  var result = adminRegenerateWebAppUrl(profileId);
-  return result;
+  logAdmin_("start", "Get profile web app URL started", { profileId: profileId });
+  try {
+    var result = adminRegenerateWebAppUrl(profileId);
+    if (result && result.ok) logAdmin_("ok", "Get profile web app URL completed", { profileId: profileId });
+    else logAdmin_("error", "Get profile web app URL failed", { error: (result && result.error) ? result.error : "Unknown" });
+    return result;
+  } catch (e) {
+    logAdmin_("error", "Get profile web app URL failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
 }
 
 function adminRegenerateWebAppUrl(profileId) {
+  logAdmin_("start", "Regenerate web app URL started", { profileId: profileId });
   try {
     var pid = String(profileId || "").trim();
     if (!pid) return { ok: false, error: "profileId is required." };
@@ -222,17 +269,22 @@ function adminRegenerateWebAppUrl(profileId) {
     if (rowIndex === -1) return { ok: false, error: "Profile not found." };
 
     sh.getRange(rowIndex + 1, idxUrl + 1).setValue(webAppUrl);
+    logAdmin_("ok", "Regenerate web app URL completed", { profileId: pid });
     return { ok: true, webAppUrl: webAppUrl };
   } catch (e) {
+    logAdmin_("error", "Regenerate web app URL failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminCreateProfile(data) {
+  logAdmin_("start", "Create profile started", {});
   try {
     var out = createProfileFromSidebar(data);
+    logAdmin_("ok", "Create profile completed", { profileId: (out && out.profileId) ? out.profileId : "" });
     return out;
   } catch (e) {
+    logAdmin_("error", "Create profile failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -242,72 +294,97 @@ function adminCreateProfile(data) {
 // ---------------------------------------------------------------------------
 
 function adminGetStaging(profileId) {
+  logAdmin_("start", "Get staging started", { profileId: profileId });
   try {
     var rows = getAllStagingRowsForProfile_(profileId);
+    logAdmin_("ok", "Get staging completed", { profileId: profileId, count: (rows && rows.length) || 0 });
     return { ok: true, rows: rows };
   } catch (e) {
+    logAdmin_("error", "Get staging failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminSetStagingApproved(profileId, approvedRoleTitles) {
+  logAdmin_("start", "Set staging approved started", { profileId: profileId });
   try {
     var count = setStagingApprovedByRoleTitles_(profileId, approvedRoleTitles || []);
+    logAdmin_("ok", "Set staging approved completed", { profileId: profileId, count: count });
     return { ok: true, count: count };
   } catch (e) {
+    logAdmin_("error", "Set staging approved failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminApplyApprovedLanes(profileId) {
+  logAdmin_("start", "Apply approved lanes started", { profileId: profileId });
   try {
     var out = applyApprovedLanesForProfile_(profileId);
+    logAdmin_("ok", "Apply approved lanes completed", { profileId: profileId });
     return out;
   } catch (e) {
+    logAdmin_("error", "Apply approved lanes failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminGetLaneControls(profileId) {
+  logAdmin_("start", "Get lane controls started", { profileId: profileId });
   try {
-    return getProfileLaneControls(profileId);
+    var out = getProfileLaneControls(profileId);
+    logAdmin_("ok", "Get lane controls completed", { profileId: profileId });
+    return out;
   } catch (e) {
+    logAdmin_("error", "Get lane controls failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminSetLaneControls(profileId, laneControls) {
+  logAdmin_("start", "Set lane controls started", { profileId: profileId });
   try {
     var out = setProfileLaneControls(profileId, laneControls);
+    logAdmin_("ok", "Set lane controls completed", { profileId: profileId });
     return out;
   } catch (e) {
+    logAdmin_("error", "Set lane controls failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminGetLaneBank() {
+  logAdmin_("start", "Get lane bank started", {});
   try {
     var bank = getLaneRoleBank_();
+    logAdmin_("ok", "Get lane bank completed", {});
     return { ok: true, bank: bank };
   } catch (e) {
+    logAdmin_("error", "Get lane bank failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminAddRoleToLaneBank(role_name, keywordsOrAliases, lane_key) {
+  logAdmin_("start", "Add role to lane bank started", { lane_key: lane_key });
   try {
     var out = addRoleToLaneBank_(lane_key || null, role_name, keywordsOrAliases || "");
+    logAdmin_("ok", "Add role to lane bank completed", { lane_key: out.lane_key, role_name: out.role_name });
     return { ok: true, id: out.id, lane_key: out.lane_key, role_name: out.role_name };
   } catch (e) {
+    logAdmin_("error", "Add role to lane bank failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminResumeParse(profileId, rawResumeText) {
+  logAdmin_("start", "Resume parse started", { profileId: profileId });
   try {
     var out = skillProfileBuildAndSave(profileId, rawResumeText);
+    logAdmin_("ok", "Resume parse completed", { profileId: profileId });
     return out;
   } catch (e) {
+    logAdmin_("error", "Resume parse failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -317,6 +394,7 @@ function adminResumeParse(profileId, rawResumeText) {
 // ---------------------------------------------------------------------------
 
 function adminFetch(profileId, force) {
+  logAdmin_("start", "Fetch started", { profileId: profileId });
   try {
     var pid = String(profileId || "").trim();
     if (!pid) return { ok: false, error: "profileId is required." };
@@ -328,11 +406,13 @@ function adminFetch(profileId, force) {
 
     var result = fetchForProfileWithEnrichment_(pid);
     if (!result || !result.ok) {
+      logAdmin_("error", "Fetch failed", { error: (result && result.message) ? result.message : "Fetch failed" });
       return { ok: false, error: (result && result.message) ? result.message : "Fetch failed" };
     }
     try {
       setProfileLastFetchAt_(pid, new Date().toISOString());
     } catch (e) { /* non-fatal */ }
+    logAdmin_("ok", "Fetch completed", { profileId: pid, written: result.written || 0, batchId: result.batchId });
     return {
       ok: true,
       written: result.written || 0,
@@ -340,11 +420,13 @@ function adminFetch(profileId, force) {
       message: "Fetched " + (result.written || 0) + " enriched jobs"
     };
   } catch (e) {
+    logAdmin_("error", "Fetch failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminGetInbox(profileId) {
+  logAdmin_("start", "Get inbox started", { profileId: profileId });
   try {
     var rows = readEngineSheetForProfile_("Engine_Inbox", profileId);
     var list = rows.map(function (o) {
@@ -362,22 +444,28 @@ function adminGetInbox(profileId) {
         added_at: addedAt
       };
     });
+    logAdmin_("ok", "Get inbox completed", { profileId: profileId, count: (list && list.length) || 0 });
     return { ok: true, rows: list };
   } catch (e) {
+    logAdmin_("error", "Get inbox failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminClearInbox(profileId) {
+  logAdmin_("start", "Clear inbox started", { profileId: profileId });
   try {
     var removed = clearEngineInboxForProfile_(profileId);
+    logAdmin_("ok", "Clear inbox completed", { profileId: profileId, removed: removed });
     return { ok: true, removed: removed };
   } catch (e) {
+    logAdmin_("error", "Clear inbox failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminGetTracker(profileId) {
+  logAdmin_("start", "Get tracker started", { profileId: profileId });
   try {
     var rows = readEngineSheetForProfile_("Engine_Tracker", profileId);
     var list = rows.map(function (o) {
@@ -393,13 +481,16 @@ function adminGetTracker(profileId) {
         added_at: addedAt
       };
     });
+    logAdmin_("ok", "Get tracker completed", { profileId: profileId, count: (list && list.length) || 0 });
     return { ok: true, rows: list };
   } catch (e) {
+    logAdmin_("error", "Get tracker failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminClearTracker(profileId) {
+  logAdmin_("start", "Clear tracker started", { profileId: profileId });
   try {
     var pid = String(profileId || "").trim();
     if (!pid) return { ok: false, error: "profileId is required." };
@@ -420,8 +511,10 @@ function adminClearTracker(profileId) {
       var res = deleteTrackerEntryForProfile_(pid, keys[k]);
       if (res && res.deleted) removed += res.deleted;
     }
+    logAdmin_("ok", "Clear tracker completed", { profileId: pid, removed: removed });
     return { ok: true, removed: removed };
   } catch (e) {
+    logAdmin_("error", "Clear tracker failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -431,6 +524,7 @@ function adminClearTracker(profileId) {
 // ---------------------------------------------------------------------------
 
 function adminGetLogs(limit, profileIdFilter, actionFilter) {
+  logAdmin_("start", "Get logs started", {});
   try {
     var lim = Math.min(Math.max(Number(limit) || 100, 1), 500);
     var sh = assertSheetExists_("📓 Logs");
@@ -461,13 +555,16 @@ function adminGetLogs(limit, profileIdFilter, actionFilter) {
         level: row[6]
       };
     });
+    logAdmin_("ok", "Get logs completed", { count: (rows && rows.length) || 0 });
     return { ok: true, rows: rows };
   } catch (e) {
+    logAdmin_("error", "Get logs failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminExportLogs(options) {
+  logAdmin_("start", "Export logs started", {});
   try {
     var now = new Date();
     var tz = Session.getScriptTimeZone();
@@ -487,8 +584,10 @@ function adminExportLogs(options) {
         logsCleared = true;
       }
     }
+    logAdmin_("ok", "Export logs completed", { rowCount: result.rowCount, logsCleared: logsCleared });
     return { ok: true, rowCount: result.rowCount, sheetUrl: result.sheetUrl, logsCleared: logsCleared };
   } catch (e) {
+    logAdmin_("error", "Export logs failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -505,26 +604,34 @@ function formatExportSubjectDate_(date, tz) {
 }
 
 function adminFormatLogsSheet() {
+  logAdmin_("start", "Format logs sheet started", {});
   try {
     formatLogsSheet();
+    logAdmin_("ok", "Format logs sheet completed", {});
     return { ok: true };
   } catch (e) {
+    logAdmin_("error", "Format logs sheet failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminRefreshAnalytics() {
+  logAdmin_("start", "Refresh analytics started", {});
   try {
     refreshAdminAnalytics_();
+    logAdmin_("ok", "Refresh analytics completed", {});
     return { ok: true };
   } catch (e) {
+    logAdmin_("error", "Refresh analytics failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminGetAnalytics() {
+  logAdmin_("start", "Get analytics started", {});
   try {
     var data = getAdminAnalyticsForUI_();
+    logAdmin_("ok", "Get analytics completed", {});
     return {
       ok: true,
       kpis: data.kpis,
@@ -533,24 +640,31 @@ function adminGetAnalytics() {
       topErrors: data.topErrors || []
     };
   } catch (e) {
+    logAdmin_("error", "Get analytics failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminHealthCheck() {
+  logAdmin_("start", "Health check started", {});
   try {
     var report = runHealthCheckReport_();
+    logAdmin_("ok", "Health check completed", {});
     return { ok: true, report: report };
   } catch (e) {
+    logAdmin_("error", "Health check failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminInitEngineTables() {
+  logAdmin_("start", "Init engine tables started", {});
   try {
     ensureEngineTables_();
+    logAdmin_("ok", "Init engine tables completed", {});
     return { ok: true };
   } catch (e) {
+    logAdmin_("error", "Init engine tables failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -560,8 +674,16 @@ function adminInitEngineTables() {
 // ---------------------------------------------------------------------------
 
 function adminIngestFromGmail() {
+  logAdmin_("start", "Ingest from Gmail started", {});
   try {
     var result = ingestJobsFromGmail_();
+    logAdmin_("ok", "Ingest from Gmail completed", {
+      threads_found: result.threads_found,
+      jobs_added: result.jobs_added,
+      jobs_skipped_duplicate: result.jobs_skipped_duplicate,
+      messages_scanned: result.messages_scanned,
+      errors_count: (result.errors && result.errors.length) ? result.errors.length : 0
+    });
     return {
       ok: true,
       threads_found: result.threads_found,
@@ -574,11 +696,13 @@ function adminIngestFromGmail() {
       more_remaining: result.more_remaining
     };
   } catch (e) {
+    logAdmin_("error", "Ingest from Gmail failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminGetJobsInbox(filterStatuses) {
+  logAdmin_("start", "Get Jobs Inbox started", {});
   try {
     var rows = readJobsInbox_(filterStatuses || ["NEW", "NEEDS_ENRICHMENT"]);
     var list = rows.map(function (o) {
@@ -605,23 +729,29 @@ function adminGetJobsInbox(filterStatuses) {
         why_fit: String(o.why_fit || "")
       };
     });
+    logAdmin_("ok", "Get Jobs Inbox completed", { count: (list && list.length) || 0 });
     return { ok: true, rows: list };
   } catch (e) {
+    logAdmin_("error", "Get Jobs Inbox failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminUpdateJobsInboxRow(jobIdOrRowIndex, patch) {
+  logAdmin_("start", "Update Jobs Inbox row started", { jobIdOrRowIndex: typeof jobIdOrRowIndex === "string" ? String(jobIdOrRowIndex).slice(0, 50) : jobIdOrRowIndex });
   try {
     if (!patch || typeof patch !== "object") return { ok: false, error: "patch object is required." };
     var updated = updateJobsInboxRow_(jobIdOrRowIndex, patch);
+    logAdmin_("ok", "Update Jobs Inbox row completed", {});
     return updated ? { ok: true } : { ok: false, error: "Row not found." };
   } catch (e) {
+    logAdmin_("error", "Update Jobs Inbox row failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminPromoteOutlierToJob(jobId) {
+  logAdmin_("start", "Promote outlier to job started", { jobId: jobId });
   try {
     if (!jobId) return { ok: false, error: "jobId is required." };
     var rows = readJobsInbox_(null);
@@ -637,13 +767,16 @@ function adminPromoteOutlierToJob(jobId) {
       return { ok: false, error: "Only outliers can be promoted to job." };
     }
     var updated = updateJobsInboxRow_(jobId, { enrichment_status: "NEW" });
+    logAdmin_("ok", "Promote outlier to job completed", { jobId: jobId });
     return updated ? { ok: true } : { ok: false, error: "Update failed." };
   } catch (e) {
+    logAdmin_("error", "Promote outlier to job failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminPromoteFromJobsInbox(profileId, jobId) {
+  logAdmin_("start", "Promote from Jobs Inbox started", { profileId: profileId, jobId: jobId });
   try {
     var pid = String(profileId || "").trim();
     if (!pid) return { ok: false, error: "profileId is required." };
@@ -682,8 +815,10 @@ function adminPromoteFromJobsInbox(profileId, jobId) {
       promoted_at: new Date(),
       missing_fields: ""
     });
+    logAdmin_("ok", "Promote from Jobs Inbox completed", { profileId: pid, jobId: jobId });
     return { ok: true };
   } catch (e) {
+    logAdmin_("error", "Promote from Jobs Inbox failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -692,6 +827,7 @@ function adminPromoteFromJobsInbox(profileId, jobId) {
  * Add selected Jobs_Inbox job(s) to Global_Job_Bank. All clients can then see them in inbox. jobIds: array of job_id strings.
  */
 function adminPromoteToGlobalJobBank(jobIds) {
+  logAdmin_("start", "Promote to global job bank started", { count: (jobIds && jobIds.length) || 0 });
   try {
     if (!jobIds || !Array.isArray(jobIds) || jobIds.length === 0) {
       return { ok: false, error: "jobIds array is required." };
@@ -735,13 +871,16 @@ function adminPromoteToGlobalJobBank(jobIds) {
         });
       } catch (logErr) { /* ignore */ }
     }
+    logAdmin_("ok", "Promote to global job bank completed", { added: added, count: jobIds.length });
     return { ok: true, added: added };
   } catch (e) {
+    logAdmin_("error", "Promote to global job bank failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 
 function adminDeleteJobsInboxRow(jobId) {
+  logAdmin_("start", "Delete Jobs Inbox row started", { jobId: jobId });
   try {
     if (!jobId) return { ok: false, error: "jobId is required." };
     var deleted = deleteJobsInboxRow_(jobId);
@@ -756,8 +895,10 @@ function adminDeleteJobsInboxRow(jobId) {
         });
       } catch (logErr) { /* logs must not fail */ }
     }
+    logAdmin_("ok", "Delete Jobs Inbox row completed", { jobId: jobId, deleted: deleted });
     return deleted ? { ok: true } : { ok: false, error: "Job not found in Jobs_Inbox." };
   } catch (e) {
+    logAdmin_("error", "Delete Jobs Inbox row failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
@@ -766,6 +907,7 @@ function adminDeleteJobsInboxRow(jobId) {
  * Batch delete Jobs_Inbox rows by job_id. Returns { ok: true, deleted: number } or { ok: false, error: string }.
  */
 function adminDeleteJobsInboxRows(jobIds) {
+  logAdmin_("start", "Delete Jobs Inbox rows started", { count: (jobIds && jobIds.length) || 0 });
   try {
     if (!jobIds || !Array.isArray(jobIds)) return { ok: false, error: "jobIds array is required." };
     var deleted = 0;
@@ -783,12 +925,14 @@ function adminDeleteJobsInboxRows(jobIds) {
               source: "admin",
               details: { level: "INFO", message: "Job removed from Jobs Inbox", meta: { jobId: String(jid) }, version: typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "" }
             });
-          } catch (logErr) { /* logs must not fail */ }
+          }           catch (logErr) { /* logs must not fail */ }
         }
       }
     }
+    logAdmin_("ok", "Delete Jobs Inbox rows completed", { deleted: deleted });
     return { ok: true, deleted: deleted };
   } catch (e) {
+    logAdmin_("error", "Delete Jobs Inbox rows failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }

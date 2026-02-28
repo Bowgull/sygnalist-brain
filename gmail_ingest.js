@@ -39,6 +39,7 @@ var OUTLIER_ANCHOR_PATTERNS = [
 
 function ingestJobsFromGmail_() {
   ensureJobsInboxSheet_();
+  var existingUrls = getExistingNormalizedUrlsForIngest_();
 
   var out = {
     messages_scanned: 0,
@@ -56,6 +57,18 @@ function ingestJobsFromGmail_() {
   out.threads_found = threads.length;
   if (threads.length > GMAIL_INGEST_BATCH_CAP) out.more_remaining = true;
 
+  if (typeof logEvent_ === "function") {
+    try {
+      logEvent_({
+        timestamp: Date.now(),
+        profileId: "—",
+        action: "admin",
+        source: "gmail_ingest",
+        details: { level: "INFO", message: "Gmail ingest started", meta: { threads_found: out.threads_found } }
+      });
+    } catch (logErr) { /* ignore */ }
+  }
+
   var threadsToProcess = threads.slice(0, GMAIL_INGEST_BATCH_CAP);
 
   for (var t = 0; t < threadsToProcess.length; t++) {
@@ -71,13 +84,14 @@ function ingestJobsFromGmail_() {
           continue;
         }
 
+        var batchRows = [];
         var added = 0;
         var skipped = 0;
         for (var i = 0; i < extracted.length; i++) {
           var job = extracted[i];
           var norm = normalizeUrlForJobsInbox_(job.url);
           if (!norm) { skipped++; continue; }
-          if (urlExistsInJobsInboxOrRoleBank_(job.url)) {
+          if (existingUrls[norm]) {
             skipped++;
             out.jobs_skipped_duplicate++;
             continue;
@@ -104,10 +118,14 @@ function ingestJobsFromGmail_() {
           };
           row.missing_fields = computeMissingFields_(row);
 
-          var rows = [row];
-          writeJobsInboxRows_(rows);
+          batchRows.push(row);
+          existingUrls[norm] = true;
           added++;
           out.jobs_added++;
+        }
+
+        if (batchRows.length > 0) {
+          writeJobsInboxRows_(batchRows);
         }
 
         if (added > 0) {
@@ -118,8 +136,41 @@ function ingestJobsFromGmail_() {
         }
       } catch (err) {
         out.errors.push("Msg " + (out.messages_scanned) + ": " + (err.message || String(err)));
+        if (typeof logEvent_ === "function") {
+          try {
+            logEvent_({
+              timestamp: Date.now(),
+              profileId: "—",
+              action: "admin",
+              source: "gmail_ingest",
+              details: { level: "ERROR", message: "Gmail ingest error", meta: { message: err.message || String(err) } }
+            });
+          } catch (logErr) { /* ignore */ }
+        }
       }
     }
+  }
+
+  if (typeof logEvent_ === "function") {
+    try {
+      logEvent_({
+        timestamp: Date.now(),
+        profileId: "—",
+        action: "admin",
+        source: "gmail_ingest",
+        details: {
+          level: "INFO",
+          message: "Gmail ingest completed",
+          meta: {
+            messages_scanned: out.messages_scanned,
+            jobs_added: out.jobs_added,
+            jobs_skipped_duplicate: out.jobs_skipped_duplicate,
+            messages_no_jobs_found: out.messages_no_jobs_found,
+            errors_count: (out.errors && out.errors.length) ? out.errors.length : 0
+          }
+        }
+      });
+    } catch (logErr) { /* ignore */ }
   }
 
   return out;
@@ -150,6 +201,7 @@ function extractJobLinksFromMessage_(msg) {
   try { plain = msg.getPlainBody() || ""; } catch (e) { /* use "" */ }
   try { html = msg.getBody() || ""; } catch (e) { /* use "" */ }
   var combined = (html || "") + "\n" + (plain || "");
+  if (combined.length > 250000) combined = combined.slice(0, 250000);
 
   var hrefRegex = /<a\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   var match;

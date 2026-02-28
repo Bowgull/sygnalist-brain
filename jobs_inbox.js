@@ -165,6 +165,46 @@ function urlExistsInJobsInboxOrRoleBank_(url) {
 }
 
 /**
+ * Return a set (object) of all normalized URLs in Jobs_Inbox and Role_Bank.
+ * Used by Gmail ingest to avoid O(N) full-column reads per URL.
+ */
+function getExistingNormalizedUrlsForIngest_() {
+  ensureJobsInboxSheet_();
+  ensureRoleBankSheet_();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var set = {};
+  var shInbox = ss.getSheetByName("Jobs_Inbox");
+  if (shInbox) {
+    var lastRow = shInbox.getLastRow();
+    if (lastRow >= 2) {
+      var idxUrl = getJobsInboxHeaderIndex_(shInbox, "url");
+      if (idxUrl !== -1) {
+        var urls = shInbox.getRange(2, idxUrl + 1, lastRow, idxUrl + 1).getValues();
+        for (var i = 0; i < urls.length; i++) {
+          var n = normalizeUrlForJobsInbox_(urls[i][0]);
+          if (n) set[n] = true;
+        }
+      }
+    }
+  }
+  var shBank = ss.getSheetByName("Role_Bank");
+  if (shBank) {
+    var lastRow = shBank.getLastRow();
+    if (lastRow >= 2) {
+      var idxUrl = getRoleBankHeaderIndex_(shBank, "url");
+      if (idxUrl !== -1) {
+        var urls = shBank.getRange(2, idxUrl + 1, lastRow, idxUrl + 1).getValues();
+        for (var j = 0; j < urls.length; j++) {
+          var n = normalizeUrlForJobsInbox_(urls[j][0]);
+          if (n) set[n] = true;
+        }
+      }
+    }
+  }
+  return set;
+}
+
+/**
  * Normalize URL for Jobs_Inbox/Role_Bank dedupe. Uses core normalizeUrl_ + strips mc_* params.
  */
 function normalizeUrlForJobsInbox_(url) {

@@ -310,7 +310,8 @@
 
   function loadProfilesFull() {
     var listEl = document.getElementById('profileList');
-    if (!canCallServer()) {
+    var canCall = canCallServer();
+    if (!canCall) {
       if (listEl) listEl.innerHTML = '<p class="admin-sub" style="color:var(--color-tier-x);">Open this page from the deployed app link. Then try Refresh.</p>';
       return;
     }
