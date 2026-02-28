@@ -897,12 +897,15 @@
 
   async function loadInbox(backgroundRefresh) {
     if (!backgroundRefresh) showInboxSkeleton();
-    var timeoutMs = 15000;
-    var timeoutPromise = new Promise(function(resolve) {
-      setTimeout(function() { resolve({ res: null, timedOut: true }); }, timeoutMs);
-    });
-    var apiPromise = api('getInbox').then(function(res) { return { res: res, timedOut: false }; });
-    var result = await Promise.race([apiPromise, timeoutPromise]);
+    var timeoutMs = 18000;
+    function runInboxRequest() {
+      var timeoutPromise = new Promise(function(resolve) {
+        setTimeout(function() { resolve({ res: null, timedOut: true }); }, timeoutMs);
+      });
+      var apiPromise = api('getInbox').then(function(res) { return { res: res, timedOut: false }; });
+      return Promise.race([apiPromise, timeoutPromise]);
+    }
+    var result = await runInboxRequest();
     var res = result.res;
     var timedOut = result.timedOut === true;
     if (timedOut && !res) res = null;
@@ -911,17 +914,33 @@
       var displayList = prepareRadarRenderList(inboxCache.slice());
       renderInboxFilters();
       renderInbox(displayList);
-    } else {
-      if (!backgroundRefresh) {
-        console.error('Inbox load failed:', res, timedOut ? '(timed out)' : '');
-        var container = $('inboxList');
-        if (container) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load Radar</div><div class="empty-desc">' + (timedOut ? 'Request timed out.' : (res && res.message ? esc(res.message) : 'Load failed.')) + '</div><button type="button" class="btn btn-action" id="inboxRetryBtn">Retry</button></div>';
-          var retryBtn = document.getElementById('inboxRetryBtn');
-          if (retryBtn) retryBtn.addEventListener('click', function() { loadInbox(); });
-        }
-        if (timedOut) showToast('Request timed out', 'error');
+    } else if (!backgroundRefresh && timedOut) {
+      var retryResult = await runInboxRequest();
+      if (retryResult.res && retryResult.res.ok) {
+        inboxCache = (retryResult.res.inbox || []).slice();
+        var displayList = prepareRadarRenderList(inboxCache.slice());
+        renderInboxFilters();
+        renderInbox(displayList);
+        updateCommandBarCounts();
+        return;
       }
+      console.error('Inbox load failed (timed out after retry)');
+      var container = $('inboxList');
+      if (container) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load Radar</div><div class="empty-desc">Request timed out.</div><button type="button" class="btn btn-action" id="inboxRetryBtn">Retry</button></div>';
+        var retryBtn = document.getElementById('inboxRetryBtn');
+        if (retryBtn) retryBtn.addEventListener('click', function() { loadInbox(); });
+      }
+      showToast('Request timed out', 'error');
+    } else if (!backgroundRefresh) {
+      console.error('Inbox load failed:', res, timedOut ? '(timed out)' : '');
+      var container = $('inboxList');
+      if (container) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load Radar</div><div class="empty-desc">' + (timedOut ? 'Request timed out.' : (res && res.message ? esc(res.message) : 'Load failed.')) + '</div><button type="button" class="btn btn-action" id="inboxRetryBtn">Retry</button></div>';
+        var retryBtn = document.getElementById('inboxRetryBtn');
+        if (retryBtn) retryBtn.addEventListener('click', function() { loadInbox(); });
+      }
+      if (timedOut) showToast('Request timed out', 'error');
     }
     updateCommandBarCounts();
   }
@@ -931,18 +950,18 @@
       showTrackerSkeleton();
       timingLog('tracker_load', { t_switch_start: Date.now(), t_first_render_tracker: Date.now(), phase: 'skeleton', profileId: typeof profileId !== 'undefined' ? profileId : null });
     }
-    var timeoutMs = 25000;
-    var timeoutPromise = new Promise(function(resolve) {
-      setTimeout(function() { resolve({ timedOut: true }); }, timeoutMs);
-    });
-    var apiPromise = api('getTracker').then(function(res) { return { res: res, timedOut: false }; });
-    var result = await Promise.race([apiPromise, timeoutPromise]);
+    var timeoutMs = 28000;
+    function runTrackerRequest() {
+      var timeoutPromise = new Promise(function(resolve) {
+        setTimeout(function() { resolve({ res: null, timedOut: true }); }, timeoutMs);
+      });
+      var apiPromise = api('getTracker').then(function(res) { return { res: res, timedOut: false }; });
+      return Promise.race([apiPromise, timeoutPromise]);
+    }
+    var result = await runTrackerRequest();
     var res = result.res;
     var timedOut = result.timedOut === true;
-    if (timedOut && !res) {
-      console.error('Tracker load timed out');
-      res = null;
-    }
+    if (timedOut && !res) res = null;
     if (res && res.ok) {
       trackerCache = res.tracker || [];
       renderTrackerPipeline();
@@ -951,7 +970,6 @@
       if (res.dashboard) {
         var isAdminUser = (typeof SHOW_ADMIN_UI !== 'undefined' && SHOW_ADMIN_UI);
         if (isAdminUser) {
-          /* Admin: never replace with client-only dashboard; merge tracker counts so metrics order/state stay consistent */
           dashboardCache = Object.assign({}, dashboardCache, {
             inboxCount: res.dashboard.inboxCount,
             trackerCount: res.dashboard.trackerCount,
@@ -965,17 +983,49 @@
         renderMetrics(dashboardCache);
       }
       loadDashboard();
-    } else {
-      if (!backgroundRefresh) {
-        if (!timedOut) console.error('Tracker load failed:', res);
-        var container = $('trackerList');
-        if (container) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load tracker</div><div class="empty-desc">' + (timedOut ? 'Request timed out.' : (res && res.message ? esc(res.message) : 'Load failed.')) + '</div><button type="button" class="btn btn-action" id="trackerRetryBtn">Retry</button></div>';
-          var retryBtn = document.getElementById('trackerRetryBtn');
-          if (retryBtn) retryBtn.addEventListener('click', function() { loadTracker(); });
+    } else if (!backgroundRefresh && timedOut) {
+      var retryResult = await runTrackerRequest();
+      if (retryResult.res && retryResult.res.ok) {
+        res = retryResult.res;
+        trackerCache = res.tracker || [];
+        renderTrackerPipeline();
+        renderTracker(getFilteredTrackerList());
+        if (res.dashboard) {
+          var isAdminUser = (typeof SHOW_ADMIN_UI !== 'undefined' && SHOW_ADMIN_UI);
+          if (isAdminUser) {
+            dashboardCache = Object.assign({}, dashboardCache, {
+              inboxCount: res.dashboard.inboxCount,
+              trackerCount: res.dashboard.trackerCount,
+              byStatus: res.dashboard.byStatus || {},
+              inboxAddedLast7: res.dashboard.inboxAddedLast7,
+              trackerAddedLast7: res.dashboard.trackerAddedLast7
+            });
+          } else {
+            dashboardCache = Object.assign({}, res.dashboard);
+          }
+          renderMetrics(dashboardCache);
         }
-        showToast(timedOut ? 'Request timed out' : (res && res.message ? res.message : 'Could not load tracker'), 'error');
+        loadDashboard();
+        updateCommandBarCounts();
+        return;
       }
+      console.error('Tracker load timed out (after retry)');
+      var container = $('trackerList');
+      if (container) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load tracker</div><div class="empty-desc">Request timed out.</div><button type="button" class="btn btn-action" id="trackerRetryBtn">Retry</button></div>';
+        var retryBtn = document.getElementById('trackerRetryBtn');
+        if (retryBtn) retryBtn.addEventListener('click', function() { loadTracker(); });
+      }
+      showToast('Request timed out', 'error');
+    } else if (!backgroundRefresh) {
+      if (!timedOut) console.error('Tracker load failed:', res);
+      var container = $('trackerList');
+      if (container) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-title">Could not load tracker</div><div class="empty-desc">' + (timedOut ? 'Request timed out.' : (res && res.message ? esc(res.message) : 'Load failed.')) + '</div><button type="button" class="btn btn-action" id="trackerRetryBtn">Retry</button></div>';
+        var retryBtn = document.getElementById('trackerRetryBtn');
+        if (retryBtn) retryBtn.addEventListener('click', function() { loadTracker(); });
+      }
+      showToast(timedOut ? 'Request timed out' : (res && res.message ? res.message : 'Could not load tracker'), 'error');
     }
     updateCommandBarCounts();
   }

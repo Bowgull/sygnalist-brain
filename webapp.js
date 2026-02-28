@@ -36,6 +36,14 @@ function escapeHtml_(s) {
     .replace(/'/g, "&#39;");
 }
 
+/** Extracts the inner text of the first <script>...</script> in html. Used so we serve/inline only JS from admin_tab_script.html. */
+function extractFirstScriptBody_(html) {
+  if (html == null || html === "") return "";
+  var s = String(html).trim();
+  var match = s.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+  return match ? match[1].trim() : s;
+}
+
 /** Escapes script content for safe embedding inside a <script> tag (avoids closing tag and scriptlet).
  *  All content injected into client_portal from admin_tab_script must pass through this so scriptlet
  *  output never closes the <script> or contains ?>. */
@@ -52,10 +60,12 @@ function escapeForInlineScript_(content) {
 /**
  * Standalone debug: runs the same inlining path as doGet. Run from Apps Script editor and paste result into chat.
  * Returns { ok, lenRaw?, lenB64?, head? } on success or { ok: false, name, message, stack } on error.
+ * Logs only short message to avoid truncation.
  */
 function debug_admin_inline() {
   try {
-    var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+    var adminHtml = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+    var adminScriptRaw = extractFirstScriptBody_(adminHtml);
     var adminScriptB64 = Utilities.base64Encode(Utilities.newBlob(adminScriptRaw).getBytes());
     var head = adminScriptRaw.length > 120 ? adminScriptRaw.substring(0, 120) : adminScriptRaw;
     return {
@@ -65,15 +75,20 @@ function debug_admin_inline() {
       head: head
     };
   } catch (e) {
+    var msg = (e && e.message ? e.message : String(e)).substring(0, 300);
     return {
       ok: false,
-      name: e.name || "",
-      message: e.message || String(e),
-      stack: String(e.stack || "")
+      name: (e && e.name) || "",
+      message: msg,
+      stack: String((e && e.stack) || "").substring(0, 500)
     };
   }
 }
 
+/**
+ * doGet serves only: client_portal (main), admin_tab_content (admin tab HTML), admin_tab_script (admin JS, via getContent+extract).
+ * Do NOT add branches that serve admin_portal.html or admin_only.html — those are deprecated/unused; single admin path is client_portal + admin tab.
+ */
 function doGet(e) {
   try {
     const p = (e && e.parameter) ? e.parameter : {};
@@ -99,10 +114,11 @@ function doGet(e) {
     const asset = String(p.asset || "").trim().toLowerCase();
     if (asset === "admin") {
       try {
-        const adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+        var adminHtml = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+        var adminScriptRaw = extractFirstScriptBody_(adminHtml);
         return ContentService.createTextOutput(adminScriptRaw).setMimeType(ContentService.MimeType.JAVASCRIPT);
       } catch (assetErr) {
-        // Return JS (not HTML) so the script tag does not trigger onerror; client can show message on sygnalist-admin-ready
+        try { Logger.log("Admin asset failed: " + String((assetErr && assetErr.message) || assetErr).substring(0, 300)); } catch (logE) {}
         var fallbackJs = "(function(){window.__ADMIN_SCRIPT_SERVER_ERROR=true;if(typeof document.dispatchEvent==='function'){var e=document.createEvent('Event');e.initEvent('sygnalist-admin-ready',true,true);document.dispatchEvent(e);}})();";
         return ContentService.createTextOutput(fallbackJs).setMimeType(ContentService.MimeType.JAVASCRIPT);
       }
@@ -157,14 +173,18 @@ function doGet(e) {
       var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
       tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
       try {
-        var adminScriptRaw = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+        var adminHtml = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
+        var adminScriptRaw = extractFirstScriptBody_(adminHtml);
         var adminScriptB64 = Utilities.base64Encode(Utilities.newBlob(adminScriptRaw).getBytes());
         adminScriptB64JSON = JSON.stringify(adminScriptB64);
         adminScriptSrc = "inline";
       } catch (inlineErr) {
-        // No asset fallback: inlining is the only path (asset=admin fails in iframe due to auth). Log and leave script empty.
-        try { Logger.log("Admin script inlining failed: " + (inlineErr && inlineErr.message ? inlineErr.message : String(inlineErr))); } catch (e) {}
-        adminScriptSrc = "";
+        try {
+          var errMsg = String((inlineErr && inlineErr.message) || inlineErr).substring(0, 300);
+          Logger.log("Admin script inlining failed: " + errMsg + " [file=admin_tab_script]");
+        } catch (e) {}
+        adminScriptSrc = "?asset=admin";
+        adminScriptB64JSON = "";
         adminInlineFailed = "1";
       }
     } else {
@@ -217,6 +237,7 @@ function portal_api(profileId, req) {
  * { op: "ping"|"getInbox"|"getTracker"|"promote"|"updateTracker"|"diagTracker", data?: any }
  */
 function portal_api_(profileId, req) {
+  var t0 = Date.now();
   try {
     const profile = getProfileByIdOrThrow_(profileId);
 
@@ -310,6 +331,7 @@ function portal_api_(profileId, req) {
 
       case "getInbox": {
         const rows = getMergedInboxCachedRaw_(profile.profileId);
+        try { Logger.log("portal_api op=getInbox elapsedMs=" + (Date.now() - t0)); } catch (e) {}
         return { ok: true, version: Sygnalist_VERSION, inbox: rows.map(inboxRowToCardDto_) };
       }
 
@@ -329,7 +351,10 @@ function portal_api_(profileId, req) {
           const cached = cache.get(cacheKey);
           if (cached) {
             const parsed = JSON.parse(cached);
-            if (parsed && parsed.tracker && parsed.dashboard) return parsed;
+            if (parsed && parsed.tracker && parsed.dashboard) {
+              try { Logger.log("portal_api op=getTracker elapsedMs=" + (Date.now() - t0) + " fromCache=true"); } catch (e) {}
+              return parsed;
+            }
           }
         } catch (e) { /* ignore cache errors */ }
         try {
@@ -340,9 +365,11 @@ function portal_api_(profileId, req) {
           try {
             CacheService.getScriptCache().put(cacheKey, JSON.stringify(response), 45);
           } catch (e) { /* cache put can fail if payload > 100KB */ }
+          try { Logger.log("portal_api op=getTracker elapsedMs=" + (Date.now() - t0)); } catch (e) {}
           return response;
         } catch (e) {
           try { CacheService.getScriptCache().remove(cacheKey); } catch (e2) { /* ignore */ }
+          try { Logger.log("portal_api op=getTracker elapsedMs=" + (Date.now() - t0) + " error=" + String((e && e.message) || e).substring(0, 120)); } catch (e2) {}
           return {
             ok: false,
             version: Sygnalist_VERSION,
