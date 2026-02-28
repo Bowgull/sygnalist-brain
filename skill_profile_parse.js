@@ -10,6 +10,9 @@
  *   suggestedRoles: [{ title: string, keywords: string[] }],
  *   yearsExperience: string,
  *   preferredLocations: string[],
+ *   preferredCountries: string[],
+ *   preferredCities: string[],
+ *   currentCity: string (optional),
  *   remotePreference: "remote_only"|"hybrid_ok"|"onsite_ok",
  *   seniorityTarget: string,
  *   industriesToAvoid: string[]
@@ -44,6 +47,9 @@ JSON schema:
   ],
   "yearsExperience": "string: total years relevant experience, e.g. '2-4', '5-7', '10+' or '0-1'",
   "preferredLocations": ["city or region names from resume they prefer; empty array if not stated or open to anywhere"],
+  "preferredCountries": ["country names only e.g. United States, Canada; empty if not stated"],
+  "preferredCities": ["city names only e.g. New York, Boston; empty if not stated"],
+  "currentCity": "string: current city of residence if clearly stated; empty string otherwise",
   "remotePreference": "one of: remote_only, hybrid_ok, onsite_ok (infer from resume; default remote_only if unclear)",
   "seniorityTarget": "one of: entry, mid, senior, lead (level they fit best for next role)",
   "industriesToAvoid": ["industries to exclude if clearly stated; empty array otherwise"]
@@ -65,6 +71,9 @@ Rules for suggestedRoles:
 Rules for structured fields:
 - yearsExperience: infer from dates; use range like "3-5" or "10+".
 - preferredLocations: only if resume mentions location preference or current location; else [].
+- preferredCountries: only country-level (United States, Canada, UK, etc.); empty [] if not stated.
+- preferredCities: only city names; empty [] if not stated.
+- currentCity: their current city of residence if clearly stated; else empty string.
 - remotePreference: remote_only if they work remote or prefer it; hybrid_ok or onsite_ok if stated.
 - seniorityTarget: match their experience level; entry (0-2y), mid (3-6y), senior (7+), lead (if they led teams).
 - industriesToAvoid: only if resume explicitly says they want to leave an industry or avoid one.
@@ -90,6 +99,9 @@ Resume text:
   const suggestedRoles = normalizeSuggestedRoles_(obj.suggestedRoles);
   const yearsExperience = normalizeYearsExperience_(obj.yearsExperience);
   const preferredLocations = normalizeStringArray_(obj.preferredLocations, 10);
+  const preferredCountries = normalizeStringArray_(obj.preferredCountries, 10);
+  const preferredCities = normalizeStringArray_(obj.preferredCities, 10);
+  const currentCity = (obj.currentCity != null && String(obj.currentCity).trim() !== "") ? String(obj.currentCity).trim().slice(0, 100) : "";
   const remotePreference = normalizeRemotePreference_(obj.remotePreference);
   const seniorityTarget = normalizeSeniorityTarget_(obj.seniorityTarget);
   const industriesToAvoid = normalizeStringArray_(obj.industriesToAvoid, 8);
@@ -105,6 +117,9 @@ Resume text:
     suggestedRoles: suggestedRoles,
     yearsExperience: yearsExperience,
     preferredLocations: preferredLocations,
+    preferredCountries: preferredCountries,
+    preferredCities: preferredCities,
+    currentCity: currentCity,
     remotePreference: remotePreference,
     seniorityTarget: seniorityTarget,
     industriesToAvoid: industriesToAvoid

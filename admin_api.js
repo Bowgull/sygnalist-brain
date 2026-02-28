@@ -389,6 +389,46 @@ function adminResumeParse(profileId, rawResumeText) {
   }
 }
 
+/** Parse-only: no write to Admin_Profiles. Client shows review then calls adminResumeApplyApproved. */
+function adminResumeParseOnly(profileId, rawResumeText) {
+  logAdmin_("start", "Resume parse only", { profileId: profileId });
+  try {
+    var out = skillProfileParseOnly(profileId, rawResumeText);
+    if (out && out.ok) logAdmin_("ok", "Resume parse only completed", { profileId: profileId, stagingRows: (out.stagingRows || 0) });
+    return out;
+  } catch (e) {
+    logAdmin_("error", "Resume parse only failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+function adminGetProfileForReview(profileId) {
+  try {
+    var out = skillProfileGetProfileForReview(profileId);
+    if (out && out.ok) logAdmin_("ok", "Get profile for review", { profileId: profileId });
+    return out;
+  } catch (e) {
+    logAdmin_("error", "Get profile for review failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+function adminResumeApplyApproved(profileId, parsed, options) {
+  logAdmin_("start", "Resume apply approved", { profileId: profileId });
+  try {
+    var pid = String(profileId || "").trim();
+    if (!pid) return { ok: false, error: "profileId is required." };
+    var profile = getProfileById_(pid);
+    if (!profile) return { ok: false, error: "Profile not found." };
+    writeSkillProfileApproved_(pid, parsed, options || {});
+    logAdmin_("ok", "Resume apply approved completed", { profileId: pid });
+    return { ok: true };
+  } catch (e) {
+    logAdmin_("error", "Resume apply approved failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Fetch and engine data
 // ---------------------------------------------------------------------------

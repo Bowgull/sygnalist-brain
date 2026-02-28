@@ -52,47 +52,27 @@ function skillProfile_listProfiles_() {
 }
 
 /**
- * Build + Save (engine logic)
- * Returns { ok:true, parsed: {...} } or { ok:false, error }
- * 
- * NOTE: No trailing underscore - must be callable from client via google.script.run
+ * Parse-only: compute parsed result and write suggested roles to Resume_Staging.
+ * Does NOT write to Admin_Profiles. Callable from client; after this, show review and call skillProfileApplyApproved.
  */
-function skillProfileBuildAndSave(profileId, rawResumeText) {
+function skillProfileParseOnly(profileId, rawResumeText) {
   try {
     const pid = String(profileId || "").trim();
     const raw = String(rawResumeText || "").trim();
 
-    if (!pid) {
-      return { ok: false, error: "profileId is empty." };
-    }
-    if (!raw || raw.length < 100) {
-      return { ok: false, error: "Resume text is too short (need at least 100 characters)." };
-    }
+    if (!pid) return { ok: false, error: "profileId is empty." };
+    if (!raw || raw.length < 100) return { ok: false, error: "Resume text is too short (need at least 100 characters)." };
 
-    // Verify profile exists
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (!ss) {
-      return { ok: false, error: "No active spreadsheet." };
-    }
-    
+    if (!ss) return { ok: false, error: "No active spreadsheet." };
     var profileSheet = ss.getSheetByName("Admin_Profiles");
-    if (!profileSheet) {
-      return { ok: false, error: "Admin_Profiles sheet not found." };
-    }
+    if (!profileSheet) return { ok: false, error: "Admin_Profiles sheet not found." };
 
-    // Call AI to parse resume
     var parsed;
     try {
       parsed = parseResumeToSkillProfile_(raw);
     } catch (aiErr) {
       return { ok: false, error: "AI Error: " + (aiErr.message || String(aiErr)) };
-    }
-
-    // Write skill profile text/stories to Admin_Profiles; write suggested roles to Resume_Staging for approval
-    try {
-      writeSkillProfileOnlyTextAndStories_(pid, parsed);
-    } catch (writeErr) {
-      return { ok: false, error: "Write Error: " + (writeErr.message || String(writeErr)) };
     }
 
     var stagingCount = 0;
@@ -109,7 +89,7 @@ function skillProfileBuildAndSave(profileId, rawResumeText) {
       source: "skill_profile",
       details: {
         level: "INFO",
-        message: "Resume parse complete; suggested lanes in staging",
+        message: "Resume parse (parse-only); suggested lanes in staging",
         meta: { profileId: pid, stagingRows: stagingCount },
         version: Sygnalist_VERSION
       }
@@ -119,16 +99,75 @@ function skillProfileBuildAndSave(profileId, rawResumeText) {
       ok: true,
       parsed: parsed,
       stagingRows: stagingCount,
-      message: stagingCount > 0 ? "Review Resume_Staging tab, check Approved, then run Apply Approved Lanes." : "Skill profile saved. No suggested roles to stage.",
+      message: stagingCount > 0 ? "Review parse result, then Apply to profile. Suggested roles are in Resume_Staging." : "Parse complete. No suggested roles to stage.",
       version: (typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "unknown")
     };
-
   } catch (e) {
     return {
       ok: false,
       error: "Unexpected Error: " + (e && e.message ? e.message : String(e)),
       version: (typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "unknown")
     };
+  }
+}
+
+/**
+ * Build + Save (engine logic)
+ * Parse-only: no write to Admin_Profiles. Returns { ok:true, parsed, stagingRows } or { ok:false, error }.
+ * Client must show review and call skillProfileApplyApproved to write to profile.
+ */
+function skillProfileBuildAndSave(profileId, rawResumeText) {
+  return skillProfileParseOnly(profileId, rawResumeText);
+}
+
+/**
+ * Apply approved parse result to profile. Callable from client after review step.
+ * options = { applySkills: boolean, applyPreferences: boolean }.
+ */
+function skillProfileApplyApproved(profileId, parsed, options) {
+  try {
+    var pid = String(profileId || "").trim();
+    if (!pid) return { ok: false, error: "profileId is empty." };
+    var profile = getProfileById_(pid);
+    if (!profile) return { ok: false, error: "Profile not found." };
+    if (!parsed || typeof parsed !== "object") return { ok: false, error: "Parsed result is required." };
+    var opt = options && typeof options === "object" ? options : {};
+    writeSkillProfileApproved_(pid, parsed, opt);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+/**
+ * Get profile fields needed for review UI (current vs parsed). Callable from client.
+ */
+function skillProfileGetProfileForReview(profileId) {
+  try {
+    var pid = String(profileId || "").trim();
+    if (!pid) return { ok: false, error: "profileId is empty." };
+    var profile = getProfileById_(pid);
+    if (!profile) return { ok: false, error: "Profile not found." };
+    return {
+      ok: true,
+      profile: {
+        displayName: profile.displayName,
+        skillProfileText: profile.skillProfileText,
+        topSkills: profile.topSkills,
+        signatureStories: profile.signatureStories,
+        preferredLocations: profile.preferredLocations,
+        preferredCountries: profile.preferredCountries,
+        preferredCities: profile.preferredCities,
+        currentCity: profile.currentCity,
+        remotePreference: profile.remotePreference,
+        acceptRemote: profile.acceptRemote,
+        acceptHybrid: profile.acceptHybrid,
+        acceptOnsite: profile.acceptOnsite,
+        remoteRegionScope: profile.remoteRegionScope
+      }
+    };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
 

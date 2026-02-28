@@ -350,8 +350,9 @@ These are the contracts all functions, sheets, and UI must respect.
 ### 6.1 Profile & RoleTrack
 
 ```typescript
-type RemotePreference = "remote_only" | "remote_or_hybrid" | "onsite_ok";
+type RemotePreference = "remote_only" | "remote_or_hybrid" | "onsite_ok";  // legacy; see work flags below
 type ProfileStatus = "active" | "inactive_soft_locked";
+type RemoteRegionScope = "remote_global" | "remote_preferred_countries_only";
 
 interface RoleTrack {
   id: string;              // "cs", "impl", "support"
@@ -371,9 +372,20 @@ interface Profile {
   statusReason: string;        // free-text, why locked
 
   salaryMin: number;
-  preferredLocations: string[];
+  preferredLocations: string[];   // legacy comma-separated; still used for fetch location
   locationBlacklist: string[];
-  remotePreference: RemotePreference;
+  remotePreference: RemotePreference;  // legacy; derived or synced for backward compat
+
+  // Work preferences (at least one true). Replaces single remotePreference for scoring.
+  acceptRemote: boolean;
+  acceptHybrid: boolean;
+  acceptOnsite: boolean;
+
+  // Region lock: structured location
+  preferredCountries: string[];  // e.g. ["United States", "Canada"]
+  preferredCities: string[];    // for hybrid (wider) and onsite (strict) match
+  currentCity: string;          // optional; strict onsite lock
+  remoteRegionScope: RemoteRegionScope;  // remote_global | remote_preferred_countries_only
 
   bannedKeywords: string[];
   disqualifyingSeniority: string[];
@@ -401,6 +413,8 @@ interface Profile {
   clientCopyLink?: string; // same as webAppUrl for now
 }
 ```
+
+**Migration from legacy:** If sheet columns `acceptRemote` / `acceptHybrid` / `acceptOnsite` are missing, they are derived from `remotePreference`: remote_only → acceptRemote only; remote_or_hybrid → acceptRemote + acceptHybrid; onsite_ok → all three. If `preferredCountries` / `preferredCities` are missing, they are derived from `preferredLocations` (heuristic: known country names → countries, rest → cities).
 
 **Soft lock semantics:**
 - If `status !== "active"`, any attempt to fetch/enrich/promote for that profile must be blocked with:
@@ -438,6 +452,8 @@ interface Job {
   url: string;
   source: string;
   location: string | null;
+  country?: string | null;   // optional; set by adapters or location normalizer
+  city?: string | null;      // optional; set by adapters or location normalizer
   salary: {
     min: number | null;
     max: number | null;
@@ -519,9 +535,9 @@ Purpose: System of record for all Profiles + soft lock state + skills + portal m
 | D | status | "active" / "inactive_soft_locked" (DV) |
 | E | statusReason | why locked / notes |
 | F | salaryMin | number |
-| G | preferredLocations | comma-separated |
+| G | preferredLocations | comma-separated (legacy; used for fetch) |
 | H | locationBlacklist | comma-separated |
-| I | remotePreference | DV: remote_only / remote_or_hybrid / onsite_ok |
+| I | remotePreference | DV: remote_only / remote_or_hybrid / onsite_ok (legacy) |
 | J | bannedKeywords | comma-separated |
 | K | disqualifyingSeniority | comma-separated |
 | L | allowSalesHeavy | TRUE/FALSE |
@@ -538,6 +554,8 @@ Purpose: System of record for all Profiles + soft lock state + skills + portal m
 | W | webAppUrl | Canonical web app URL (.../exec?profileId=<id>) |
 | X | isAdmin | TRUE/FALSE; controls admin permissions (profile switching) |
 | Y | clientCopyLink | (optional) same as webAppUrl for now |
+
+Optional columns (append after Y; readers use header name): acceptRemote, acceptHybrid, acceptOnsite (TRUE/FALSE), preferredCountries, preferredCities (comma-separated), currentCity, remoteRegionScope (remote_global / remote_preferred_countries_only). If missing, work prefs derived from remotePreference and location from preferredLocations.
 
 Admin-only editing.
 
@@ -832,17 +850,29 @@ If below minimum threshold:
 **Hard filters → Tier X (exclude):**
 - bannedKeywords present
 - disqualifyingSeniority present
-- Certain language/location mismatches
+- Work type not accepted (job remote/hybrid/onsite not in profile acceptRemote/acceptHybrid/acceptOnsite)
+- Region lock failure (see table below)
+- Disallowed sales/phone/weekend/shift content (when profile disallows)
 
 Hard filters set:
 - score = -999
 - tier = "X"
 - excluded = true
 
+**Work-type gate:** Job work type is classified from `job.remote` and `job.location` as remote, hybrid, or onsite. The job is excluded unless the profile accepts that type (acceptRemote, acceptHybrid, acceptOnsite).
+
+**Region lock (by work type):**
+
+| Work type | Country | City |
+|-----------|---------|------|
+| Remote | If profile.remoteRegionScope = remote_preferred_countries_only: job must be in preferredCountries (or location string matches). If remote_global: no country filter. | Not used. |
+| Hybrid | Job must be in preferredCountries (or location matches). | Wider match: job city/location must match one of preferredCities or currentCity (or allow if no city on job). |
+| On-site | Job must be in preferredCountries. | Strict: job city must match currentCity or be in preferredCities. |
+
 **Positive signals (examples):**
 - Role match (track) = +30–40
-- Location match = +10–15
-- Remote preference alignment = +5–10
+- Location match = +10 (country in preferredCountries), +5 (city in preferredCities)
+- Work-type alignment = +5–10 (remote +10, hybrid +8, onsite +5 when accepted)
 - Each skillKeywordsPlus hit = +2–6
 - Lane priorityWeight acts as multiplier
 - Salary ≥ salaryMin = bonus

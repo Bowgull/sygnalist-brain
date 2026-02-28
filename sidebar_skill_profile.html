@@ -222,6 +222,9 @@
       .lane-control-card h4 input[type="checkbox"] { cursor: pointer; }
       .lane-roles { margin-left: 24px; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; }
       .lane-roles label { margin: 0; font-weight: 400; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+      .review-row { display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap; }
+      .review-panel { flex: 1; min-width: 180px; }
+      .review-panel .result-value { max-height: 80px; margin-bottom: 8px; }
     </style>
   </head>
   
@@ -254,7 +257,7 @@
         <div class="hint">Plain text works best.</div>
       </div>
       
-      <button class="btn" id="runBtn" onclick="run()">🧬 Build + Save</button>
+      <button class="btn" id="runBtn" onclick="run()">Parse resume</button>
       <button class="btn btn-secondary" id="laneControlsBtn" onclick="openLaneControls()" style="margin-top:8px">Lane Controls</button>
       
       <div class="status" id="status"></div>
@@ -272,6 +275,33 @@
           <div class="result-label">Summary</div>
           <div class="result-value" id="summaryOutput"></div>
         </div>
+      </div>
+      
+      <div id="stepAReview" class="panel" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+        <h3>Review and apply to profile</h3>
+        <div class="subtitle">Compare current profile with parsed result. Choose what to apply, then click Apply.</div>
+        <div class="review-row">
+          <div class="review-panel">
+            <div class="result-label">Current (profile)</div>
+            <div class="result-value" id="currentSummary"></div>
+            <div class="result-value" id="currentSkills"></div>
+            <div class="result-value" id="currentPrefs"></div>
+          </div>
+          <div class="review-panel">
+            <div class="result-label">Parsed from resume</div>
+            <div class="result-value" id="parsedSummary"></div>
+            <div class="result-value" id="parsedSkills"></div>
+            <div class="result-value" id="parsedPrefs"></div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label><input type="checkbox" id="applySkillsCb" checked> Apply skill profile (summary, skills, stories)</label>
+        </div>
+        <div class="field">
+          <label><input type="checkbox" id="applyPrefsCb" checked> Apply suggested preferences (locations, remote)</label>
+        </div>
+        <button class="btn" id="applyBtn" onclick="applyApproved()">Apply to profile</button>
+        <div class="status" id="statusApply"></div>
       </div>
     </div>
     
@@ -295,6 +325,7 @@
       var laneControlsBank = [];
       var laneControlsByLane = {};
       var laneControlsState = {};
+      var lastParsed = null;
 
       function showStatus(msg, type) {
         var el = $('status');
@@ -302,6 +333,10 @@
       }
       function showStatusStepB(msg, type) {
         var el = $('statusStepB');
+        if (el) { el.textContent = msg; el.className = 'status visible ' + (type || ''); }
+      }
+      function showStatusApply(msg, type) {
+        var el = document.getElementById('statusApply');
         if (el) { el.textContent = msg; el.className = 'status visible ' + (type || ''); }
       }
 
@@ -313,6 +348,9 @@
         $('runBtn').disabled = true;
         showStatus('Analyzing resume with AI... This may take 15-30 seconds.', 'loading');
         $('results').classList.remove('visible');
+        var reviewEl = document.getElementById('stepAReview');
+        if (reviewEl) reviewEl.classList.remove('visible');
+        lastParsed = null;
         google.script.run
           .withSuccessHandler(function(res) {
             $('runBtn').disabled = false;
@@ -320,8 +358,9 @@
               showStatus('❌ ' + (res.error || 'Unknown error'), 'error');
               return;
             }
-            showStatus('✅ Skill profile saved.' + (res.stagingRows > 0 ? ' Use Lane Controls to pick roles.' : ''), 'success');
+            showStatus('✅ Parsed. Review below and click Apply to profile to save.', 'success');
             if (res && res.parsed) {
+              lastParsed = res.parsed;
               var roles = res.parsed.suggestedRoles || [];
               var rolesHtml = '';
               for (var i = 0; i < roles.length; i++) rolesHtml += '<span class="role-chip">' + (roles[i].title || '') + '</span>';
@@ -329,13 +368,82 @@
               $('skillsOutput').textContent = (res.parsed.topSkills || []).join(', ') || 'None';
               $('summaryOutput').textContent = res.parsed.skillProfileText || 'None';
               $('results').classList.add('visible');
+              var p = res.parsed;
+              document.getElementById('parsedSummary').textContent = (p.skillProfileText || '').substring(0, 500) || '—';
+              document.getElementById('parsedSkills').textContent = (p.topSkills || []).join(', ') || '—';
+              document.getElementById('parsedPrefs').textContent = [
+                (p.preferredLocations || []).join(', ') || '',
+                (p.preferredCountries || []).join(', ') || '',
+                (p.preferredCities || []).join(', ') || '',
+                p.remotePreference || '',
+                p.currentCity ? ('Current city: ' + p.currentCity) : ''
+              ].filter(Boolean).join(' · ') || '—';
+              if (reviewEl) reviewEl.classList.add('visible');
+              loadCurrentForReview(profileId);
             }
           })
           .withFailureHandler(function(err) {
             $('runBtn').disabled = false;
             showStatus('❌ ' + (err && err.message ? err.message : String(err)), 'error');
           })
-          .skillProfileBuildAndSave(profileId, text);
+          .skillProfileParseOnly(profileId, text);
+      }
+
+      function loadCurrentForReview(profileId) {
+        document.getElementById('currentSummary').textContent = 'Loading...';
+        document.getElementById('currentSkills').textContent = '';
+        document.getElementById('currentPrefs').textContent = '';
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (!res || !res.ok || !res.profile) {
+              document.getElementById('currentSummary').textContent = '—';
+              document.getElementById('currentSkills').textContent = '—';
+              document.getElementById('currentPrefs').textContent = '—';
+              return;
+            }
+            var p = res.profile;
+            document.getElementById('currentSummary').textContent = (p.skillProfileText || '').substring(0, 500) || '—';
+            document.getElementById('currentSkills').textContent = Array.isArray(p.topSkills) ? p.topSkills.join(', ') : (p.topSkills || '—');
+            document.getElementById('currentPrefs').textContent = [
+              Array.isArray(p.preferredLocations) ? p.preferredLocations.join(', ') : (p.preferredLocations || ''),
+              Array.isArray(p.preferredCountries) ? p.preferredCountries.join(', ') : (p.preferredCountries || ''),
+              Array.isArray(p.preferredCities) ? p.preferredCities.join(', ') : (p.preferredCities || ''),
+              p.remotePreference || '',
+              p.currentCity ? ('Current city: ' + p.currentCity) : ''
+            ].filter(Boolean).join(' · ') || '—';
+          })
+          .withFailureHandler(function() {
+            document.getElementById('currentSummary').textContent = '—';
+            document.getElementById('currentSkills').textContent = '—';
+            document.getElementById('currentPrefs').textContent = '—';
+          })
+          .skillProfileGetProfileForReview(profileId);
+      }
+
+      function applyApproved() {
+        var profileId = $('profileSelect').value;
+        if (!profileId) return showStatusApply('Select a profile first.', 'error');
+        if (!lastParsed) return showStatusApply('Parse a resume first, then apply.', 'error');
+        var applySkills = document.getElementById('applySkillsCb').checked;
+        var applyPrefs = document.getElementById('applyPrefsCb').checked;
+        if (!applySkills && !applyPrefs) return showStatusApply('Check at least one: Apply skill profile or Apply preferences.', 'error');
+        var btn = document.getElementById('applyBtn');
+        if (btn) btn.disabled = true;
+        showStatusApply('Applying...', 'loading');
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (btn) btn.disabled = false;
+            if (res && res.ok) {
+              showStatusApply('Applied to profile.', 'success');
+            } else {
+              showStatusApply('❌ ' + (res && res.error ? res.error : 'Apply failed'), 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            if (btn) btn.disabled = false;
+            showStatusApply('❌ ' + (err && err.message ? err.message : String(err)), 'error');
+          })
+          .skillProfileApplyApproved(profileId, lastParsed, { applySkills: applySkills, applyPreferences: applyPrefs });
       }
 
       function openLaneControls() {

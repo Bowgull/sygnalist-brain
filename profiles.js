@@ -66,11 +66,86 @@ function assertProfileActiveOrThrow_(profile) {
   throw new Error(err.message);
 }
 
+/** Known country strings (lowercase) for splitting preferredLocations into countries vs cities. */
+var PREFERRED_LOCATION_COUNTRY_NAMES_ = [
+  "united states", "usa", "us", "canada", "uk", "united kingdom", "germany", "france",
+  "australia", "netherlands", "ireland", "spain", "italy", "mexico", "brazil", "india",
+  "singapore", "japan", "new zealand", "sweden", "switzerland", "austria", "belgium",
+  "portugal", "poland", "remote", "worldwide", "global", "anywhere"
+];
+
+function parseWorkPreferencesFromLegacy_(remotePreference) {
+  const p = String(remotePreference || "remote_only").trim().toLowerCase();
+  if (p === "remote_only") return { acceptRemote: true, acceptHybrid: false, acceptOnsite: false };
+  if (p === "remote_or_hybrid" || p === "hybrid") return { acceptRemote: true, acceptHybrid: true, acceptOnsite: false };
+  if (p === "onsite_ok" || p === "onsite") return { acceptRemote: true, acceptHybrid: true, acceptOnsite: true };
+  return { acceptRemote: true, acceptHybrid: false, acceptOnsite: false };
+}
+
+function splitPreferredLocationsToCountriesAndCities_(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return { preferredCountries: [], preferredCities: [] };
+  const countries = [];
+  const cities = [];
+  const countrySet = new Set(PREFERRED_LOCATION_COUNTRY_NAMES_);
+  (arr || []).forEach(function (s) {
+    const t = String(s || "").trim();
+    if (!t) return;
+    const lower = t.toLowerCase();
+    if (countrySet.has(lower) || lower === "remote" || lower === "worldwide" || lower === "global" || lower === "anywhere") {
+      if (lower !== "remote" && lower !== "worldwide" && lower !== "global" && lower !== "anywhere") countries.push(t);
+    } else {
+      cities.push(t);
+    }
+  });
+  return { preferredCountries: countries, preferredCities: cities };
+}
+
 function rowToProfile_(headers, row) {
   const get = (key) => {
     const idx = headers.indexOf(key);
     return idx === -1 ? null : row[idx];
   };
+
+  const preferredLocations = csvToArray_(get("preferredLocations"));
+  const remotePreference = String(get("remotePreference") || "remote_only").trim();
+
+  const acceptRemoteVal = get("acceptRemote");
+  const acceptHybridVal = get("acceptHybrid");
+  const acceptOnsiteVal = get("acceptOnsite");
+  const hasWorkPrefColumns = acceptRemoteVal !== undefined && acceptRemoteVal !== null && acceptRemoteVal !== "";
+  const workPref = hasWorkPrefColumns
+    ? {
+        acceptRemote: toBool_(acceptRemoteVal),
+        acceptHybrid: toBool_(acceptHybridVal),
+        acceptOnsite: toBool_(acceptOnsiteVal)
+      }
+    : parseWorkPreferencesFromLegacy_(remotePreference);
+
+  const preferredCountriesCol = csvToArray_(get("preferredCountries"));
+  const preferredCitiesCol = csvToArray_(get("preferredCities"));
+  const hasLocationColumns = preferredCountriesCol.length > 0 || preferredCitiesCol.length > 0 ||
+    (get("preferredCountries") !== null && String(get("preferredCountries") || "").trim() !== "") ||
+    (get("preferredCities") !== null && String(get("preferredCities") || "").trim() !== "");
+  const splitLoc = hasLocationColumns
+    ? { preferredCountries: preferredCountriesCol, preferredCities: preferredCitiesCol }
+    : splitPreferredLocationsToCountriesAndCities_(preferredLocations);
+  if (splitLoc.preferredCountries.length === 0 && preferredLocations.length > 0) {
+    splitLoc.preferredCountries = preferredLocations;
+  }
+  if (preferredLocations.length === 0 && (splitLoc.preferredCountries.length > 0 || splitLoc.preferredCities.length > 0)) {
+    preferredLocations = splitLoc.preferredCountries.concat(splitLoc.preferredCities);
+  }
+
+  const currentCity = (function () {
+    const v = get("currentCity");
+    if (v != null && String(v).trim() !== "") return String(v).trim();
+    return "";
+  })();
+  const remoteRegionScope = (function () {
+    const v = get("remoteRegionScope");
+    if (v != null && String(v).trim() !== "") return String(v).trim();
+    return "remote_global";
+  })();
 
   return {
     profileId: String(get("profileId") || "").trim(),
@@ -81,9 +156,17 @@ function rowToProfile_(headers, row) {
     statusReason: String(get("statusReason") || "").trim(),
 
     salaryMin: Number(get("salaryMin") || 0),
-    preferredLocations: csvToArray_(get("preferredLocations")),
+    preferredLocations: preferredLocations,
     locationBlacklist: csvToArray_(get("locationBlacklist")),
-    remotePreference: String(get("remotePreference") || "remote_only").trim(),
+    remotePreference: remotePreference,
+
+    acceptRemote: workPref.acceptRemote,
+    acceptHybrid: workPref.acceptHybrid,
+    acceptOnsite: workPref.acceptOnsite,
+    preferredCountries: splitLoc.preferredCountries,
+    preferredCities: splitLoc.preferredCities,
+    currentCity: currentCity,
+    remoteRegionScope: remoteRegionScope,
 
     bannedKeywords: csvToArray_(get("bannedKeywords")),
     disqualifyingSeniority: csvToArray_(get("disqualifyingSeniority")),

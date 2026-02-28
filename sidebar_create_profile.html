@@ -194,6 +194,12 @@
         font-size: 12px;
         color: var(--gold);
       }
+      .btn-secondary {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-main);
+      }
+      .checkbox-label { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 0; font-weight: 400; cursor: pointer; }
     </style>
   </head>
   
@@ -225,12 +231,34 @@
       <div class="section-title">Preferences</div>
       
       <div class="field">
-        <label>Remote Preference</label>
-        <select id="remotePreference">
-          <option value="remote_only">Remote Only</option>
-          <option value="remote_or_hybrid">Remote or Hybrid</option>
-          <option value="onsite_ok">Onsite OK</option>
+        <label>Work mode</label>
+        <div class="hint">Select all that apply.</div>
+        <label class="checkbox-label"><input type="checkbox" id="acceptRemote" checked> Accept Remote</label>
+        <label class="checkbox-label"><input type="checkbox" id="acceptHybrid"> Accept Hybrid</label>
+        <label class="checkbox-label"><input type="checkbox" id="acceptOnsite"> Accept On-site</label>
+      </div>
+      
+      <div class="field">
+        <label>Remote jobs</label>
+        <select id="remoteRegionScope">
+          <option value="remote_global">Global</option>
+          <option value="remote_preferred_countries_only">Only in preferred countries</option>
         </select>
+      </div>
+      
+      <div class="field">
+        <label>Preferred countries (comma-separated)</label>
+        <input type="text" id="preferredCountries" placeholder="e.g. United States, Canada">
+      </div>
+      
+      <div class="field">
+        <label>Preferred cities (comma-separated)</label>
+        <input type="text" id="preferredCities" placeholder="e.g. New York, Boston">
+      </div>
+      
+      <div class="field">
+        <label>Current city</label>
+        <input type="text" id="currentCity" placeholder="For strict on-site lock">
       </div>
       
       <div class="field">
@@ -239,9 +267,9 @@
       </div>
       
       <div class="field">
-        <label>Preferred Locations</label>
-        <input type="text" id="preferredLocations" placeholder="e.g. New York, Remote">
-        <div class="hint">Comma-separated.</div>
+        <label>Preferred locations (for fetch)</label>
+        <input type="text" id="preferredLocations" placeholder="e.g. United States, Canada">
+        <div class="hint">Comma-separated; used by job fetch.</div>
       </div>
     </div>
     
@@ -253,18 +281,58 @@
       <div class="url-label">Portal URL</div>
       <div class="url-box" id="urlBox"></div>
       <button class="copy-btn" onclick="copyUrl()">📋 Copy URL</button>
-      <div class="next-step">
-        <strong>Next:</strong> Use 🧬 Build Skill Profile to parse their resume.
+      <div class="next-step" id="nextStepText">
+        <strong>Next:</strong> Use 🧬 Skill Profile Builder to parse their resume, or add resume below.
+      </div>
+      <div id="step2Resume" class="step2-section" style="display:none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+        <div class="section-title">Optional: paste resume now</div>
+        <div class="field">
+          <textarea id="createResumeText" placeholder="Paste full resume text (min 100 characters)..." style="width:100%; min-height: 140px; resize: vertical; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; color: var(--text-main); padding: 10px; font-family: inherit;"></textarea>
+        </div>
+        <button class="btn btn-secondary" id="parseResumeBtn" onclick="parseResumeAfterCreate()">Parse resume</button>
+        <div class="status" id="statusParse"></div>
+      </div>
+      <div id="step3Review" class="panel" style="display:none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+        <div class="section-title">Review and apply to profile</div>
+        <div class="review-row" style="display:flex; gap: 12px; flex-wrap: wrap;">
+          <div style="flex:1; min-width: 140px;">
+            <div class="result-label" style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">Current (profile)</div>
+            <div id="createCurrentSummary" class="result-value" style="font-size: 12px; background: var(--bg-elevated); padding: 8px; border-radius: 6px; max-height: 80px; overflow-y: auto; white-space: pre-wrap;"></div>
+          </div>
+          <div style="flex:1; min-width: 140px;">
+            <div class="result-label" style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">Parsed from resume</div>
+            <div id="createParsedSummary" class="result-value" style="font-size: 12px; background: var(--bg-elevated); padding: 8px; border-radius: 6px; max-height: 80px; overflow-y: auto; white-space: pre-wrap;"></div>
+          </div>
+        </div>
+        <div class="field" style="margin-top: 10px;">
+          <label class="checkbox-label"><input type="checkbox" id="createApplySkillsCb" checked> Apply skill profile</label>
+        </div>
+        <div class="field">
+          <label class="checkbox-label"><input type="checkbox" id="createApplyPrefsCb" checked> Apply suggested preferences</label>
+        </div>
+        <button class="btn" id="createApplyBtn" onclick="applyApprovedAfterCreate()">Apply to profile</button>
+        <div class="status" id="statusApply"></div>
       </div>
     </div>
     
     <script>
       function $(id) { return document.getElementById(id); }
       
+      var createdProfileId = '';
+      var createFlowLastParsed = null;
+
       function showStatus(msg, type) {
         var el = $('status');
         el.textContent = msg;
         el.className = 'status visible ' + (type || '');
+      }
+      function showStatusParse(msg, type) {
+        var el = document.getElementById('statusParse');
+        if (el) { el.textContent = msg; el.className = 'status visible ' + (type || ''); }
+      }
+      function showStatusApply(msg, type) {
+        var el = document.getElementById('statusApply');
+        if (el) { el.textContent = msg; el.className = 'status visible ' + (type || ''); }
       }
       
       function createProfile() {
@@ -277,6 +345,9 @@
         if (!displayName) {
           return showStatus('Display Name is required.', 'error');
         }
+        if (!$('acceptRemote').checked && !$('acceptHybrid').checked && !$('acceptOnsite').checked) {
+          return showStatus('Select at least one work mode (Remote, Hybrid, or On-site).', 'error');
+        }
         
         $('createBtn').disabled = true;
         showStatus('Creating profile...', '');
@@ -285,10 +356,14 @@
           .withSuccessHandler(function(res) {
             $('createBtn').disabled = false;
             if (res && res.ok) {
+              createdProfileId = profileId;
               showStatus('✅ Profile created!', 'success');
               if (res.portalUrl) {
                 $('urlBox').textContent = res.portalUrl;
                 $('urlSection').classList.add('visible');
+                document.getElementById('step2Resume').style.display = 'block';
+                document.getElementById('step3Review').style.display = 'none';
+                createFlowLastParsed = null;
               }
             } else {
               showStatus('❌ ' + (res && res.error ? res.error : 'Creation failed'), 'error');
@@ -302,10 +377,74 @@
             profileId: profileId,
             displayName: displayName,
             email: $('email').value.trim(),
-            remotePreference: $('remotePreference').value,
-            salaryMin: parseInt($('salaryMin').value) || 0,
+            acceptRemote: $('acceptRemote').checked,
+            acceptHybrid: $('acceptHybrid').checked,
+            acceptOnsite: $('acceptOnsite').checked,
+            remoteRegionScope: $('remoteRegionScope').value || 'remote_global',
+            preferredCountries: $('preferredCountries').value.trim(),
+            preferredCities: $('preferredCities').value.trim(),
+            currentCity: $('currentCity').value.trim(),
+            salaryMin: parseInt($('salaryMin').value, 10) || 0,
             preferredLocations: $('preferredLocations').value.trim()
           });
+      }
+
+      function parseResumeAfterCreate() {
+        if (!createdProfileId) return showStatusParse('Create a profile first.', 'error');
+        var text = document.getElementById('createResumeText').value;
+        if (!text || text.trim().length < 100) return showStatusParse('Paste at least 100 characters of resume text.', 'error');
+        var btn = document.getElementById('parseResumeBtn');
+        if (btn) btn.disabled = true;
+        showStatusParse('Parsing...', 'loading');
+        document.getElementById('step3Review').style.display = 'none';
+        google.script.run
+          .withSuccessHandler(function(r) {
+            if (btn) btn.disabled = false;
+            if (!r || !r.ok) {
+              showStatusParse('❌ ' + (r && r.error ? r.error : 'Parse failed'), 'error');
+              return;
+            }
+            createFlowLastParsed = r.parsed;
+            showStatusParse('Parsed. Review below and click Apply to profile.', 'success');
+            document.getElementById('createParsedSummary').textContent = (r.parsed.skillProfileText || '').substring(0, 400) || '—';
+            document.getElementById('createCurrentSummary').textContent = 'Loading...';
+            document.getElementById('step3Review').style.display = 'block';
+            google.script.run
+              .withSuccessHandler(function(rev) {
+                if (rev && rev.ok && rev.profile)
+                  document.getElementById('createCurrentSummary').textContent = (rev.profile.skillProfileText || '').substring(0, 400) || '—';
+                else
+                  document.getElementById('createCurrentSummary').textContent = '—';
+              })
+              .withFailureHandler(function() { document.getElementById('createCurrentSummary').textContent = '—'; })
+              .skillProfileGetProfileForReview(createdProfileId);
+          })
+          .withFailureHandler(function(err) {
+            if (btn) btn.disabled = false;
+            showStatusParse('❌ ' + (err && err.message ? err.message : String(err)), 'error');
+          })
+          .skillProfileParseOnly(createdProfileId, text);
+      }
+
+      function applyApprovedAfterCreate() {
+        if (!createdProfileId || !createFlowLastParsed) return showStatusApply('Parse a resume first.', 'error');
+        var applySkills = document.getElementById('createApplySkillsCb').checked;
+        var applyPrefs = document.getElementById('createApplyPrefsCb').checked;
+        if (!applySkills && !applyPrefs) return showStatusApply('Check at least one option.', 'error');
+        var applyBtn = document.getElementById('createApplyBtn');
+        if (applyBtn) applyBtn.disabled = true;
+        showStatusApply('Applying...', 'loading');
+        google.script.run
+          .withSuccessHandler(function(r) {
+            if (applyBtn) applyBtn.disabled = false;
+            if (r && r.ok) showStatusApply('Applied to profile.', 'success');
+            else showStatusApply('❌ ' + (r && r.error ? r.error : 'Apply failed'), 'error');
+          })
+          .withFailureHandler(function(err) {
+            if (applyBtn) applyBtn.disabled = false;
+            showStatusApply('❌ ' + (err && err.message ? err.message : String(err)), 'error');
+          })
+          .skillProfileApplyApproved(createdProfileId, createFlowLastParsed, { applySkills: applySkills, applyPreferences: applyPrefs });
       }
       
       function copyUrl() {

@@ -31,9 +31,20 @@ function createProfileFromSidebar(data) {
     var profileId = String(data.profileId || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
     var displayName = String(data.displayName || "").trim();
     var email = String(data.email || "").trim();
-    var remotePreference = String(data.remotePreference || "remote_only");
+    var acceptRemote = data.acceptRemote === true || data.acceptRemote === "true";
+    var acceptHybrid = data.acceptHybrid === true || data.acceptHybrid === "true";
+    var acceptOnsite = data.acceptOnsite === true || data.acceptOnsite === "true";
+    if (!acceptRemote && !acceptHybrid && !acceptOnsite) {
+      acceptRemote = true;
+    }
+    var remoteRegionScope = String(data.remoteRegionScope || "remote_global").trim();
+    if (remoteRegionScope !== "remote_preferred_countries_only") remoteRegionScope = "remote_global";
+    var preferredCountries = String(data.preferredCountries || "").trim();
+    var preferredCities = String(data.preferredCities || "").trim();
+    var currentCity = String(data.currentCity || "").trim();
     var salaryMin = parseInt(data.salaryMin, 10) || 0;
     var preferredLocations = String(data.preferredLocations || "").trim();
+    if (!preferredLocations && preferredCountries) preferredLocations = preferredCountries;
 
     if (!profileId || profileId.length < 2) {
       return { ok: false, error: "Profile ID must be at least 2 characters." };
@@ -44,6 +55,10 @@ function createProfileFromSidebar(data) {
     if (!displayName) {
       return { ok: false, error: "Display Name is required." };
     }
+
+    var remotePreference = "remote_only";
+    if (acceptOnsite && acceptHybrid && acceptRemote) remotePreference = "onsite_ok";
+    else if (acceptHybrid && acceptRemote) remotePreference = "remote_or_hybrid";
 
     var lock = LockService.getScriptLock();
     if (!lock.tryLock(15000)) {
@@ -89,6 +104,13 @@ function createProfileFromSidebar(data) {
       setByHeader_(headers, row, "salaryMin", salaryMin);
       setByHeader_(headers, row, "preferredLocations", preferredLocations);
       setByHeader_(headers, row, "remotePreference", remotePreference);
+      setByHeader_(headers, row, "acceptRemote", acceptRemote ? "TRUE" : "FALSE");
+      setByHeader_(headers, row, "acceptHybrid", acceptHybrid ? "TRUE" : "FALSE");
+      setByHeader_(headers, row, "acceptOnsite", acceptOnsite ? "TRUE" : "FALSE");
+      setByHeader_(headers, row, "preferredCountries", preferredCountries);
+      setByHeader_(headers, row, "preferredCities", preferredCities);
+      setByHeader_(headers, row, "currentCity", currentCity);
+      setByHeader_(headers, row, "remoteRegionScope", remoteRegionScope);
       setByHeader_(headers, row, "roleTracksJSON", "[]");
       setByHeader_(headers, row, "webAppUrl", portalUrl);
       setByHeader_(headers, row, "isAdmin", "FALSE");

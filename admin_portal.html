@@ -60,6 +60,9 @@
       .form-group { margin-bottom: var(--space-4); }
       .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--color-text-muted); margin-bottom: var(--space-1); }
       .form-group input, .form-group textarea, .form-group select { width: 100%; padding: var(--space-2); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-main); }
+      .form-hint { font-size: 0.75rem; color: var(--color-text-dim); margin-bottom: var(--space-2); }
+      .checkbox-label { display: block; font-size: 0.875rem; font-weight: normal; margin-top: var(--space-1); cursor: pointer; }
+      .checkbox-label input { width: auto; margin-right: var(--space-2); }
       .modal-actions { display: flex; gap: var(--space-3); margin-top: var(--space-5); }
       .toast-admin { position: fixed; bottom: var(--space-6); left: 50%; transform: translateX(-50%); padding: var(--space-3) var(--space-5); border-radius: var(--radius-md); background: var(--color-bg-elevated); border: 1px solid var(--color-border); z-index: 4000; font-size: 0.875rem; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
       .toast-admin.visible { opacity: 1; }
@@ -287,9 +290,25 @@
         <div class="form-group"><label>Profile ID</label><input type="text" id="createProfileId" placeholder="e.g. josh, client1" /></div>
         <div class="form-group"><label>Display name</label><input type="text" id="createDisplayName" placeholder="Display name" /></div>
         <div class="form-group"><label>Email</label><input type="email" id="createEmail" placeholder="email@example.com" /></div>
-        <div class="form-group"><label>Remote preference</label><select id="createRemotePref"><option value="remote_only">Remote only</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></div>
+        <div class="form-group">
+          <label>Work mode</label>
+          <div class="form-hint">Select all that apply.</div>
+          <label class="checkbox-label"><input type="checkbox" id="createAcceptRemote" checked> Accept Remote</label>
+          <label class="checkbox-label"><input type="checkbox" id="createAcceptHybrid"> Accept Hybrid</label>
+          <label class="checkbox-label"><input type="checkbox" id="createAcceptOnsite"> Accept On-site</label>
+        </div>
+        <div class="form-group">
+          <label>Remote jobs</label>
+          <select id="createRemoteScope">
+            <option value="remote_global">Global</option>
+            <option value="remote_preferred_countries_only">Only in preferred countries</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Preferred countries (comma-separated)</label><input type="text" id="createPreferredCountries" placeholder="United States, Canada" /></div>
+        <div class="form-group"><label>Preferred cities (comma-separated)</label><input type="text" id="createPreferredCities" placeholder="e.g. New York, Boston" /></div>
+        <div class="form-group"><label>Current city</label><input type="text" id="createCurrentCity" placeholder="For strict on-site lock" /></div>
         <div class="form-group"><label>Salary min (0 = any)</label><input type="number" id="createSalaryMin" value="0" min="0" /></div>
-        <div class="form-group"><label>Preferred locations (comma-separated)</label><input type="text" id="createPreferredLocations" placeholder="United States, Canada" /></div>
+        <div class="form-group"><label>Preferred locations (legacy, for fetch)</label><input type="text" id="createPreferredLocations" placeholder="United States, Canada" /></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="createCancel">Cancel</button>
           <button type="button" class="btn btn-primary" id="createSubmit">Create</button>
@@ -314,18 +333,46 @@
       <div class="modal">
         <button type="button" class="modal-close" id="modalResumeParseClose">×</button>
         <div class="modal-title">Resume parse</div>
-        <p class="admin-sub" style="margin-bottom: var(--space-3);">Paste the full resume text below (min 100 characters).</p>
-        <div class="form-group">
-          <label>Profile</label>
-          <select id="resumeParseProfileSelect" class="admin-select"><option value="">Select profile</option></select>
+        <div id="resumeParseForm">
+          <p class="admin-sub" style="margin-bottom: var(--space-3);">Paste the full resume text below (min 100 characters).</p>
+          <div class="form-group">
+            <label>Profile</label>
+            <select id="resumeParseProfileSelect" class="admin-select"><option value="">Select profile</option></select>
+          </div>
+          <div class="form-group">
+            <label>Resume text</label>
+            <textarea id="resumeParseText" class="admin-search" rows="14" placeholder="Paste full resume text (min 100 characters)..." style="min-height: 200px; resize: vertical;"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="resumeParseCancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="resumeParseOk">Parse</button>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Resume text</label>
-          <textarea id="resumeParseText" class="admin-search" rows="14" placeholder="Paste full resume text (min 100 characters)..." style="min-height: 200px; resize: vertical;"></textarea>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" id="resumeParseCancel">Cancel</button>
-          <button type="button" class="btn btn-primary" id="resumeParseOk">OK</button>
+        <div id="resumeParseReview" style="display:none;">
+          <p class="admin-sub" style="margin-bottom: var(--space-2);">Review current vs parsed. Choose what to apply, then click Apply to profile.</p>
+          <div style="display:flex; gap: var(--space-3); flex-wrap: wrap;">
+            <div style="flex:1; min-width: 200px;">
+              <div class="admin-sub" style="font-weight:600; margin-bottom: var(--space-1);">Current (profile)</div>
+              <div id="resumeParseCurrentSummary" class="admin-sub" style="white-space: pre-wrap; max-height: 120px; overflow-y: auto; background: var(--bg-elevated, #111); padding: var(--space-2); border-radius: 8px; margin-bottom: var(--space-2);"></div>
+              <div id="resumeParseCurrentPrefs" class="admin-sub" style="font-size: 12px;"></div>
+            </div>
+            <div style="flex:1; min-width: 200px;">
+              <div class="admin-sub" style="font-weight:600; margin-bottom: var(--space-1);">Parsed from resume</div>
+              <div id="resumeParseParsedSummary" class="admin-sub" style="white-space: pre-wrap; max-height: 120px; overflow-y: auto; background: var(--bg-elevated, #111); padding: var(--space-2); border-radius: 8px; margin-bottom: var(--space-2);"></div>
+              <div id="resumeParseParsedPrefs" class="admin-sub" style="font-size: 12px;"></div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top: var(--space-2);">
+            <label><input type="checkbox" id="resumeParseApplySkillsCb" checked> Apply skill profile (summary, skills, stories)</label>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="resumeParseApplyPrefsCb" checked> Apply suggested preferences (locations, remote)</label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="resumeParseBackBtn">Back</button>
+            <button type="button" class="btn btn-primary" id="resumeParseApplyBtn">Apply to profile</button>
+          </div>
+          <div id="resumeParseApplyStatus" class="admin-sub" style="margin-top: var(--space-2);"></div>
         </div>
       </div>
     </div>
@@ -578,6 +625,10 @@
         }
         var ta = document.getElementById('resumeParseText');
         if (ta) ta.value = '';
+        document.getElementById('resumeParseForm').style.display = '';
+        document.getElementById('resumeParseReview').style.display = 'none';
+        resumeParseLastParsed = null;
+        resumeParseProfileId = '';
         var modalResumeParse = document.getElementById('modalResumeParse');
         if (modalResumeParse) modalResumeParse.classList.add('visible');
       }
@@ -585,6 +636,8 @@
         var m = document.getElementById('modalResumeParse');
         if (m) m.classList.remove('visible');
       }
+      var resumeParseLastParsed = null;
+      var resumeParseProfileId = '';
       var btnResumeParse = document.getElementById('btnResumeParse');
       if (btnResumeParse) btnResumeParse.addEventListener('click', openResumeParseModal);
       var modalResumeParseClose = document.getElementById('modalResumeParseClose');
@@ -599,10 +652,74 @@
         var text = ta ? ta.value : '';
         if (!profileId) { showToast('Select a profile', true); return; }
         if (String(text).trim().length < 100) { showToast('Resume text too short (min 100 chars)', true); return; }
+        resumeParseOk.disabled = true;
         google.script.run.withSuccessHandler(function(r) {
-          if (r.ok) { showToast('Resume parsed; staging updated'); closeResumeParseModal(); loadProfiles(); }
-          else showToast(r.error || 'Failed', true);
-        }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminResumeParse(profileId, text);
+          resumeParseOk.disabled = false;
+          if (!r.ok) { showToast(r.error || 'Failed', true); return; }
+          resumeParseLastParsed = r.parsed;
+          resumeParseProfileId = profileId;
+          document.getElementById('resumeParseForm').style.display = 'none';
+          document.getElementById('resumeParseReview').style.display = 'block';
+          var p = r.parsed || {};
+          document.getElementById('resumeParseParsedSummary').textContent = (p.skillProfileText || '').substring(0, 600) || '—';
+          document.getElementById('resumeParseParsedPrefs').textContent = [
+            (p.topSkills || []).join(', '),
+            (p.preferredLocations || []).join(', ') || (p.preferredCountries || []).join(', '),
+            p.remotePreference || '',
+            p.currentCity ? ('Current city: ' + p.currentCity) : ''
+          ].filter(Boolean).join(' · ') || '—';
+          document.getElementById('resumeParseCurrentSummary').textContent = 'Loading...';
+          document.getElementById('resumeParseCurrentPrefs').textContent = '';
+          google.script.run.withSuccessHandler(function(rev) {
+            if (rev && rev.ok && rev.profile) {
+              var cur = rev.profile;
+              document.getElementById('resumeParseCurrentSummary').textContent = (cur.skillProfileText || '').substring(0, 600) || '—';
+              document.getElementById('resumeParseCurrentPrefs').textContent = [
+                Array.isArray(cur.topSkills) ? cur.topSkills.join(', ') : cur.topSkills,
+                Array.isArray(cur.preferredLocations) ? cur.preferredLocations.join(', ') : cur.preferredLocations,
+                cur.remotePreference || '',
+                cur.currentCity ? ('Current city: ' + cur.currentCity) : ''
+              ].filter(Boolean).join(' · ') || '—';
+            } else {
+              document.getElementById('resumeParseCurrentSummary').textContent = '—';
+              document.getElementById('resumeParseCurrentPrefs').textContent = '—';
+            }
+          }).withFailureHandler(function() {
+            document.getElementById('resumeParseCurrentSummary').textContent = '—';
+            document.getElementById('resumeParseCurrentPrefs').textContent = '—';
+          }).adminGetProfileForReview(profileId);
+        }).withFailureHandler(function(err) {
+          resumeParseOk.disabled = false;
+          showToast(adminErrorMessage(err, 'Error'), true);
+        }).adminResumeParseOnly(profileId, text);
+      });
+      var resumeParseBackBtn = document.getElementById('resumeParseBackBtn');
+      if (resumeParseBackBtn) resumeParseBackBtn.addEventListener('click', function() {
+        document.getElementById('resumeParseReview').style.display = 'none';
+        document.getElementById('resumeParseForm').style.display = '';
+      });
+      var resumeParseApplyBtn = document.getElementById('resumeParseApplyBtn');
+      if (resumeParseApplyBtn) resumeParseApplyBtn.addEventListener('click', function() {
+        if (!resumeParseProfileId || !resumeParseLastParsed) { showToast('Parse a resume first', true); return; }
+        var applySkills = document.getElementById('resumeParseApplySkillsCb').checked;
+        var applyPrefs = document.getElementById('resumeParseApplyPrefsCb').checked;
+        if (!applySkills && !applyPrefs) { showToast('Check at least one option to apply', true); return; }
+        var statusEl = document.getElementById('resumeParseApplyStatus');
+        statusEl.textContent = 'Applying...';
+        resumeParseApplyBtn.disabled = true;
+        google.script.run.withSuccessHandler(function(r) {
+          resumeParseApplyBtn.disabled = false;
+          if (r.ok) {
+            showToast('Applied to profile');
+            closeResumeParseModal();
+            loadProfiles();
+          } else {
+            statusEl.textContent = r.error || 'Apply failed';
+          }
+        }).withFailureHandler(function(err) {
+          resumeParseApplyBtn.disabled = false;
+          statusEl.textContent = adminErrorMessage(err, 'Error');
+        }).adminResumeApplyApproved(resumeParseProfileId, resumeParseLastParsed, { applySkills: applySkills, applyPreferences: applyPrefs });
       });
 
       function openEditModal(profileId) {
@@ -649,13 +766,26 @@
       });
       var createSubmit = document.getElementById('createSubmit');
       if (createSubmit) createSubmit.addEventListener('click', function() {
+        var acceptRemote = document.getElementById('createAcceptRemote') && document.getElementById('createAcceptRemote').checked;
+        var acceptHybrid = document.getElementById('createAcceptHybrid') && document.getElementById('createAcceptHybrid').checked;
+        var acceptOnsite = document.getElementById('createAcceptOnsite') && document.getElementById('createAcceptOnsite').checked;
+        if (!acceptRemote && !acceptHybrid && !acceptOnsite) {
+          showToast('Select at least one work mode (Remote, Hybrid, or On-site)', true);
+          return;
+        }
         var data = {
           profileId: document.getElementById('createProfileId').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_'),
           displayName: document.getElementById('createDisplayName').value.trim(),
           email: document.getElementById('createEmail').value.trim(),
-          remotePreference: document.getElementById('createRemotePref').value,
+          acceptRemote: acceptRemote,
+          acceptHybrid: acceptHybrid,
+          acceptOnsite: acceptOnsite,
+          remoteRegionScope: (document.getElementById('createRemoteScope') && document.getElementById('createRemoteScope').value) || 'remote_global',
+          preferredCountries: document.getElementById('createPreferredCountries') ? document.getElementById('createPreferredCountries').value.trim() : '',
+          preferredCities: document.getElementById('createPreferredCities') ? document.getElementById('createPreferredCities').value.trim() : '',
+          currentCity: document.getElementById('createCurrentCity') ? document.getElementById('createCurrentCity').value.trim() : '',
           salaryMin: parseInt(document.getElementById('createSalaryMin').value, 10) || 0,
-          preferredLocations: document.getElementById('createPreferredLocations').value.trim()
+          preferredLocations: document.getElementById('createPreferredLocations') ? document.getElementById('createPreferredLocations').value.trim() : ''
         };
         if (!data.profileId || !data.displayName) { showToast('Profile ID and Display name required', true); return; }
         google.script.run.withSuccessHandler(function(r) {

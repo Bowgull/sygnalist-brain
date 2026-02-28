@@ -517,6 +517,16 @@ function getAdminAnalyticsForUI_() {
  * Returns only the fields needed for the right-side metric tiles when viewer is admin.
  */
 function getAdminDashboardGlobals_() {
+  var cacheKey = 'admin_dashboard_globals';
+  var ttlSeconds = 45;
+  try {
+    var cached = CacheService.getScriptCache().get(cacheKey);
+    if (cached) {
+      var parsed = JSON.parse(cached);
+      if (parsed && typeof parsed.inboxCountAll === 'number') return parsed;
+    }
+  } catch (e) { /* ignore cache errors */ }
+
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sevenDays = 7 * 24 * 60 * 60 * 1000;
   var now = Date.now();
@@ -611,5 +621,8 @@ function getAdminDashboardGlobals_() {
     }
   }
 
+  try {
+    CacheService.getScriptCache().put(cacheKey, JSON.stringify(out), ttlSeconds);
+  } catch (e) { /* ignore */ }
   return out;
 }

@@ -1282,11 +1282,29 @@
 
   var dashboardCache = { inboxCount: 0, trackerCount: 0, byStatus: {}, inboxAddedLast7: 0, trackerAddedLast7: 0 };
   async function loadDashboard() {
+    showMetricsSkeleton(typeof SHOW_ADMIN_UI !== 'undefined' && SHOW_ADMIN_UI);
     var res = await api('getDashboard');
     if (res && res.ok) {
       dashboardCache = Object.assign({}, res);
       renderMetrics(dashboardCache);
     }
+  }
+
+  function showMetricsSkeleton(isAdmin) {
+    var col = $('metricsColumn');
+    if (!col) return;
+    var html = '';
+    if (isAdmin) {
+      html += '<div class="metric-card metric-jobs-need-info metric-card-skeleton"><div class="metric-card-icon">' + iconHtml('fetch') + '</div><div class="metric-card-label">Jobs need info</div><div class="metric-card-value metric-card-value-skeleton skeleton"></div></div>';
+      html += '<div class="metric-card metric-profiles metric-card-skeleton"><div class="metric-card-icon">' + iconHtml('target') + '</div><div class="metric-card-label">Profiles</div><div class="metric-card-value metric-card-value-skeleton skeleton"></div></div>';
+      html += '<div class="metric-card metric-errors metric-card-skeleton"><div class="metric-card-icon">' + iconHtml('view') + '</div><div class="metric-card-label">Errors</div><div class="metric-card-value metric-card-value-skeleton skeleton"></div></div>';
+    }
+    html += '<div class="metric-card metric-open-signals metric-card-skeleton"><div class="metric-card-icon">' + iconHtml('fetch') + '</div><div class="metric-card-label">Open Sygnals</div><div class="metric-card-value metric-card-value-skeleton skeleton"></div></div>';
+    html += '<div class="metric-card metric-in-tracker metric-card-skeleton"><div class="metric-card-icon">' + iconHtml('target') + '</div><div class="metric-card-label">' + (isAdmin ? 'In Tracker' : 'Prospects') + '</div><div class="metric-card-value metric-card-value-skeleton skeleton"></div></div>';
+    html += '<div class="metric-card metric-applied metric-card-skeleton"><div class="metric-card-icon">' + iconHtml('applied') + '</div><div class="metric-card-label">Applied</div><div class="metric-card-value metric-card-value-skeleton skeleton"></div></div>';
+    html += '<div class="metric-card metric-interviewing metric-card-skeleton"><div class="metric-card-icon">' + iconHtml('interviewing') + '</div><div class="metric-card-label">Interviewing</div><div class="metric-card-value metric-card-value-skeleton skeleton"></div></div>';
+    html += '<div class="metric-card metric-added-week metric-card-skeleton"><div class="metric-card-icon">' + iconHtml('addedThisWeek') + '</div><div class="metric-card-label">Added (7d)</div><div class="metric-card-value metric-card-value-skeleton skeleton"></div></div>';
+    col.innerHTML = html;
   }
 
   function renderMetrics(dash) {
