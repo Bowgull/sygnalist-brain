@@ -745,7 +745,9 @@
       html += '<div class="job-header"><div class="job-title">' + esc(row.title) + '</div><div class="job-company">' + esc(row.company || '-') + '</div></div>';
       html += '<div class="job-meta"><span class="chip">' + esc(row.source || '-') + '</span><span class="status-pill ' + stageClass + '">' + esc(status) + '</span>';
       if (missing) html += '<span class="chip chip-missing">' + esc(missing) + '</span>';
-      html += '<span class="chip chip-muted">' + esc(row.created_at_label || row.created_at) + '</span></div>';
+      html += '<span class="chip chip-muted">Ingested: ' + esc(row.created_at_label || row.created_at) + '</span>';
+      if (row.email_received_at_label) html += '<span class="chip chip-muted">Email: ' + esc(row.email_received_at_label) + '</span>';
+      html += '</div>';
       html += '<div class="job-actions"><a class="btn btn-ghost btn-card" href="' + esc(row.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">View</a>';
       html += '<button type="button" class="btn btn-primary btn-card btn-edit-job" data-job-id="' + jid + '">Edit</button></div></div>';
       html += '<div class="jobs-intake-card-form" style="display:none;">';

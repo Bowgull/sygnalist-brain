@@ -5,7 +5,7 @@
  */
 
 var JOBS_INBOX_HEADERS = [
-  "job_id", "created_at", "title", "source", "url",
+  "job_id", "created_at", "email_received_at", "title", "source", "url",
   "enrichment_status", "missing_fields", "role_id", "promoted_at", "notes",
   "company", "location", "work_mode", "job_family", "description_snippet",
   "job_summary", "why_fit"

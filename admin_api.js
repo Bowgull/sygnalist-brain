@@ -722,11 +722,14 @@ function adminGetJobsInbox(filterStatuses) {
       var a = o.created_at;
       var createdAt = (a instanceof Date) ? Utilities.formatDate(a, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm") : String(a || "");
       var createdAtLabel = (a instanceof Date) ? formatCreatedAtLabel_(a) : (createdAt || "—");
+      var b = o.email_received_at;
+      var emailReceivedAtLabel = (b instanceof Date) ? formatCreatedAtLabel_(b) : "—";
       return {
         job_id: o.job_id,
         _rowIndex: o._rowIndex,
         created_at: createdAt,
         created_at_label: createdAtLabel,
+        email_received_at_label: emailReceivedAtLabel,
         title: String(o.title || ""),
         source: String(o.source || ""),
         url: String(o.url || ""),

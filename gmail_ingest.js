@@ -71,6 +71,9 @@ function ingestJobsFromGmail_() {
 
   var threadsToProcess = threads.slice(0, GMAIL_INGEST_BATCH_CAP);
 
+  var ingestedLabel = GmailApp.getUserLabelByName("SYGN_INGESTED");
+  if (!ingestedLabel) ingestedLabel = GmailApp.createLabel("SYGN_INGESTED");
+
   for (var t = 0; t < threadsToProcess.length; t++) {
     var thread = threadsToProcess[t];
     var msgs = thread.getMessages();
@@ -87,6 +90,7 @@ function ingestJobsFromGmail_() {
         var batchRows = [];
         var added = 0;
         var skipped = 0;
+        var msgDate = (msg.getDate && typeof msg.getDate === "function") ? msg.getDate() : new Date();
         for (var i = 0; i < extracted.length; i++) {
           var job = extracted[i];
           var norm = normalizeUrlForJobsInbox_(job.url);
@@ -100,6 +104,7 @@ function ingestJobsFromGmail_() {
           var row = {
             job_id: "job_" + Utilities.getUuid().slice(0, 8),
             created_at: new Date(),
+            email_received_at: msgDate instanceof Date ? msgDate : new Date(),
             title: job.title || "Unknown Title",
             source: job.source || inferSourceFromDomain_(job.url),
             url: job.url,
@@ -129,8 +134,6 @@ function ingestJobsFromGmail_() {
         }
 
         if (added > 0) {
-          var ingestedLabel = GmailApp.getUserLabelByName("SYGN_INGESTED");
-          if (!ingestedLabel) ingestedLabel = GmailApp.createLabel("SYGN_INGESTED");
           msg.addLabel(ingestedLabel);
           out.messages_labeled_ingested++;
         }
@@ -149,6 +152,7 @@ function ingestJobsFromGmail_() {
         }
       }
     }
+    thread.addLabel(ingestedLabel);
   }
 
   if (typeof logEvent_ === "function") {
