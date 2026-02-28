@@ -116,7 +116,7 @@
     </style>
   </head>
 
-  <body<? if (ADMIN_SCRIPT_SRC) { ?> data-admin-script-src="<?= ADMIN_SCRIPT_SRC ?>"<? } ?><? if (ADMIN_INLINE_FAILED) { ?> data-admin-inline-failed="1"<? } ?>>
+  <body<? if (ADMIN_SCRIPT_SRC) { ?> data-admin-script-src="<?= ADMIN_SCRIPT_SRC ?>"<? } ?>>
     <!-- Global background (single static SVG: abstract cyberpunk — sweep + dots + scanlines) -->
     <div class="app-background" aria-hidden="true">
       <svg xmlns="http://www.w3.org/2000/svg"
@@ -411,6 +411,5 @@
         } catch (e) { if (typeof console !== 'undefined') console.error('Admin boot JSON error', e); }
       })();
     </script>
-    <? if (ADMIN_SCRIPT_B64_JSON) { ?><script>(function(){ var __ab64 = <?!= ADMIN_SCRIPT_B64_JSON ?>; if (__ab64) { try { (new Function(atob(__ab64)))(); } catch (e) { if (typeof console !== 'undefined') console.error('Admin script error', e); window.__ADMIN_INLINE_SCRIPT_ERROR = true; try { if (typeof document.dispatchEvent === 'function') { var ev = document.createEvent('Event'); ev.initEvent('sygnalist-admin-ready', true, true); document.dispatchEvent(ev); } } catch (e2) {} } } })();</script><? } ?>
   </body>
 </html>

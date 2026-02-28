@@ -259,9 +259,7 @@
     var adminScriptSrc = document.body.getAttribute('data-admin-script-src');
     if (adminScriptSrc === 'inline') return 'inline';
     if (!adminScriptSrc || !adminScriptSrc.trim()) {
-      var inlineFailed = document.body.getAttribute('data-admin-inline-failed');
-      var msg = inlineFailed ? 'Admin script could not be loaded by the server (inlining failed). In Apps Script open Executions and look for the doGet run (not portal_api) to see the error.' : 'Admin is not configured for this page.';
-      showAdminLoadError(msg);
+      showAdminLoadError('Admin is not configured for this page.');
       return 'no-config';
     }
     if (window._adminScriptInjected) return 'already-injected';

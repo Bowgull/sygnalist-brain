@@ -159,10 +159,9 @@ function doGet(e) {
     tpl.ADMIN_URL_JSON = JSON.stringify(showAdminUI ? sanitizedBaseUrl : "");
     tpl.SHOW_ADMIN_UI_JSON = JSON.stringify(!!showAdminUI);
     tpl.ADMIN_PROFILE_ID_JSON = JSON.stringify(sanitizedAdminProfileId);
-    // When showAdminUI is true, inline the admin script as Base64 so the template never outputs raw script (avoids Malformed HTML and escaping edge cases).
+    // When showAdminUI is true, load admin script via ?asset=admin only (no inline base64).
     var adminScriptSrc = "";
     var adminScriptB64JSON = "";
-    var adminInlineFailed = "";
     if (showAdminUI) {
       const adminTpl = HtmlService.createTemplateFromFile("admin_tab_content");
       adminTpl.BASE_URL_JSON = JSON.stringify(sanitizedBaseUrl);
@@ -172,28 +171,14 @@ function doGet(e) {
       var bootJsonStr = JSON.stringify(adminBoot);
       var escapedJson = escapeJsonForScriptTag_(bootJsonStr);
       tpl.ADMIN_BOOT_SCRIPT_TAG = "<script type=\"application/json\" id=\"ADMIN_BOOT_JSON\">" + escapedJson + "</script>";
-      try {
-        var adminHtml = HtmlService.createHtmlOutputFromFile("admin_tab_script").getContent();
-        var adminScriptRaw = extractFirstScriptBody_(adminHtml);
-        var adminScriptB64 = Utilities.base64Encode(Utilities.newBlob(adminScriptRaw).getBytes());
-        adminScriptB64JSON = JSON.stringify(adminScriptB64);
-        adminScriptSrc = "inline";
-      } catch (inlineErr) {
-        try {
-          var errMsg = String((inlineErr && inlineErr.message) || inlineErr).substring(0, 300);
-          Logger.log("Admin script inlining failed: " + errMsg + " [file=admin_tab_script]");
-        } catch (e) {}
-        adminScriptSrc = "?asset=admin";
-        adminScriptB64JSON = "";
-        adminInlineFailed = "1";
-      }
+      adminScriptSrc = "?asset=admin";
+      adminScriptB64JSON = "";
     } else {
       tpl.ADMIN_TAB_HTML = "";
       tpl.ADMIN_BOOT_SCRIPT_TAG = "";
     }
     tpl.ADMIN_SCRIPT_SRC = adminScriptSrc;
     tpl.ADMIN_SCRIPT_B64_JSON = adminScriptB64JSON;
-    tpl.ADMIN_INLINE_FAILED = adminInlineFailed;
 
     return tpl.evaluate()
       .setTitle("Sygnalist — Client Portal")
