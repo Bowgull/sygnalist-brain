@@ -291,7 +291,17 @@
       return;
     }
     if (typeof window.bindAdminUIOnce === 'function') window.bindAdminUIOnce();
-    if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
+    function doLoad() {
+      if (typeof window._adminLoadProfiles === 'function') {
+        window._adminLoadProfiles();
+        return;
+      }
+      if (typeof window.loadAdminProfiles === 'function') window.loadAdminProfiles();
+    }
+    doLoad();
+    if (typeof window._adminLoadProfiles !== 'function') {
+      setTimeout(function() { doLoad(); }, 50);
+    }
   }
 
   /**
