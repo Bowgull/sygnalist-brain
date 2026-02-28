@@ -603,6 +603,19 @@ function formatExportSubjectDate_(date, tz) {
   return dayName + ", " + day + ord + " " + month + ", " + year;
 }
 
+/** Format date as "Wed 12th Feb 25" for job ingest card display. */
+function formatCreatedAtLabel_(date) {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) return "—";
+  var tz = Session.getScriptTimeZone();
+  var d = date;
+  var day = d.getDate();
+  var ord = (day % 10 === 1 && day !== 11) ? "st" : (day % 10 === 2 && day !== 12) ? "nd" : (day % 10 === 3 && day !== 13) ? "rd" : "th";
+  var dayName = Utilities.formatDate(d, tz, "EEE");
+  var month = Utilities.formatDate(d, tz, "MMM");
+  var year = Utilities.formatDate(d, tz, "yy");
+  return dayName + " " + day + ord + " " + month + " " + year;
+}
+
 function adminFormatLogsSheet() {
   logAdmin_("start", "Format logs sheet started", {});
   try {
@@ -708,10 +721,12 @@ function adminGetJobsInbox(filterStatuses) {
     var list = rows.map(function (o) {
       var a = o.created_at;
       var createdAt = (a instanceof Date) ? Utilities.formatDate(a, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm") : String(a || "");
+      var createdAtLabel = (a instanceof Date) ? formatCreatedAtLabel_(a) : (createdAt || "—");
       return {
         job_id: o.job_id,
         _rowIndex: o._rowIndex,
         created_at: createdAt,
+        created_at_label: createdAtLabel,
         title: String(o.title || ""),
         source: String(o.source || ""),
         url: String(o.url || ""),

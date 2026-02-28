@@ -1302,12 +1302,6 @@
     var v5 = isAdmin ? (dash.addedLast7All != null ? dash.addedLast7All : 0) : ((dash.inboxAddedLast7 || 0) + (dash.trackerAddedLast7 || 0));
     var labelTracker = isAdmin ? 'In Tracker' : 'Prospects';
     var html = '';
-    /* Client portal metrics column is client-only; admin metrics (jobs need info, profiles, errors) only in admin portal */
-    html += '<button type="button" class="metric-card metric-open-signals" data-metric="radar" aria-label="Go to Inbox"><div class="metric-card-icon">' + iconHtml('fetch') + '</div><div class="metric-card-label">Open Sygnals</div><div class="metric-card-value">' + v1 + '</div></button>';
-    html += '<button type="button" class="metric-card metric-in-tracker" data-stage="Prospect" aria-label="' + labelTracker + '"><div class="metric-card-icon">' + iconHtml('target') + '</div><div class="metric-card-label">' + labelTracker + '</div><div class="metric-card-value">' + v2 + '</div></button>';
-    html += '<button type="button" class="metric-card metric-applied" data-stage="Applied" aria-label="Filter by Applied"><div class="metric-card-icon">' + iconHtml('applied') + '</div><div class="metric-card-label">Applied</div><div class="metric-card-value">' + v3 + '</div></button>';
-    html += '<button type="button" class="metric-card metric-interviewing" data-stage="Interview" aria-label="Filter by Interviewing"><div class="metric-card-icon">' + iconHtml('interviewing') + '</div><div class="metric-card-label">Interviewing</div><div class="metric-card-value">' + v4 + '</div></button>';
-    html += '<div class="metric-card metric-added-week"><div class="metric-card-icon">' + iconHtml('addedThisWeek') + '</div><div class="metric-card-label">Added (7d)</div><div class="metric-card-value">' + v5 + '</div></div>';
     if (isAdmin) {
       var jobsNeedVal = dash.jobsNeedingEnrichment != null ? dash.jobsNeedingEnrichment : 0;
       html += '<button type="button" class="metric-card metric-jobs-need-info" data-metric="admin-jobs" aria-label="Jobs need info"><div class="metric-card-icon">' + iconHtml('fetch') + '</div><div class="metric-card-label">Jobs need info</div><div class="metric-card-value">' + jobsNeedVal + '</div></button>';
@@ -1318,6 +1312,11 @@
       var errCount = dash.recentErrorsCount != null ? dash.recentErrorsCount : 0;
       html += '<button type="button" class="metric-card metric-errors" data-metric="admin" aria-label="Errors"><div class="metric-card-icon">' + iconHtml('view') + '</div><div class="metric-card-label">Errors</div><div class="metric-card-value">' + errCount + '</div></button>';
     }
+    html += '<button type="button" class="metric-card metric-open-signals" data-metric="radar" aria-label="Go to Inbox"><div class="metric-card-icon">' + iconHtml('fetch') + '</div><div class="metric-card-label">Open Sygnals</div><div class="metric-card-value">' + v1 + '</div></button>';
+    html += '<button type="button" class="metric-card metric-in-tracker" data-stage="Prospect" aria-label="' + labelTracker + '"><div class="metric-card-icon">' + iconHtml('target') + '</div><div class="metric-card-label">' + labelTracker + '</div><div class="metric-card-value">' + v2 + '</div></button>';
+    html += '<button type="button" class="metric-card metric-applied" data-stage="Applied" aria-label="Filter by Applied"><div class="metric-card-icon">' + iconHtml('applied') + '</div><div class="metric-card-label">Applied</div><div class="metric-card-value">' + v3 + '</div></button>';
+    html += '<button type="button" class="metric-card metric-interviewing" data-stage="Interview" aria-label="Filter by Interviewing"><div class="metric-card-icon">' + iconHtml('interviewing') + '</div><div class="metric-card-label">Interviewing</div><div class="metric-card-value">' + v4 + '</div></button>';
+    html += '<div class="metric-card metric-added-week"><div class="metric-card-icon">' + iconHtml('addedThisWeek') + '</div><div class="metric-card-label">Added (7d)</div><div class="metric-card-value">' + v5 + '</div></div>';
     col.innerHTML = html;
     col.querySelectorAll('.metric-card[data-stage]').forEach(function(btn) {
       btn.addEventListener('click', function() {
