@@ -305,6 +305,20 @@ function adminGetStaging(profileId) {
   }
 }
 
+function adminGetStagingIncludingApplied(profileId) {
+  logAdmin_("start", "Get staging including applied started", { profileId: profileId });
+  try {
+    var rows = typeof getAllStagingRowsForProfileIncludingApplied_ === "function"
+      ? getAllStagingRowsForProfileIncludingApplied_(profileId)
+      : getAllStagingRowsForProfile_(profileId);
+    logAdmin_("ok", "Get staging including applied completed", { profileId: profileId, count: (rows && rows.length) || 0 });
+    return { ok: true, rows: rows };
+  } catch (e) {
+    logAdmin_("error", "Get staging including applied failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
 function adminSetStagingApproved(profileId, approvedRoleTitles) {
   logAdmin_("start", "Set staging approved started", { profileId: profileId });
   try {

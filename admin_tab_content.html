@@ -63,6 +63,28 @@
   #adminTabContent .admin-load-error .admin-load-error-msg { margin-bottom: var(--space-3); }
   #adminTabContent .admin-load-error .admin-load-error-url { font-size: 0.75rem; margin-top: var(--space-2); word-break: break-all; opacity: 0.9; }
   #adminTabContent .admin-load-error .btn { margin-top: var(--space-2); }
+  /* Lane toggle pill: OFF = gray, ON = accent; sliding handle */
+  #adminTabContent .lane-toggle-wrap { display: inline-flex; align-items: center; position: relative; }
+  #adminTabContent .lane-toggle-wrap .lane-toggle { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none; }
+  #adminTabContent .lane-toggle-pill {
+    display: inline-flex; align-items: center; justify-content: space-between;
+    width: 52px; height: 26px; padding: 0 6px; box-sizing: border-box;
+    background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 999px;
+    cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  #adminTabContent .lane-toggle-wrap.on .lane-toggle-pill { background: rgba(106, 215, 163, 0.35); border-color: var(--color-radar-mid); }
+  #adminTabContent .lane-toggle-pill .lane-toggle-handle {
+    position: absolute; left: 2px; top: 2px; width: 20px; height: 20px;
+    background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: transform 0.2s ease; pointer-events: none;
+  }
+  #adminTabContent .lane-toggle-wrap.on .lane-toggle-pill .lane-toggle-handle { transform: translateX(26px); }
+  #adminTabContent .lane-toggle-pill .lane-toggle-off,
+  #adminTabContent .lane-toggle-pill .lane-toggle-on { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; z-index: 0; pointer-events: none; }
+  #adminTabContent .lane-toggle-pill .lane-toggle-off { color: var(--color-text-muted); margin-left: 22px; }
+  #adminTabContent .lane-toggle-pill .lane-toggle-on { color: var(--color-radar-dark, #2F8A63); margin-right: 22px; visibility: hidden; }
+  #adminTabContent .lane-toggle-wrap.on .lane-toggle-pill .lane-toggle-off { visibility: hidden; margin-left: 0; }
+  #adminTabContent .lane-toggle-wrap.on .lane-toggle-pill .lane-toggle-on { visibility: visible; }
 </style>
 <div id="adminTabContent">
   <div id="adminLoadError" class="admin-load-error" role="alert" aria-live="polite">

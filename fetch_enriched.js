@@ -61,6 +61,7 @@ function fetchForProfileWithEnrichment_(profileId) {
     const batchId = newBatchId_();
 
     return withProfileLock_(profile.profileId, "fetch_enriched", () => {
+      var tEnrichStart = Date.now();
       assertNotThrottled_(profile.profileId, "fetch_enriched", (typeof CONFIG !== "undefined" && CONFIG.FETCH_THROTTLE_MS) ? CONFIG.FETCH_THROTTLE_MS : 45000);
 
       const plan = buildFetchRequestForProfile_(profile);
@@ -379,7 +380,6 @@ function fetchForProfileWithEnrichment_(profileId) {
       });
 
       // 4) Enrich (skip failures inside enrichJobsForProfile_)
-      var tEnrichStart = Date.now();
       const enriched = enrichJobsForProfile_(candidatesToEnrich, profile)
         .filter(j => String(j.jobSummary || "").trim() && String(j.whyFit || "").trim());
 
@@ -411,7 +411,7 @@ function fetchForProfileWithEnrichment_(profileId) {
         details: {
           level: "INFO",
           message: "Fetch+Enrich pipeline complete",
-          meta: { batchId, rawFetched, candidates: candidates.length, enriched: enriched.length, written, enrichPhaseMs: Date.now() - tEnrichStart },
+          meta: { batchId, rawFetched, candidates: candidates.length, enriched: enriched.length, written, enrichPhaseMs: (typeof tEnrichStart === "number" ? Date.now() - tEnrichStart : 0) },
           batchId,
           version: Sygnalist_VERSION
         }

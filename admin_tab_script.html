@@ -703,7 +703,12 @@
             var tr = document.createElement('tr');
             tr.setAttribute('data-role-title', row.roleTitle);
             tr.setAttribute('data-keywords', row.keywords || '');
-            tr.innerHTML = '<td class="td-role"></td><td>' + esc(row.keywords) + '</td><td><input type="checkbox" class="staging-approved" data-title="' + esc(row.roleTitle) + '" ' + (row.approved ? 'checked' : '') + '></td><td class="td-add-to-bank" style="display:none;"></td>';
+            if (row.applied) {
+              tr.classList.add('staging-row-applied');
+              tr.innerHTML = '<td class="td-role"></td><td>' + esc(row.keywords) + '</td><td><span class="badge badge-applied">Applied</span></td><td class="td-add-to-bank" style="display:none;"></td>';
+            } else {
+              tr.innerHTML = '<td class="td-role"></td><td>' + esc(row.keywords) + '</td><td><input type="checkbox" class="staging-approved" data-title="' + esc(row.roleTitle) + '" ' + (row.approved ? 'checked' : '') + '></td><td class="td-add-to-bank" style="display:none;"></td>';
+            }
             tr.querySelector('.td-role').textContent = row.roleTitle;
             tbody.appendChild(tr);
           });
@@ -745,9 +750,13 @@
             div.className = 'admin-card';
             div.style.marginBottom = '8px';
             div.setAttribute('data-lane-key', laneKey);
-            div.innerHTML = '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '> ' + esc(laneKey) + '</label> <button type="button" class="btn btn-ghost btn-sm lane-remove" data-lane="' + esc(laneKey) + '" title="Remove from my lanes">Remove</button><span class="admin-card-meta lane-counts" style="margin-top:4px;display:block;"></span>';
+            div.innerHTML = '<label style="display:flex;align-items:center;gap:8px;"><span class="lane-toggle-wrap' + (isEnabled ? ' on' : '') + '"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '><span class="lane-toggle-pill"><span class="lane-toggle-handle"></span><span class="lane-toggle-off">OFF</span><span class="lane-toggle-on">ON</span></span></span> ' + esc(laneKey) + '</label> <button type="button" class="btn btn-ghost btn-sm lane-remove" data-lane="' + esc(laneKey) + '" title="Remove from my lanes">Remove</button><span class="admin-card-meta lane-counts" style="margin-top:4px;display:block;"></span>';
             var toggle = div.querySelector('.lane-toggle');
-            if (toggle) toggle.addEventListener('change', function() { laneControlsState[laneKey].is_enabled = this.checked; });
+            var wrap = div.querySelector('.lane-toggle-wrap');
+            if (toggle) toggle.addEventListener('change', function() {
+              laneControlsState[laneKey].is_enabled = this.checked;
+              if (wrap) wrap.classList.toggle('on', this.checked);
+            });
             var removeBtn = div.querySelector('.lane-remove');
             if (removeBtn) removeBtn.addEventListener('click', function() {
               var k = this.getAttribute('data-lane');
@@ -857,7 +866,7 @@
           }
         }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminGetLaneBank();
       }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminGetLaneControls(id);
-    }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminGetStaging(id);
+    }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminGetStagingIncludingApplied(id);
   }
   var btnLoadJobLanes = document.getElementById('btnLoadJobLanes');
   if (btnLoadJobLanes) btnLoadJobLanes.addEventListener('click', loadJobLanes);
@@ -873,8 +882,12 @@
       if (r.ok) { showToast('Approved lanes set'); }
       else { showToast(r.error || r.message || 'Failed', true); return; }
       google.script.run.withSuccessHandler(function(r2) {
-        if (r2.ok) { showToast('Applied ' + (r2.count || 0) + ' lanes'); loadJobLanes(); }
-        else showToast(r2.error || r2.message || 'Apply failed', true);
+        if (r2.ok) {
+          var msg = 'Applied ' + (r2.count || 0) + ' lanes';
+          if (r2.addedToBank > 0) msg += '. ' + r2.addedToBank + ' new role(s) added to lane bank.';
+          showToast(msg);
+          loadJobLanes();
+        } else showToast(r2.error || r2.message || 'Apply failed', true);
       }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminApplyApprovedLanes(id);
     }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminSetStagingApproved(id, titles);
   });

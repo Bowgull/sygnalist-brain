@@ -92,6 +92,44 @@ function getAllStagingRowsForProfile_(profileId) {
 }
 
 /**
+ * Get all staging rows for a profile including those already applied (for UI so applied roles stay visible).
+ * Returns [{ roleTitle, keywords, confidence, reason, approved, applied }].
+ */
+function getAllStagingRowsForProfileIncludingApplied_(profileId) {
+  var sh = ensureResumeStagingSheet_();
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) return [];
+
+  var data = sh.getRange(1, 1, lastRow, RESUME_STAGING_HEADERS.length).getValues();
+  var headers = data[0].map(function(h) { return String(h || "").trim(); });
+  var idxProfile = headers.indexOf("profileId");
+  var idxTitle = headers.indexOf("roleTitle");
+  var idxKeywords = headers.indexOf("keywords");
+  var idxConfidence = headers.indexOf("confidence");
+  var idxReason = headers.indexOf("reason");
+  var idxApproved = headers.indexOf("Approved");
+  var idxApplied = headers.indexOf("Applied");
+  if (idxProfile === -1 || idxTitle === -1) return [];
+
+  var pid = String(profileId || "").trim();
+  var out = [];
+  for (var r = 1; r < data.length; r++) {
+    var row = data[r];
+    if (String(row[idxProfile] || "").trim() !== pid) continue;
+    var applied = row[idxApplied] === true || row[idxApplied] === "TRUE";
+    out.push({
+      roleTitle: String(row[idxTitle] || "").trim(),
+      keywords: String(row[idxKeywords] || "").trim(),
+      confidence: String(row[idxConfidence] != null ? row[idxConfidence] : "").trim(),
+      reason: String(row[idxReason] != null ? row[idxReason] : "").trim(),
+      approved: row[idxApproved] === true || row[idxApproved] === "TRUE",
+      applied: applied
+    });
+  }
+  return out;
+}
+
+/**
  * Set Approved=TRUE only for rows whose roleTitle is in approvedRoleTitles; others set FALSE.
  * Then applyApprovedLanesForProfile_ can be called to commit.
  */
@@ -162,6 +200,7 @@ function applyApprovedLanesForProfile_(profileId) {
   }
 
   // Ensure each approved role exists in Lane_Role_Bank; add if missing (core feature: resume parse feeds lane bank).
+  var addedToBank = 0;
   if (typeof getLaneRoleBank_ === "function" && typeof addRoleToLaneBank_ === "function") {
     var bank = getLaneRoleBank_();
     var bankTitleSet = {};
@@ -181,6 +220,7 @@ function applyApprovedLanesForProfile_(profileId) {
       try {
         addRoleToLaneBank_(null, title, (approved[i].keywords || []).join(", "));
         bankTitleSet[key] = true;
+        addedToBank++;
       } catch (e) {
         if (typeof Logger !== "undefined") Logger.log("applyApprovedLanes: skip add to bank " + title + ": " + (e.message || e));
       }
@@ -219,12 +259,12 @@ function applyApprovedLanesForProfile_(profileId) {
     details: {
       level: "INFO",
       message: "Apply Approved Lanes",
-      meta: { profileId: profileId, count: approved.length },
+      meta: { profileId: profileId, count: approved.length, addedToBank: addedToBank },
       version: Sygnalist_VERSION
     }
   });
 
-  return { ok: true, count: approved.length };
+  return { ok: true, count: approved.length, addedToBank: addedToBank };
 }
 
 function markStagingApplied_(profileId) {
