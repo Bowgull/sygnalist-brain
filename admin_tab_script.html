@@ -1183,9 +1183,13 @@
     if (typeof loadProfiles === 'function') loadProfiles();
   }
   }
+  var statusEl = document.getElementById('adminScriptStatus');
+  if (statusEl) { statusEl.textContent = 'Admin script: ready'; statusEl.style.display = ''; }
   signalAdminReady();
   } catch (outerErr) {
     if (typeof console !== 'undefined' && console.error) console.error('Admin tab failed to load (outer)', outerErr);
+    var errStatus = document.getElementById('adminScriptStatus');
+    if (errStatus) { errStatus.textContent = 'Admin script: error — ' + (outerErr && outerErr.message ? outerErr.message : 'see console'); errStatus.style.display = ''; errStatus.style.color = 'var(--color-tier-x, #DC2626)'; }
     signalAdminReady();
   }
 })();
