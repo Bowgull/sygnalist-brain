@@ -2397,6 +2397,59 @@
     gap: var(--space-2);
   }
 
+  .tracker-card-back-header {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: flex-start;
+    margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-1)) 0 0;
+  }
+  .card-close {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    line-height: 1;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+  .card-close:hover {
+    color: var(--color-text-main);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .tracker-card-back-pipeline {
+    flex-shrink: 0;
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: var(--space-2);
+  }
+  .tracker-card-back-pipeline .form-group {
+    margin-top: var(--space-2);
+  }
+  .tracker-card-back-pipeline .tracker-card-back-section-heading {
+    margin: 0 0 var(--space-2) 0;
+  }
+  .tracker-card-back-job-details {
+    flex-shrink: 0;
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: var(--space-2);
+  }
+  .tracker-card-back-job-details .tracker-card-back-section-heading {
+    margin: 0 0 var(--space-2) 0;
+  }
+
   .tracker-card-back .good-fit-heading {
     margin: 0 0 var(--space-1) 0;
   }
@@ -2511,6 +2564,30 @@
     flex-wrap: wrap;
     gap: var(--space-2);
     flex-shrink: 0;
+  }
+  .tracker-card-actions-top .tracker-expand-btn {
+    min-width: 40px;
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+  }
+  .tracker-card-actions-top .tracker-expand-btn:hover {
+    color: var(--color-text-main);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(106, 215, 163, 0.3);
+  }
+  .tracker-card-actions-top .tracker-expand-btn svg {
+    width: 18px;
+    height: 18px;
   }
 
   .tracker-card-main {

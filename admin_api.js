@@ -518,6 +518,7 @@ function adminGetTracker(profileId) {
         url: String(o.url || c.url || ""),
         status: String(o.status || c.status || ""),
         source: String(o.source || c.source || ""),
+        laneLabel: String(o.laneLabel || c.lanelabel || ""),
         added_at: addedAt
       };
     });
@@ -877,6 +878,38 @@ function adminPromoteFromJobsInbox(profileId, jobId) {
     return { ok: true };
   } catch (e) {
     logAdmin_("error", "Promote from Jobs Inbox failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+/**
+ * Return all jobs in Global_Job_Bank for the admin Job bank tab.
+ */
+function adminGetGlobalJobBank() {
+  logAdmin_("start", "Get global job bank started", {});
+  try {
+    var jobs = typeof readGlobalJobBank_ === "function" ? readGlobalJobBank_() : [];
+    logAdmin_("ok", "Get global job bank completed", { count: (jobs && jobs.length) || 0 });
+    return { ok: true, jobs: jobs || [] };
+  } catch (e) {
+    logAdmin_("error", "Get global job bank failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+/**
+ * Remove a job from Global_Job_Bank by URL.
+ */
+function adminRemoveFromGlobalJobBank(url) {
+  logAdmin_("start", "Remove from global job bank started", { url: (url && String(url).substring(0, 80)) || "" });
+  try {
+    var u = (url && String(url).trim()) || "";
+    if (!u) return { ok: false, error: "url is required." };
+    var removed = typeof removeFromGlobalJobBank_ === "function" ? removeFromGlobalJobBank_(u) : false;
+    logAdmin_("ok", "Remove from global job bank completed", { removed: removed });
+    return { ok: true, removed: removed };
+  } catch (e) {
+    logAdmin_("error", "Remove from global job bank failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }

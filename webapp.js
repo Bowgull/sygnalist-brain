@@ -430,6 +430,7 @@ function portal_api_(profileId, req) {
       case "manualAdd": {
         const outManual = manualAddToTracker_(profile.profileId, data);
         if (outManual && outManual.ok) invalidateTrackerCache_(profile.profileId);
+        try { Logger.log("portal_api op=manualAdd elapsedMs=" + (Date.now() - t0)); } catch (e) {}
         return outManual;
       }
 
@@ -925,6 +926,10 @@ function trackerRowToDto_(o) {
       ? Utilities.formatDate(gfUpdated, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm")
       : String(gfUpdated || "");
 
+  var goodFitStr = String(o.goodFit || c.goodfit || "");
+  var TRACKER_LIST_MAX_GOODFIT = 400;
+  if (goodFitStr.length > TRACKER_LIST_MAX_GOODFIT) goodFitStr = goodFitStr.substring(0, TRACKER_LIST_MAX_GOODFIT) + "...";
+
   return {
     company: String(o.company || c.company || ""),
     title: String(o.title || c.title || ""),
@@ -937,7 +942,7 @@ function trackerRowToDto_(o) {
     jobSummary: String(o.jobSummary || c.jobsummary || ""),
     whyFit: String(o.whyFit || c.whyfit || ""),
     salary: String(o.salary || c.salary || "").trim() || "—",
-    goodFit: String(o.goodFit || c.goodfit || ""),
+    goodFit: goodFitStr,
     goodFitUpdatedAt: goodFitUpdatedAtStr,
     status: String(o.status || c.status || "Prospect"),
     dateApplied: dateApplied,

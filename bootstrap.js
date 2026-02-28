@@ -15,6 +15,19 @@ function buildProfileContextLine_(profile) {
 function getProfileBootstrap_(profileId) {
   const profile = getProfileByIdOrThrow_(profileId);
 
+  var assignedLaneLabels = [];
+  if (typeof getEffectiveRoleTracks_ === "function") {
+    var tracks = getEffectiveRoleTracks_(profile);
+    var seen = {};
+    for (var i = 0; i < tracks.length; i++) {
+      var lb = (tracks[i] && (tracks[i].laneLabel || tracks[i].label)) ? String(tracks[i].laneLabel || tracks[i].label).trim() : "";
+      if (lb && !seen[lb]) {
+        seen[lb] = true;
+        assignedLaneLabels.push(lb);
+      }
+    }
+  }
+
   // DTO only (no internals beyond what UI needs). Locked profiles can load; fetch is gated in portal_api_.
   return {
     ok: true,
@@ -26,7 +39,8 @@ function getProfileBootstrap_(profileId) {
       statusReason: profile.statusReason || "",
       isAdmin: !!profile.isAdmin,
       profileContext: buildProfileContextLine_(profile),
-      last_fetch_at: profile.last_fetch_at || null
+      last_fetch_at: profile.last_fetch_at || null,
+      assignedLaneLabels: assignedLaneLabels
     }
   };
 }

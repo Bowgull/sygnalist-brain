@@ -153,11 +153,38 @@ function getApprovedStagingRows_(profileId) {
 
 /**
  * Build roleTracksJSON from approved staging rows and write to Admin_Profiles; mark rows Applied.
+ * Any approved suggested role not already in Lane_Role_Bank is added to the bank first (resume parse feeds the bank).
  */
 function applyApprovedLanesForProfile_(profileId) {
   var approved = getApprovedStagingRows_(profileId);
   if (approved.length === 0) {
     return { ok: false, message: "No approved rows in staging for this profile." };
+  }
+
+  // Ensure each approved role exists in Lane_Role_Bank; add if missing (core feature: resume parse feeds lane bank).
+  if (typeof getLaneRoleBank_ === "function" && typeof addRoleToLaneBank_ === "function") {
+    var bank = getLaneRoleBank_();
+    var bankTitleSet = {};
+    bank.forEach(function(b) {
+      var k = String(b.role_name || "").trim().toLowerCase();
+      if (k) bankTitleSet[k] = true;
+      (b.aliases || []).forEach(function(a) {
+        var ak = String(a || "").trim().toLowerCase();
+        if (ak) bankTitleSet[ak] = true;
+      });
+    });
+    for (var i = 0; i < approved.length; i++) {
+      var title = String(approved[i].title || "").trim();
+      if (!title) continue;
+      var key = title.toLowerCase();
+      if (bankTitleSet[key]) continue;
+      try {
+        addRoleToLaneBank_(null, title, (approved[i].keywords || []).join(", "));
+        bankTitleSet[key] = true;
+      } catch (e) {
+        if (typeof Logger !== "undefined") Logger.log("applyApprovedLanes: skip add to bank " + title + ": " + (e.message || e));
+      }
+    }
   }
 
   var roleTracksJSON = buildRoleTracksFromSuggested_(approved);

@@ -234,12 +234,21 @@ function getProfileLaneControls(profileId) {
 
 /**
  * Save lane controls for a profile. Writes laneControlsJSON to Admin_Profiles.
- * laneControls: { "lane_key": { is_enabled: bool, allowed_bank_role_ids: string[] } }
+ * Merge with existing so lanes not in the form are preserved (never drop lanes from the section).
+ * payload: either legacy { "lane_key": { is_enabled, allowed_bank_role_ids } } or
+ *         { laneControls: { ... }, removed: ["lane_key", ...] } to also remove lanes from profile.
  */
-function setProfileLaneControls(profileId, laneControls) {
+function setProfileLaneControls(profileId, laneControlsOrPayload) {
   try {
     var pid = String(profileId || "").trim();
     if (!pid) return { ok: false, error: "profileId is empty." };
+
+    var laneControls = (laneControlsOrPayload && laneControlsOrPayload.laneControls !== undefined)
+      ? laneControlsOrPayload.laneControls
+      : laneControlsOrPayload;
+    var removed = (laneControlsOrPayload && Array.isArray(laneControlsOrPayload.removed))
+      ? laneControlsOrPayload.removed
+      : [];
 
     var sh = assertSheetExists_("Admin_Profiles");
     var lastRow = sh.getLastRow();
@@ -267,7 +276,22 @@ function setProfileLaneControls(profileId, laneControls) {
       sh.getRange(1, lastCol).setValue("laneControlsJSON");
     }
 
-    var jsonStr = (laneControls && typeof laneControls === "object") ? JSON.stringify(laneControls) : "{}";
+    // Merge with existing: preserve lanes not in form so we never drop them; apply form state; then remove requested keys.
+    var existingStr = values[rowIndex][idxLaneControls];
+    var merged = (existingStr && String(existingStr).trim()) ? JSON.parse(String(existingStr).trim()) : {};
+    if (typeof merged !== "object" || merged === null) merged = {};
+    for (var i = 0; i < removed.length; i++) {
+      var k = String(removed[i] || "").trim();
+      if (k) delete merged[k];
+    }
+    if (laneControls && typeof laneControls === "object") {
+      for (var key in laneControls) {
+        if (!Object.prototype.hasOwnProperty.call(laneControls, key)) continue;
+        merged[key] = laneControls[key];
+      }
+    }
+
+    var jsonStr = JSON.stringify(merged);
     sh.getRange(rowIndex + 1, idxLaneControls + 1).setValue(jsonStr);
 
     return { ok: true };

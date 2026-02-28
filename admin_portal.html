@@ -970,6 +970,7 @@
 
       // Job Lanes (merged Staging + Lanes)
       var laneControlsState = {};
+      var removedLaneKeys = [];
       function loadJobLanes() {
         if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
         var id = jobLanesProfileId;
@@ -1002,6 +1003,7 @@
               var bank = bankResult.bank || [];
               var controls = controlsResult.laneControls || {};
               laneControlsState = {};
+              removedLaneKeys = [];
               var container = document.getElementById('jobLanesTogglesContainer');
               if (!container) return;
               container.innerHTML = '';
@@ -1011,20 +1013,32 @@
                 if (!byLane[k]) byLane[k] = [];
                 byLane[k].push(row);
               });
-              if (Object.keys(byLane).length === 0) {
+              var allLaneKeys = {};
+              Object.keys(byLane).forEach(function(k) { allLaneKeys[k] = true; });
+              Object.keys(controls).forEach(function(k) { allLaneKeys[k] = true; });
+              var laneKeysSorted = Object.keys(allLaneKeys).sort();
+              if (laneKeysSorted.length === 0) {
                 container.innerHTML = '<p class="admin-sub">No lanes in bank. Add rows to Lane_Role_Bank sheet.</p>';
                 return;
               }
-              Object.keys(byLane).sort().forEach(function(laneKey) {
+              laneKeysSorted.forEach(function(laneKey) {
                 var c = controls[laneKey];
                 var isEnabled = !!(c && c.is_enabled);
                 laneControlsState[laneKey] = { is_enabled: isEnabled, allowed_bank_role_ids: (c && c.allowed_bank_role_ids) ? c.allowed_bank_role_ids : [] };
                 var div = document.createElement('div');
                 div.className = 'admin-card';
                 div.style.marginBottom = '8px';
-                div.innerHTML = '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '> ' + esc(laneKey) + '</label>';
+                div.setAttribute('data-lane-key', laneKey);
+                div.innerHTML = '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '> ' + esc(laneKey) + '</label> <button type="button" class="btn btn-ghost btn-sm lane-remove" data-lane="' + esc(laneKey) + '" title="Remove from my lanes">Remove</button>';
                 div.querySelector('.lane-toggle').addEventListener('change', function() {
                   laneControlsState[laneKey].is_enabled = this.checked;
+                });
+                var removeBtn = div.querySelector('.lane-remove');
+                if (removeBtn) removeBtn.addEventListener('click', function() {
+                  var k = this.getAttribute('data-lane');
+                  if (k && removedLaneKeys.indexOf(k) === -1) removedLaneKeys.push(k);
+                  var card = this.closest('[data-lane-key]');
+                  if (card) card.remove();
                 });
                 container.appendChild(div);
               });
@@ -1120,8 +1134,8 @@
         var id = jobLanesProfileId;
         if (!id) { showToast('Click Lanes on a profile card first.', true); return; }
         google.script.run.withSuccessHandler(function(r) {
-          if (r.ok) showToast('Lane controls saved'); else showToast(r.error || 'Failed', true);
-        }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminSetLaneControls(id, laneControlsState);
+          if (r.ok) { showToast('Lane controls saved'); removedLaneKeys = []; } else showToast(r.error || 'Failed', true);
+        }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminSetLaneControls(id, { laneControls: laneControlsState, removed: removedLaneKeys });
       });
 
       // Jobs Intake

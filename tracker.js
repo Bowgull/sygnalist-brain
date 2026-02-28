@@ -130,7 +130,8 @@ function appendTrackerEntry_(entry) {
  * Matches by normalized URL (preferred) else fallback company||title.
  *
  * patch shape (expected):
- * { url, company, title, status, notes, dateApplied }
+ * { url, company, title, status, notes, dateApplied, location?, salary?, title?, company? }
+ * Optional: location, title, salary, company (client-editable job details).
  */
 function updateTrackerEntryForProfile_(profileId, patch) {
   ensureEngineTrackerSheet_();
@@ -155,6 +156,8 @@ function updateTrackerEntryForProfile_(profileId, patch) {
   const idxNotes = headers.indexOf("notes");
   const idxDateApplied = headers.indexOf("dateApplied");
   const idxStageChangedAt = headers.indexOf("stageChangedAt");
+  const idxLocation = headers.indexOf("location");
+  const idxSalary = headers.indexOf("salary");
 
   if (idxProfile === -1) throw new Error("Engine_Tracker missing header: profileId");
   if (idxUrl === -1) throw new Error("Engine_Tracker missing header: url");
@@ -166,14 +169,19 @@ function updateTrackerEntryForProfile_(profileId, patch) {
   // stageChangedAt optional (backfill: use added_at when missing)
 
   const wantUrl = normalizeUrl_(patch && patch.url);
-
-  const wantCompany = String(patch && patch.company || "").toLowerCase().trim();
-  const wantTitle = String(patch && patch.title || "").toLowerCase().trim();
+  const matchCompany = (patch && patch.matchCompany !== undefined) ? String(patch.matchCompany || "").toLowerCase().trim() : null;
+  const matchTitle = (patch && patch.matchTitle !== undefined) ? String(patch.matchTitle || "").toLowerCase().trim() : null;
+  const wantCompany = (matchCompany !== null ? matchCompany : String(patch && patch.company || "").toLowerCase().trim());
+  const wantTitle = (matchTitle !== null ? matchTitle : String(patch && patch.title || "").toLowerCase().trim());
   const wantKey = (wantCompany && wantTitle) ? (wantCompany + "||" + wantTitle) : "";
 
   const newStatus = String(patch && patch.status || "").trim();
   const newNotes = String(patch && patch.notes || "").trim();
   const newDate = String(patch && patch.dateApplied || "").trim(); // yyyy-mm-dd
+  const newLocation = (patch && patch.location !== undefined) ? String(patch.location || "").trim() : null;
+  const newTitle = (patch && patch.title !== undefined) ? String(patch.title || "").trim() : null;
+  const newCompany = (patch && patch.company !== undefined) ? String(patch.company || "").trim() : null;
+  const newSalary = (patch && patch.salary !== undefined && patch.salary !== null) ? String(patch.salary).trim() : null;
 
   for (let r = 1; r < values.length; r++) {
     const row = values[r];
@@ -193,9 +201,12 @@ function updateTrackerEntryForProfile_(profileId, patch) {
 
     const oldStatus = String(row[idxStatus] || "").trim();
 
-    // Batch write: one setValues for all updated cells (status, stageChangedAt, notes, dateApplied)
     const indicesToUpdate = [idxStatus, idxNotes, idxDateApplied];
     if (idxStageChangedAt !== -1) indicesToUpdate.push(idxStageChangedAt);
+    if (idxLocation !== -1 && newLocation !== null) indicesToUpdate.push(idxLocation);
+    if (idxTitle !== -1 && newTitle !== null) indicesToUpdate.push(idxTitle);
+    if (idxCompany !== -1 && newCompany !== null) indicesToUpdate.push(idxCompany);
+    if (idxSalary !== -1 && newSalary !== null) indicesToUpdate.push(idxSalary);
     const minCol = Math.min.apply(null, indicesToUpdate);
     const maxCol = Math.max.apply(null, indicesToUpdate);
 
@@ -214,9 +225,13 @@ function updateTrackerEntryForProfile_(profileId, patch) {
       else if (c === idxStageChangedAt) val = newStatus ? new Date() : row[idxStageChangedAt];
       else if (c === idxNotes) val = newNotes;
       else if (c === idxDateApplied) val = dateAppliedValue;
+      else if (c === idxLocation && newLocation !== null) val = newLocation;
+      else if (c === idxTitle && newTitle !== null) val = newTitle;
+      else if (c === idxCompany && newCompany !== null) val = newCompany;
+      else if (c === idxSalary && newSalary !== null) val = newSalary;
       slice.push(val);
     }
-    sh.getRange(r + 1, minCol + 1, 1, slice.length).setValues([slice]);
+    sh.getRange(r + 1, minCol + 1, r + 1, maxCol + 1).setValues([slice]);
 
     if (oldStatus !== newStatus && !isInterviewStatus_(oldStatus) && isInterviewStatus_(newStatus)) {
       const trackerKey = (wantUrl && wantUrl.length) ? wantUrl : wantKey;

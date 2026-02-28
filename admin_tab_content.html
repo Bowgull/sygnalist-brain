@@ -79,6 +79,7 @@
         <button type="button" class="tab-btn active" data-tab="profiles">Profiles</button>
         <button type="button" class="tab-btn" data-tab="jobsIntake">Jobs Intake</button>
         <button type="button" class="tab-btn" data-tab="jobLanes">Job Lanes</button>
+        <button type="button" class="tab-btn" data-tab="jobBank">Job bank</button>
         <button type="button" class="tab-btn" data-tab="logs">Logs</button>
         <button type="button" class="tab-btn" data-tab="analytics">Analytics</button>
         <button type="button" class="tab-btn" data-tab="ops">Ops</button>
@@ -118,6 +119,19 @@
         <div id="jobLanesTogglesContainer"></div>
         <button type="button" class="btn btn-primary" id="btnSaveJobLaneControls" style="margin-top: var(--space-3);">Save lane toggles</button>
       </div>
+    </div>
+
+    <div id="sectionJobBank" class="admin-section">
+      <div class="admin-toolbar">
+        <button type="button" class="btn btn-primary" id="btnLoadJobBank">Refresh</button>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="jobBankTable">
+          <thead><tr><th>Company</th><th>Title</th><th>Location</th><th>Source</th><th>Created</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="admin-sub" id="jobBankEmpty" style="display:none;">No jobs in global job bank.</p>
     </div>
 
     <div id="sectionLogs" class="admin-section">

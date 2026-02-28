@@ -140,6 +140,7 @@
     showSection(tab);
     if (tab === 'profiles') renderProfileList(profilesCache);
     else if (tab === 'jobLanes') { updateJobLanesContext(); loadJobLanes(); }
+    else if (tab === 'jobBank') loadJobBank();
     else if (tab === 'analytics') loadAnalytics();
     else if (tab === 'jobsIntake') loadJobsInbox();
   };
@@ -682,6 +683,7 @@
   if (modalCreateClose) modalCreateClose.addEventListener('click', function() { var m = document.getElementById('modalCreate'); if (m) m.classList.remove('visible'); });
 
   var laneControlsState = {};
+  var removedLaneKeys = [];
   function loadJobLanes() {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
     var id = jobLanesProfileId;
@@ -716,6 +718,7 @@
           var bank = bankResult.bank || [];
           var controls = controlsResult.laneControls || {};
           laneControlsState = {};
+          removedLaneKeys = [];
           var container = document.getElementById('jobLanesTogglesContainer');
           if (!container) return;
           container.innerHTML = '';
@@ -725,22 +728,70 @@
             if (!byLane[k]) byLane[k] = [];
             byLane[k].push(row);
           });
-          if (Object.keys(byLane).length === 0) {
+          // Union of bank lanes and profile lanes so we show all (never drop from section); profile-only lanes can be removed via Remove.
+          var allLaneKeys = {};
+          Object.keys(byLane).forEach(function(k) { allLaneKeys[k] = true; });
+          Object.keys(controls).forEach(function(k) { allLaneKeys[k] = true; });
+          var laneKeysSorted = Object.keys(allLaneKeys).sort();
+          if (laneKeysSorted.length === 0) {
             container.innerHTML = '<p class="admin-sub">No lanes in bank. Add rows to Lane_Role_Bank sheet.</p>';
             return;
           }
-          Object.keys(byLane).sort().forEach(function(laneKey) {
+          laneKeysSorted.forEach(function(laneKey) {
             var c = controls[laneKey];
             var isEnabled = !!(c && c.is_enabled);
             laneControlsState[laneKey] = { is_enabled: isEnabled, allowed_bank_role_ids: (c && c.allowed_bank_role_ids) ? c.allowed_bank_role_ids : [] };
             var div = document.createElement('div');
             div.className = 'admin-card';
             div.style.marginBottom = '8px';
-            div.innerHTML = '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '> ' + esc(laneKey) + '</label>';
+            div.setAttribute('data-lane-key', laneKey);
+            div.innerHTML = '<label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '> ' + esc(laneKey) + '</label> <button type="button" class="btn btn-ghost btn-sm lane-remove" data-lane="' + esc(laneKey) + '" title="Remove from my lanes">Remove</button><span class="admin-card-meta lane-counts" style="margin-top:4px;display:block;"></span>';
             var toggle = div.querySelector('.lane-toggle');
             if (toggle) toggle.addEventListener('change', function() { laneControlsState[laneKey].is_enabled = this.checked; });
+            var removeBtn = div.querySelector('.lane-remove');
+            if (removeBtn) removeBtn.addEventListener('click', function() {
+              var k = this.getAttribute('data-lane');
+              if (k && removedLaneKeys.indexOf(k) === -1) removedLaneKeys.push(k);
+              var card = this.closest('[data-lane-key]');
+              if (card) card.remove();
+            });
             container.appendChild(div);
           });
+          function laneLabelMatchesKey(laneLabel, key) {
+            var lb = String(laneLabel || '').trim().toLowerCase().replace(/\s+lane\s*$/, '');
+            var k = String(key || '').trim().toLowerCase();
+            return lb === k || (laneLabel || '').toLowerCase() === k || (laneLabel || '').toLowerCase() === k + ' lane';
+          }
+          google.script.run.withSuccessHandler(function(inboxRes) {
+            var inboxRows = (inboxRes && inboxRes.ok) ? (inboxRes.rows || []) : [];
+            google.script.run.withSuccessHandler(function(trackerRes) {
+              var trackerRows = (trackerRes && trackerRes.ok) ? (trackerRes.rows || []) : [];
+              var inboxByLane = {};
+              var trackerByLane = {};
+              inboxRows.forEach(function(row) {
+                laneKeysSorted.forEach(function(laneKey) {
+                  if (laneLabelMatchesKey(row.laneLabel, laneKey)) {
+                    inboxByLane[laneKey] = (inboxByLane[laneKey] || 0) + 1;
+                  }
+                });
+              });
+              trackerRows.forEach(function(row) {
+                laneKeysSorted.forEach(function(laneKey) {
+                  if (laneLabelMatchesKey(row.laneLabel, laneKey)) {
+                    trackerByLane[laneKey] = (trackerByLane[laneKey] || 0) + 1;
+                  }
+                });
+              });
+              container.querySelectorAll('[data-lane-key]').forEach(function(div) {
+                var key = div.getAttribute('data-lane-key');
+                var countsEl = div.querySelector('.lane-counts');
+                if (!countsEl) return;
+                var inInbox = inboxByLane[key] || 0;
+                var inTracker = trackerByLane[key] || 0;
+                countsEl.textContent = 'In inbox: ' + inInbox + ' · In tracker: ' + inTracker;
+              });
+            }).withFailureHandler(function() {}).adminGetTracker(id);
+          }).withFailureHandler(function() {}).adminGetInbox(id);
           var bankTitleSet = {};
           bank.forEach(function(r) {
             var k = String(r.role_name || '').toLowerCase().trim();
@@ -839,12 +890,12 @@
     google.script.run.withSuccessHandler(function(r) {
       btn.disabled = false;
       btn.textContent = originalText;
-      if (r.ok) showToast('Lane controls saved'); else showToast(r.error || 'Failed', true);
+      if (r.ok) { showToast('Lane controls saved'); removedLaneKeys = []; } else showToast(r.error || 'Failed', true);
     }).withFailureHandler(function(err) {
       btn.disabled = false;
       btn.textContent = originalText;
       showToast(adminErrorMessage(err, 'Error'), true);
-    }).adminSetLaneControls(id, laneControlsState);
+    }).adminSetLaneControls(id, { laneControls: laneControlsState, removed: removedLaneKeys });
   });
 
   var jobsInboxCache = [];
@@ -1046,6 +1097,51 @@
     if (btnJobBank) btnJobBank.disabled = checked.length === 0;
     if (btnDelete) btnDelete.disabled = checked.length === 0;
   }
+  function loadJobBank() {
+    if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
+    showAdminLoad('Loading job bank...');
+    google.script.run.withSuccessHandler(function(r) {
+      hideAdminLoad();
+      if (!r.ok) { showToast(r.error || 'Failed', true); return; }
+      var jobs = r.jobs || [];
+      var tbody = document.getElementById('jobBankTable');
+      var emptyEl = document.getElementById('jobBankEmpty');
+      if (!tbody) return;
+      if (!jobs.length) {
+        tbody.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+      }
+      if (emptyEl) emptyEl.style.display = 'none';
+      var html = '';
+      jobs.forEach(function(job) {
+        var created = job.created_at ? (typeof job.created_at === 'string' ? job.created_at : (job.created_at.getTime ? new Date(job.created_at).toISOString().slice(0, 10) : '')) : '';
+        html += '<tr data-url="' + esc(job.url || '') + '">';
+        html += '<td>' + esc(job.company || '') + '</td>';
+        html += '<td>' + esc(job.title || '') + '</td>';
+        html += '<td>' + esc(job.location || '') + '</td>';
+        html += '<td>' + esc(job.source || '') + '</td>';
+        html += '<td>' + esc(created) + '</td>';
+        html += '<td><button type="button" class="btn btn-ghost btn-sm btn-job-bank-remove" data-url="' + esc(job.url || '') + '">Remove</button></td>';
+        html += '</tr>';
+      });
+      tbody.innerHTML = html;
+      tbody.querySelectorAll('.btn-job-bank-remove').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var url = this.getAttribute('data-url');
+          if (!url) return;
+          if (!window.confirm('Remove this job from the global job bank?')) return;
+          showAdminLoad('Removing...');
+          google.script.run.withSuccessHandler(function(res) {
+            hideAdminLoad();
+            if (res.ok) { showToast('Removed'); loadJobBank(); } else showToast(res.error || 'Failed', true);
+          }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminRemoveFromGlobalJobBank(url);
+        });
+      });
+    }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminGetGlobalJobBank();
+  }
+  var btnLoadJobBank = document.getElementById('btnLoadJobBank');
+  if (btnLoadJobBank) btnLoadJobBank.addEventListener('click', function() { loadJobBank(); });
   function loadJobsInbox() {
     showAdminLoad('Loading Jobs Inbox...');
     google.script.run.withSuccessHandler(function(r) {

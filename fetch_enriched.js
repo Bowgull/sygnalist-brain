@@ -379,6 +379,7 @@ function fetchForProfileWithEnrichment_(profileId) {
       });
 
       // 4) Enrich (skip failures inside enrichJobsForProfile_)
+      var tEnrichStart = Date.now();
       const enriched = enrichJobsForProfile_(candidatesToEnrich, profile)
         .filter(j => String(j.jobSummary || "").trim() && String(j.whyFit || "").trim());
 

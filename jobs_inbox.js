@@ -107,7 +107,7 @@ function upsertGlobalJobBank_(job) {
       });
       var idxCa = headers.indexOf("created_at");
       if (!row[idxCa]) row[idxCa] = new Date();
-      sh.getRange(r, 1, r, headers.length).setValues([row]);
+      sh.getRange(r, 1, 1, headers.length).setValues([row]);
       return true;
     }
   }
@@ -120,6 +120,30 @@ function upsertGlobalJobBank_(job) {
   });
   sh.appendRow(newRow);
   return true;
+}
+
+/**
+ * Remove a job from Global_Job_Bank by URL. Returns true if a row was removed.
+ */
+function removeFromGlobalJobBank_(url) {
+  ensureGlobalJobBankSheet_();
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Global_Job_Bank");
+  var norm = normalizeUrlForJobsInbox_(url);
+  if (!norm) return false;
+
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) return false;
+  var headers = GLOBAL_JOB_BANK_HEADERS;
+  var idxUrl = headers.indexOf("url");
+
+  for (var r = 2; r <= lastRow; r++) {
+    var rowUrl = sh.getRange(r, idxUrl + 1).getValue();
+    if (normalizeUrlForJobsInbox_(rowUrl) === norm) {
+      sh.deleteRow(r);
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -437,7 +461,7 @@ function upsertRoleBank_(job, profileId) {
       }
       var idxCa = headers.indexOf("created_at");
       if (!row[idxCa]) row[idxCa] = new Date();
-      sh.getRange(r, 1, r, headers.length).setValues([row]);
+      sh.getRange(r, 1, 1, headers.length).setValues([row]);
       return true;
     }
   }
