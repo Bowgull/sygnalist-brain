@@ -74,6 +74,8 @@ function ingestJobsFromGmail_() {
   var ingestedLabel = GmailApp.getUserLabelByName("SYGN_INGESTED");
   if (!ingestedLabel) ingestedLabel = GmailApp.createLabel("SYGN_INGESTED");
 
+  var intakeLabel = GmailApp.getUserLabelByName("SYGN_INTAKE");
+
   for (var t = 0; t < threadsToProcess.length; t++) {
     var thread = threadsToProcess[t];
     var msgs = thread.getMessages();
@@ -153,6 +155,7 @@ function ingestJobsFromGmail_() {
       }
     }
     thread.addLabel(ingestedLabel);
+    if (intakeLabel) thread.removeLabel(intakeLabel);
   }
 
   if (typeof logEvent_ === "function") {
