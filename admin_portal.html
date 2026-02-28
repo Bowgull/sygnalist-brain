@@ -282,36 +282,93 @@
       </div>
     </div>
 
-    <!-- Create profile modal -->
+    <!-- Create profile modal (wizard: Step 1 Create, Step 2 Optional resume, Step 3 Review and apply) -->
     <div id="modalCreate" class="modal-overlay">
       <div class="modal">
         <button type="button" class="modal-close" id="modalCreateClose">×</button>
-        <div class="modal-title">Add profile</div>
-        <div class="form-group"><label>Profile ID</label><input type="text" id="createProfileId" placeholder="e.g. josh, client1" /></div>
-        <div class="form-group"><label>Display name</label><input type="text" id="createDisplayName" placeholder="Display name" /></div>
-        <div class="form-group"><label>Email</label><input type="email" id="createEmail" placeholder="email@example.com" /></div>
-        <div class="form-group">
-          <label>Work mode</label>
-          <div class="form-hint">Select all that apply.</div>
-          <label class="checkbox-label"><input type="checkbox" id="createAcceptRemote" checked> Accept Remote</label>
-          <label class="checkbox-label"><input type="checkbox" id="createAcceptHybrid"> Accept Hybrid</label>
-          <label class="checkbox-label"><input type="checkbox" id="createAcceptOnsite"> Accept On-site</label>
+        <div class="modal-title" id="createModalTitle">Add profile</div>
+
+        <div id="createStep1">
+          <p class="admin-sub" style="margin-bottom: var(--space-2);">Step 1 of 3 – Create profile with work and region preferences.</p>
+          <div class="form-group"><label>Profile ID</label><input type="text" id="createProfileId" placeholder="e.g. josh, client1" /></div>
+          <div class="form-group"><label>Display name</label><input type="text" id="createDisplayName" placeholder="Display name" /></div>
+          <div class="form-group"><label>Email</label><input type="email" id="createEmail" placeholder="email@example.com" /></div>
+          <div class="form-group">
+            <label>Work mode</label>
+            <div class="form-hint">Select all that apply.</div>
+            <label class="checkbox-label"><input type="checkbox" id="createAcceptRemote" checked> Accept Remote</label>
+            <label class="checkbox-label"><input type="checkbox" id="createAcceptHybrid"> Accept Hybrid</label>
+            <label class="checkbox-label"><input type="checkbox" id="createAcceptOnsite"> Accept On-site</label>
+          </div>
+          <div class="form-group">
+            <label>Remote jobs</label>
+            <select id="createRemoteScope">
+              <option value="remote_global">Global</option>
+              <option value="remote_preferred_countries_only">Only in preferred countries</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Preferred countries (comma-separated)</label><input type="text" id="createPreferredCountries" placeholder="United States, Canada" /></div>
+          <div class="form-group"><label>Preferred cities (comma-separated)</label><input type="text" id="createPreferredCities" placeholder="e.g. New York, Boston" /></div>
+          <div class="form-group"><label>Current city</label><input type="text" id="createCurrentCity" placeholder="For strict on-site lock" /></div>
+          <div class="form-group"><label>Salary min (0 = any)</label><input type="number" id="createSalaryMin" value="0" min="0" /></div>
+          <div class="form-group"><label>Preferred locations (legacy, for fetch)</label><input type="text" id="createPreferredLocations" placeholder="United States, Canada" /></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="createCancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="createSubmit">Create and continue</button>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Remote jobs</label>
-          <select id="createRemoteScope">
-            <option value="remote_global">Global</option>
-            <option value="remote_preferred_countries_only">Only in preferred countries</option>
-          </select>
+
+        <div id="createStep2" style="display:none;">
+          <p class="admin-sub" style="margin-bottom: var(--space-2);">Step 2 of 3 – Profile created. Optionally paste resume to fill skills and preferences.</p>
+          <div id="createStep2ProfileName" class="admin-sub" style="margin-bottom: var(--space-2); font-weight:600;"></div>
+          <div class="form-group">
+            <label>Resume text (optional)</label>
+            <textarea id="createWizardResumeText" class="admin-search" rows="10" placeholder="Paste full resume text (min 100 characters)..." style="min-height: 160px; resize: vertical;"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="createStep2Skip">Skip</button>
+            <button type="button" class="btn btn-primary" id="createStep2Parse">Parse</button>
+          </div>
+          <div id="createStep2Status" class="admin-sub" style="margin-top: var(--space-2);"></div>
         </div>
-        <div class="form-group"><label>Preferred countries (comma-separated)</label><input type="text" id="createPreferredCountries" placeholder="United States, Canada" /></div>
-        <div class="form-group"><label>Preferred cities (comma-separated)</label><input type="text" id="createPreferredCities" placeholder="e.g. New York, Boston" /></div>
-        <div class="form-group"><label>Current city</label><input type="text" id="createCurrentCity" placeholder="For strict on-site lock" /></div>
-        <div class="form-group"><label>Salary min (0 = any)</label><input type="number" id="createSalaryMin" value="0" min="0" /></div>
-        <div class="form-group"><label>Preferred locations (legacy, for fetch)</label><input type="text" id="createPreferredLocations" placeholder="United States, Canada" /></div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" id="createCancel">Cancel</button>
-          <button type="button" class="btn btn-primary" id="createSubmit">Create</button>
+
+        <div id="createStep3" style="display:none;">
+          <p class="admin-sub" style="margin-bottom: var(--space-2);">Step 3 of 3 – Review current vs parsed. Choose what to apply, then click Apply to profile.</p>
+          <div style="display:flex; gap: var(--space-3); flex-wrap: wrap;">
+            <div style="flex:1; min-width: 200px;">
+              <div class="admin-sub" style="font-weight:600; margin-bottom: var(--space-1);">Current (profile)</div>
+              <div id="createWizardCurrentSummary" class="admin-sub" style="white-space: pre-wrap; max-height: 120px; overflow-y: auto; background: var(--bg-elevated, #111); padding: var(--space-2); border-radius: 8px; margin-bottom: var(--space-2);"></div>
+              <div id="createWizardCurrentPrefs" class="admin-sub" style="font-size: 12px;"></div>
+            </div>
+            <div style="flex:1; min-width: 200px;">
+              <div class="admin-sub" style="font-weight:600; margin-bottom: var(--space-1);">Parsed from resume</div>
+              <div id="createWizardParsedSummary" class="admin-sub" style="white-space: pre-wrap; max-height: 120px; overflow-y: auto; background: var(--bg-elevated, #111); padding: var(--space-2); border-radius: 8px; margin-bottom: var(--space-2);"></div>
+              <div id="createWizardParsedPrefs" class="admin-sub" style="font-size: 12px;"></div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top: var(--space-2);">
+            <label><input type="checkbox" id="createWizardApplySkillsCb" checked> Apply skill profile (summary, skills, stories)</label>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="createWizardApplyPrefsCb" checked> Apply suggested preferences (locations, remote)</label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-primary" id="createWizardApplyBtn">Apply to profile</button>
+          </div>
+          <div id="createWizardApplyStatus" class="admin-sub" style="margin-top: var(--space-2);"></div>
+        </div>
+
+        <div id="createStepDone" style="display:none;">
+          <p class="admin-sub" style="margin-bottom: var(--space-2);">Profile is ready.</p>
+          <div id="createStepDoneMessage" class="admin-sub" style="margin-bottom: var(--space-2);"></div>
+          <div class="form-group">
+            <label>Portal URL</label>
+            <div id="createStepDoneUrl" class="admin-sub" style="word-break: break-all; padding: var(--space-2); background: var(--bg-elevated, #111); border-radius: 8px;"></div>
+          </div>
+          <div id="createStepDoneNext" class="admin-sub" style="margin-top: var(--space-2);"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-primary" id="createStepDoneClose">Close</button>
+          </div>
         </div>
       </div>
     </div>
@@ -763,6 +820,16 @@
       if (btnAddProfile) btnAddProfile.addEventListener('click', function() {
         var mCreate = document.getElementById('modalCreate');
         if (mCreate) mCreate.classList.add('visible');
+        document.getElementById('createStep1').style.display = '';
+        document.getElementById('createStep2').style.display = 'none';
+        document.getElementById('createStep3').style.display = 'none';
+        document.getElementById('createStepDone').style.display = 'none';
+        document.getElementById('createModalTitle').textContent = 'Add profile';
+        window.createWizardProfileId = '';
+        window.createWizardPortalUrl = '';
+        window.createWizardDisplayName = '';
+        window.createWizardParsed = null;
+        window.createWizardStagingRows = 0;
       });
       var createSubmit = document.getElementById('createSubmit');
       if (createSubmit) createSubmit.addEventListener('click', function() {
@@ -788,10 +855,113 @@
           preferredLocations: document.getElementById('createPreferredLocations') ? document.getElementById('createPreferredLocations').value.trim() : ''
         };
         if (!data.profileId || !data.displayName) { showToast('Profile ID and Display name required', true); return; }
+        createSubmit.disabled = true;
         google.script.run.withSuccessHandler(function(r) {
-          if (r.ok) { showToast('Profile created'); var mCreate = document.getElementById('modalCreate'); if (mCreate) mCreate.classList.remove('visible'); loadProfiles(); }
-          else showToast(r.error || 'Failed', true);
-        }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminCreateProfile(data);
+          createSubmit.disabled = false;
+          if (!r.ok) { showToast(r.error || 'Failed', true); return; }
+          window.createWizardProfileId = data.profileId;
+          window.createWizardPortalUrl = r.portalUrl || '';
+          window.createWizardDisplayName = data.displayName;
+          document.getElementById('createStep1').style.display = 'none';
+          document.getElementById('createStep2').style.display = '';
+          document.getElementById('createStep2ProfileName').textContent = data.displayName + ' (' + data.profileId + ')';
+          document.getElementById('createWizardResumeText').value = '';
+          document.getElementById('createStep2Status').textContent = '';
+          document.getElementById('createModalTitle').textContent = 'Add profile – Paste resume (optional)';
+        }).withFailureHandler(function(err) {
+          createSubmit.disabled = false;
+          showToast(adminErrorMessage(err, 'Error'), true);
+        }).adminCreateProfile(data);
+      });
+      var createStep2Skip = document.getElementById('createStep2Skip');
+      if (createStep2Skip) createStep2Skip.addEventListener('click', function() {
+        document.getElementById('createStep2').style.display = 'none';
+        document.getElementById('createStepDone').style.display = '';
+        document.getElementById('createModalTitle').textContent = 'Add profile – Done';
+        document.getElementById('createStepDoneMessage').textContent = 'Profile created.';
+        document.getElementById('createStepDoneUrl').textContent = window.createWizardPortalUrl || '(portal URL not available)';
+        document.getElementById('createStepDoneNext').textContent = '';
+      });
+      var createStep2Parse = document.getElementById('createStep2Parse');
+      if (createStep2Parse) createStep2Parse.addEventListener('click', function() {
+        var profileId = window.createWizardProfileId;
+        var text = (document.getElementById('createWizardResumeText') && document.getElementById('createWizardResumeText').value) || '';
+        if (!profileId) { showToast('Missing profile', true); return; }
+        if (text.trim().length < 100) { document.getElementById('createStep2Status').textContent = 'Paste at least 100 characters to parse.'; return; }
+        document.getElementById('createStep2Status').textContent = 'Parsing...';
+        createStep2Parse.disabled = true;
+        google.script.run.withSuccessHandler(function(r) {
+          createStep2Parse.disabled = false;
+          document.getElementById('createStep2Status').textContent = '';
+          if (!r.ok) { document.getElementById('createStep2Status').textContent = r.error || 'Parse failed'; return; }
+          window.createWizardParsed = r.parsed;
+          window.createWizardStagingRows = r.stagingRows || 0;
+          document.getElementById('createStep2').style.display = 'none';
+          document.getElementById('createStep3').style.display = '';
+          document.getElementById('createModalTitle').textContent = 'Add profile – Review and apply';
+          var p = r.parsed || {};
+          document.getElementById('createWizardParsedSummary').textContent = (p.skillProfileText || '').substring(0, 600) || '—';
+          document.getElementById('createWizardParsedPrefs').textContent = [
+            (p.topSkills || []).join(', '),
+            (p.preferredLocations || []).join(', ') || (p.preferredCountries || []).join(', '),
+            p.remotePreference || '',
+            p.currentCity ? ('Current city: ' + p.currentCity) : ''
+          ].filter(Boolean).join(' · ') || '—';
+          document.getElementById('createWizardCurrentSummary').textContent = 'Loading...';
+          document.getElementById('createWizardCurrentPrefs').textContent = '';
+          google.script.run.withSuccessHandler(function(rev) {
+            if (rev && rev.ok && rev.profile) {
+              var cur = rev.profile;
+              document.getElementById('createWizardCurrentSummary').textContent = (cur.skillProfileText || '').substring(0, 600) || '—';
+              document.getElementById('createWizardCurrentPrefs').textContent = [
+                Array.isArray(cur.topSkills) ? cur.topSkills.join(', ') : cur.topSkills,
+                Array.isArray(cur.preferredLocations) ? cur.preferredLocations.join(', ') : cur.preferredLocations,
+                cur.remotePreference || '',
+                cur.currentCity ? ('Current city: ' + cur.currentCity) : ''
+              ].filter(Boolean).join(' · ') || '—';
+            } else {
+              document.getElementById('createWizardCurrentSummary').textContent = '—';
+              document.getElementById('createWizardCurrentPrefs').textContent = '—';
+            }
+          }).withFailureHandler(function() {
+            document.getElementById('createWizardCurrentSummary').textContent = '—';
+            document.getElementById('createWizardCurrentPrefs').textContent = '—';
+          }).adminGetProfileForReview(profileId);
+        }).withFailureHandler(function(err) {
+          createStep2Parse.disabled = false;
+          document.getElementById('createStep2Status').textContent = adminErrorMessage(err, 'Error');
+        }).adminResumeParseOnly(profileId, text);
+      });
+      var createWizardApplyBtn = document.getElementById('createWizardApplyBtn');
+      if (createWizardApplyBtn) createWizardApplyBtn.addEventListener('click', function() {
+        var profileId = window.createWizardProfileId;
+        var parsed = window.createWizardParsed;
+        if (!profileId || !parsed) { showToast('Missing profile or parsed data', true); return; }
+        var applySkills = document.getElementById('createWizardApplySkillsCb') && document.getElementById('createWizardApplySkillsCb').checked;
+        var applyPrefs = document.getElementById('createWizardApplyPrefsCb') && document.getElementById('createWizardApplyPrefsCb').checked;
+        if (!applySkills && !applyPrefs) { document.getElementById('createWizardApplyStatus').textContent = 'Check at least one option to apply.'; return; }
+        document.getElementById('createWizardApplyStatus').textContent = 'Applying...';
+        createWizardApplyBtn.disabled = true;
+        google.script.run.withSuccessHandler(function(r) {
+          createWizardApplyBtn.disabled = false;
+          document.getElementById('createWizardApplyStatus').textContent = '';
+          if (!r.ok) { document.getElementById('createWizardApplyStatus').textContent = r.error || 'Apply failed'; return; }
+          document.getElementById('createStep3').style.display = 'none';
+          document.getElementById('createStepDone').style.display = '';
+          document.getElementById('createModalTitle').textContent = 'Add profile – Done';
+          document.getElementById('createStepDoneMessage').textContent = 'Profile created and applied.';
+          document.getElementById('createStepDoneUrl').textContent = window.createWizardPortalUrl || '(portal URL not available)';
+          document.getElementById('createStepDoneNext').textContent = (window.createWizardStagingRows > 0) ? 'Review Resume_Staging for lanes, then run Apply Approved Lanes.' : '';
+        }).withFailureHandler(function(err) {
+          createWizardApplyBtn.disabled = false;
+          document.getElementById('createWizardApplyStatus').textContent = adminErrorMessage(err, 'Error');
+        }).adminResumeApplyApproved(profileId, parsed, { applySkills: applySkills, applyPreferences: applyPrefs });
+      });
+      var createStepDoneClose = document.getElementById('createStepDoneClose');
+      if (createStepDoneClose) createStepDoneClose.addEventListener('click', function() {
+        var mCreate = document.getElementById('modalCreate');
+        if (mCreate) mCreate.classList.remove('visible');
+        loadProfiles();
       });
       var createCancelEl = document.getElementById('createCancel');
       if (createCancelEl) createCancelEl.addEventListener('click', function() { var m = document.getElementById('modalCreate'); if (m) m.classList.remove('visible'); });

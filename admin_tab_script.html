@@ -518,7 +518,21 @@
   if (modalEditClose) modalEditClose.addEventListener('click', function() { var m = document.getElementById('modalEdit'); if (m) m.classList.remove('visible'); });
 
   var btnAddProfile = document.getElementById('btnAddProfile');
-  if (btnAddProfile) btnAddProfile.addEventListener('click', function() { var m = document.getElementById('modalCreate'); if (m) m.classList.add('visible'); });
+  if (btnAddProfile) btnAddProfile.addEventListener('click', function() {
+    var m = document.getElementById('modalCreate');
+    if (m) m.classList.add('visible');
+    document.getElementById('createStep1').style.display = '';
+    document.getElementById('createStep2').style.display = 'none';
+    document.getElementById('createStep3').style.display = 'none';
+    document.getElementById('createStepDone').style.display = 'none';
+    var titleEl = document.getElementById('createModalTitle');
+    if (titleEl) titleEl.textContent = 'Add profile';
+    window.createWizardProfileId = '';
+    window.createWizardPortalUrl = '';
+    window.createWizardDisplayName = '';
+    window.createWizardParsed = null;
+    window.createWizardStagingRows = 0;
+  });
   var createSubmit = document.getElementById('createSubmit');
   if (createSubmit) createSubmit.addEventListener('click', function() {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
@@ -542,11 +556,125 @@
     };
     if (!data.profileId || !data.displayName) { showToast('Profile ID and Display name required', true); return; }
     showAdminLoad('Creating profile...');
+    createSubmit.disabled = true;
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
-      if (r.ok) { showToast('Profile created'); var m = document.getElementById('modalCreate'); if (m) m.classList.remove('visible'); loadProfiles(); }
-      else showToast(r.error || 'Failed', true);
-    }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminCreateProfile(data);
+      createSubmit.disabled = false;
+      if (!r.ok) { showToast(r.error || 'Failed', true); return; }
+      window.createWizardProfileId = data.profileId;
+      window.createWizardPortalUrl = r.portalUrl || '';
+      window.createWizardDisplayName = data.displayName;
+      document.getElementById('createStep1').style.display = 'none';
+      document.getElementById('createStep2').style.display = '';
+      document.getElementById('createStep2ProfileName').textContent = data.displayName + ' (' + data.profileId + ')';
+      document.getElementById('createWizardResumeText').value = '';
+      document.getElementById('createStep2Status').textContent = '';
+      var titleEl = document.getElementById('createModalTitle');
+      if (titleEl) titleEl.textContent = 'Add profile – Paste resume (optional)';
+    }).withFailureHandler(function(err) {
+      hideAdminLoad();
+      createSubmit.disabled = false;
+      showToast(adminErrorMessage(err, 'Error'), true);
+    }).adminCreateProfile(data);
+  });
+  var createStep2Skip = document.getElementById('createStep2Skip');
+  if (createStep2Skip) createStep2Skip.addEventListener('click', function() {
+    document.getElementById('createStep2').style.display = 'none';
+    document.getElementById('createStepDone').style.display = '';
+    var titleEl = document.getElementById('createModalTitle');
+    if (titleEl) titleEl.textContent = 'Add profile – Done';
+    document.getElementById('createStepDoneMessage').textContent = 'Profile created.';
+    document.getElementById('createStepDoneUrl').textContent = window.createWizardPortalUrl || '(portal URL not available)';
+    document.getElementById('createStepDoneNext').textContent = '';
+  });
+  var createStep2Parse = document.getElementById('createStep2Parse');
+  if (createStep2Parse) createStep2Parse.addEventListener('click', function() {
+    var profileId = window.createWizardProfileId;
+    var text = (document.getElementById('createWizardResumeText') && document.getElementById('createWizardResumeText').value) || '';
+    if (!profileId) { showToast('Missing profile', true); return; }
+    if (text.trim().length < 100) { document.getElementById('createStep2Status').textContent = 'Paste at least 100 characters to parse.'; return; }
+    document.getElementById('createStep2Status').textContent = 'Parsing...';
+    createStep2Parse.disabled = true;
+    showAdminLoad('Parsing resume...');
+    google.script.run.withSuccessHandler(function(r) {
+      hideAdminLoad();
+      createStep2Parse.disabled = false;
+      document.getElementById('createStep2Status').textContent = '';
+      if (!r.ok) { document.getElementById('createStep2Status').textContent = r.error || 'Parse failed'; return; }
+      window.createWizardParsed = r.parsed;
+      window.createWizardStagingRows = r.stagingRows || 0;
+      document.getElementById('createStep2').style.display = 'none';
+      document.getElementById('createStep3').style.display = '';
+      var titleEl = document.getElementById('createModalTitle');
+      if (titleEl) titleEl.textContent = 'Add profile – Review and apply';
+      var p = r.parsed || {};
+      document.getElementById('createWizardParsedSummary').textContent = (p.skillProfileText || '').substring(0, 600) || '—';
+      document.getElementById('createWizardParsedPrefs').textContent = [
+        (p.topSkills || []).join(', '),
+        (p.preferredLocations || []).join(', ') || (p.preferredCountries || []).join(', '),
+        p.remotePreference || '',
+        p.currentCity ? ('Current city: ' + p.currentCity) : ''
+      ].filter(Boolean).join(' · ') || '—';
+      document.getElementById('createWizardCurrentSummary').textContent = 'Loading...';
+      document.getElementById('createWizardCurrentPrefs').textContent = '';
+      google.script.run.withSuccessHandler(function(rev) {
+        if (rev && rev.ok && rev.profile) {
+          var cur = rev.profile;
+          document.getElementById('createWizardCurrentSummary').textContent = (cur.skillProfileText || '').substring(0, 600) || '—';
+          document.getElementById('createWizardCurrentPrefs').textContent = [
+            Array.isArray(cur.topSkills) ? cur.topSkills.join(', ') : cur.topSkills,
+            Array.isArray(cur.preferredLocations) ? cur.preferredLocations.join(', ') : cur.preferredLocations,
+            cur.remotePreference || '',
+            cur.currentCity ? ('Current city: ' + cur.currentCity) : ''
+          ].filter(Boolean).join(' · ') || '—';
+        } else {
+          document.getElementById('createWizardCurrentSummary').textContent = '—';
+          document.getElementById('createWizardCurrentPrefs').textContent = '—';
+        }
+      }).withFailureHandler(function() {
+        document.getElementById('createWizardCurrentSummary').textContent = '—';
+        document.getElementById('createWizardCurrentPrefs').textContent = '—';
+      }).adminGetProfileForReview(profileId);
+    }).withFailureHandler(function(err) {
+      hideAdminLoad();
+      createStep2Parse.disabled = false;
+      document.getElementById('createStep2Status').textContent = adminErrorMessage(err, 'Error');
+    }).adminResumeParseOnly(profileId, text);
+  });
+  var createWizardApplyBtn = document.getElementById('createWizardApplyBtn');
+  if (createWizardApplyBtn) createWizardApplyBtn.addEventListener('click', function() {
+    var profileId = window.createWizardProfileId;
+    var parsed = window.createWizardParsed;
+    if (!profileId || !parsed) { showToast('Missing profile or parsed data', true); return; }
+    var applySkills = document.getElementById('createWizardApplySkillsCb') && document.getElementById('createWizardApplySkillsCb').checked;
+    var applyPrefs = document.getElementById('createWizardApplyPrefsCb') && document.getElementById('createWizardApplyPrefsCb').checked;
+    if (!applySkills && !applyPrefs) { document.getElementById('createWizardApplyStatus').textContent = 'Check at least one option to apply.'; return; }
+    document.getElementById('createWizardApplyStatus').textContent = 'Applying...';
+    createWizardApplyBtn.disabled = true;
+    showAdminLoad('Applying...');
+    google.script.run.withSuccessHandler(function(r) {
+      hideAdminLoad();
+      createWizardApplyBtn.disabled = false;
+      document.getElementById('createWizardApplyStatus').textContent = '';
+      if (!r.ok) { document.getElementById('createWizardApplyStatus').textContent = r.error || 'Apply failed'; return; }
+      document.getElementById('createStep3').style.display = 'none';
+      document.getElementById('createStepDone').style.display = '';
+      var titleEl = document.getElementById('createModalTitle');
+      if (titleEl) titleEl.textContent = 'Add profile – Done';
+      document.getElementById('createStepDoneMessage').textContent = 'Profile created and applied.';
+      document.getElementById('createStepDoneUrl').textContent = window.createWizardPortalUrl || '(portal URL not available)';
+      document.getElementById('createStepDoneNext').textContent = (window.createWizardStagingRows > 0) ? 'Review Resume_Staging for lanes, then run Apply Approved Lanes.' : '';
+    }).withFailureHandler(function(err) {
+      hideAdminLoad();
+      createWizardApplyBtn.disabled = false;
+      document.getElementById('createWizardApplyStatus').textContent = adminErrorMessage(err, 'Error');
+    }).adminResumeApplyApproved(profileId, parsed, { applySkills: applySkills, applyPreferences: applyPrefs });
+  });
+  var createStepDoneClose = document.getElementById('createStepDoneClose');
+  if (createStepDoneClose) createStepDoneClose.addEventListener('click', function() {
+    var m = document.getElementById('modalCreate');
+    if (m) m.classList.remove('visible');
+    loadProfiles();
   });
   var createCancel = document.getElementById('createCancel');
   if (createCancel) createCancel.addEventListener('click', function() { var m = document.getElementById('modalCreate'); if (m) m.classList.remove('visible'); });
