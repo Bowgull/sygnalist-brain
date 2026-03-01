@@ -178,24 +178,33 @@
     </div>
 
     <div id="sectionLogs" class="admin-section">
-      <div class="admin-toolbar">
-        <input type="text" id="logsProfileFilter" class="admin-search" placeholder="Profile ID filter" />
-        <input type="text" id="logsActionFilter" class="admin-search" placeholder="Action filter" />
+      <div class="admin-toolbar flex flex-wrap items-center gap-2">
+        <input type="text" id="logsProfileFilter" class="admin-search" placeholder="Profile ID" />
         <input type="text" id="logsBatchFilter" class="admin-search" placeholder="Batch ID (e.g. b_0301_0950)" />
-        <label class="inline-flex items-center gap-1"><input type="checkbox" id="logsReceiptsOnly" /> Receipts only</label>
-        <label class="inline-flex items-center gap-1"><input type="checkbox" id="logsHideDebug" /> Hide debug</label>
-        <button type="button" class="btn btn-ghost" id="btnLoadLogs">Load logs</button>
+        <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" id="logsReceiptsOnly" checked /> Receipts only</label>
+        <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" id="logsHideAdmin" checked /> Hide admin</label>
+        <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" id="logsShowDebug" /> Show debug</label>
+        <button type="button" class="btn btn-ghost" id="btnLoadLogs">Load receipts</button>
+        <button type="button" class="btn btn-ghost" id="btnLogsLoadMore" style="display:none;">Load more</button>
         <button type="button" class="btn btn-primary" id="btnExportLogs">Export logs</button>
       </div>
-      <div class="admin-table-wrap">
-        <table class="admin-table" id="logsTable"><thead><tr><th>Time</th><th>Profile</th><th>Action</th><th>Source</th><th>Details</th><th></th></tr></thead><tbody></tbody></table>
+      <div id="logsReceiptCards" class="space-y-3 mt-3">
+        <!-- Receipt cards rendered by JS -->
       </div>
-      <div id="logDetailModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/50" aria-hidden="true">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto p-4">
-          <div class="flex justify-between items-center mb-2"><span class="font-semibold">Log details</span><button type="button" id="logDetailModalClose" class="btn btn-ghost btn-sm">Close</button></div>
-          <pre id="logDetailContent" class="text-sm whitespace-pre-wrap break-words"></pre>
+      <p id="logsEmpty" class="admin-sub mt-3" style="display:none;">No receipts. Run a fetch to see run receipts.</p>
+      <!-- Right-side drawer -->
+      <div id="logsDrawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-gray-800 shadow-xl z-50 transform translate-x-full transition-transform duration-200 ease-out overflow-hidden flex flex-col" aria-hidden="true">
+        <div class="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700">
+          <span class="font-semibold">Run details</span>
+          <button type="button" id="logsDrawerClose" class="btn btn-ghost btn-sm">Close</button>
+        </div>
+        <div id="logsDrawerContent" class="flex-1 overflow-auto p-3 text-sm">
+          <div id="logsDrawerHeader" class="mb-3"></div>
+          <div id="logsDrawerTimeline" class="mb-3"><span class="text-gray-500">Stage timeline</span><ul id="logsDrawerTimelineList" class="mt-1 space-y-1"></ul></div>
+          <div id="logsDrawerMeta" class="mb-3"><span class="text-gray-500">Receipt meta</span><pre id="logsDrawerMetaPre" class="mt-1 p-2 bg-gray-100 dark:bg-gray-900 rounded text-xs overflow-auto max-h-64"></pre></div>
         </div>
       </div>
+      <div id="logsDrawerOverlay" class="fixed inset-0 bg-black/30 z-40 hidden" aria-hidden="true"></div>
     </div>
 
     <div id="sectionJobsIntake" class="admin-section">

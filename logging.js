@@ -8,6 +8,9 @@
 
 function logEvent_(event) {
   try {
+    if (String(event.source || "").toLowerCase() === "debug" && !(typeof CONFIG !== "undefined" && CONFIG.LOG_DEBUG)) {
+      return;
+    }
     const sheet = assertSheetExists_("📓 Logs");
     ensureLogHeaders_(sheet);
     const action = String(event.action || "").toLowerCase();
@@ -120,6 +123,7 @@ function formatLogDetailsInline_(details) {
     if (meta.rapidLinkedInCount !== undefined) extras.push("rapidLI: " + meta.rapidLinkedInCount);
     if (meta.rapidATSCount !== undefined) extras.push("rapidATS: " + meta.rapidATSCount);
     if (meta.httpStatus !== undefined) extras.push("httpStatus: " + meta.httpStatus);
+    if (meta.dropTop) extras.push("dropTop: " + meta.dropTop);
 
     if (extras.length > 0) {
       return msg + " (" + extras.join(", ") + ")";

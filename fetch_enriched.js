@@ -590,8 +590,12 @@ function fetchForProfileWithEnrichment_(profileId) {
         if (k && trackerKeys.has(k)) return false;
         return true;
       });
+      var trackerDropped = enriched.length - forInbox.length;
       forInbox = filterTierGate_(forInbox);
+      var tierGateDropped = (enriched.length - trackerDropped) - forInbox.length;
+      var beforeX = forInbox.length;
       forInbox = forInbox.filter(function (j) { return String(j.tier || "").toUpperCase() !== "X"; });
+      var xTierDropped = beforeX - forInbox.length;
 
       // 6) Write enriched inbox (replace profile inbox)
       var written;
@@ -617,6 +621,15 @@ function fetchForProfileWithEnrichment_(profileId) {
       });
 
       var runDurationMs = typeof tEnrichStart === "number" ? Date.now() - tEnrichStart : 0;
+      var dropTop = "";
+      if (written === 0) {
+        var drops = [];
+        if (trackerDropped > 0) drops.push({ key: "tracker", count: trackerDropped });
+        if (tierGateDropped > 0) drops.push({ key: "tierGate", count: tierGateDropped });
+        if (xTierDropped > 0) drops.push({ key: "xTier", count: xTierDropped });
+        drops.sort(function (a, b) { return b.count - a.count; });
+        dropTop = drops.slice(0, 3).map(function (d) { return d.key + ":" + d.count; }).join(",");
+      }
       logEvent_({
         timestamp: Date.now(),
         profileId: profile.profileId,
@@ -637,7 +650,8 @@ function fetchForProfileWithEnrichment_(profileId) {
             written: written,
             rapidDecision: rapidDecision,
             rapidStatus: rapidStatus,
-            durationMs: runDurationMs
+            durationMs: runDurationMs,
+            dropTop: dropTop || undefined
           },
           batchId,
           version: Sygnalist_VERSION

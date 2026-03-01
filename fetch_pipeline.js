@@ -110,7 +110,8 @@ function fetchJobsRawForProfile_(profileId) {
           written: written,
           rapidDecision: "SKIP",
           rapidStatus: "N/A",
-          durationMs: 0
+          durationMs: 0,
+          dropTop: written === 0 ? "rawPipeline" : undefined
         },
         batchId,
         version: Sygnalist_VERSION

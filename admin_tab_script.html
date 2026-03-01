@@ -1558,50 +1558,114 @@
       else showToast(r.error || 'Failed', true);
     }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminDeleteJobsInboxRow(jobId);
   });
+  var logsAfterTimestamp = null;
   var btnLoadLogs = document.getElementById('btnLoadLogs');
+  var btnLogsLoadMore = document.getElementById('btnLogsLoadMore');
   if (btnLoadLogs) btnLoadLogs.addEventListener('click', function() {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
-    var profileFilter = document.getElementById('logsProfileFilter').value.trim();
-    var actionFilter = document.getElementById('logsActionFilter').value.trim();
+    logsAfterTimestamp = null;
+    var profileFilter = document.getElementById('logsProfileFilter') ? document.getElementById('logsProfileFilter').value.trim() : '';
     var batchIdFilter = document.getElementById('logsBatchFilter') ? document.getElementById('logsBatchFilter').value.trim() : '';
-    var receiptsOnly = document.getElementById('logsReceiptsOnly') ? document.getElementById('logsReceiptsOnly').checked : false;
-    var hideDebug = document.getElementById('logsHideDebug') ? document.getElementById('logsHideDebug').checked : false;
-    showAdminLoad('Loading logs...');
+    var limit = 25;
+    showAdminLoad('Loading receipts...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (!r.ok) { showToast(r.error || 'Failed', true); return; }
-      var rows = (r.rows || []).slice(-100).reverse();
-      if (receiptsOnly) rows = rows.filter(function(row) {
-        var d = String(row.details || '');
-        return d.indexOf('BATCH RECEIPT') !== -1 || d.indexOf('Fetch+Enrich pipeline complete') !== -1 || d.indexOf('Fetch pipeline complete') !== -1;
-      });
-      if (hideDebug) rows = rows.filter(function(row) { return String(row.source || '').toLowerCase() !== 'debug'; });
-      var tbody = document.querySelector('#logsTable tbody');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-      var DETAILS_PREVIEW_LEN = 220;
-      rows.forEach(function(row, idx) {
-        var detailsPreview = String(row.details || '').slice(0, DETAILS_PREVIEW_LEN);
-        if (String(row.details || '').length > DETAILS_PREVIEW_LEN) detailsPreview += '…';
-        var viewBtn = '<button type="button" class="btn btn-ghost btn-sm log-view-detail" data-idx="' + idx + '" title="View full details">View</button>';
-        var fullDetails = [row.time, row.profileId, row.action, row.source, row.level, row.details].join('\n');
-        tbody.innerHTML += '<tr><td>' + esc(row.time) + '</td><td>' + esc(row.profileId) + '</td><td>' + esc(row.action) + '</td><td>' + esc(row.source) + '</td><td>' + esc(detailsPreview) + '</td><td>' + viewBtn + '</td></tr>';
-        var lastRow = tbody.rows[tbody.rows.length - 1];
-        var btn = lastRow.querySelector('.log-view-detail');
-        if (btn) btn.addEventListener('click', function() {
-          var content = document.getElementById('logDetailContent');
-          var modal = document.getElementById('logDetailModal');
-          if (content) content.textContent = fullDetails;
-          if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
-        });
-      });
-    }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminGetLogs(200, profileFilter || null, actionFilter || null, batchIdFilter || null);
+      var container = document.getElementById('logsReceiptCards');
+      var emptyEl = document.getElementById('logsEmpty');
+      var loadMoreBtn = document.getElementById('btnLogsLoadMore');
+      if (container) container.innerHTML = '';
+      if (emptyEl) emptyEl.style.display = (r.receipts && r.receipts.length) ? 'none' : 'block';
+      if (loadMoreBtn) loadMoreBtn.style.display = (r.hasMore ? 'inline-block' : 'none');
+      if (r.receipts && r.receipts.length) {
+        r.receipts.forEach(function(rec) { appendReceiptCard(container, rec); });
+        if (r.receipts.length > 0) logsAfterTimestamp = r.receipts[r.receipts.length - 1].timeMs;
+      }
+    }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminGetReceipts(limit, profileFilter || null, batchIdFilter || null, null);
   });
-  var logDetailModalClose = document.getElementById('logDetailModalClose');
-  if (logDetailModalClose) logDetailModalClose.addEventListener('click', function() {
-    var modal = document.getElementById('logDetailModal');
-    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+  if (btnLogsLoadMore) btnLogsLoadMore.addEventListener('click', function() {
+    if (!canCallServer()) return;
+    var profileFilter = document.getElementById('logsProfileFilter') ? document.getElementById('logsProfileFilter').value.trim() : '';
+    var batchIdFilter = document.getElementById('logsBatchFilter') ? document.getElementById('logsBatchFilter').value.trim() : '';
+    var limit = 25;
+    google.script.run.withSuccessHandler(function(r) {
+      if (!r.ok) { showToast(r.error || 'Failed', true); return; }
+      var container = document.getElementById('logsReceiptCards');
+      var loadMoreBtn = document.getElementById('btnLogsLoadMore');
+      if (r.receipts && r.receipts.length) {
+        r.receipts.forEach(function(rec) { appendReceiptCard(container, rec); });
+        if (r.receipts.length > 0) logsAfterTimestamp = r.receipts[r.receipts.length - 1].timeMs;
+      }
+      if (loadMoreBtn) loadMoreBtn.style.display = (r.hasMore ? 'inline-block' : 'none');
+    }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminGetReceipts(limit, profileFilter || null, batchIdFilter || null, logsAfterTimestamp);
   });
+  function appendReceiptCard(container, rec) {
+    if (!container) return;
+    var meta = rec.meta || {};
+    var written = meta.written !== undefined ? meta.written : 0;
+    var status = rec.error ? 'Error' : (written > 0 ? 'Success' : 'Empty');
+    var statusClass = written > 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : (rec.error ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200');
+    var pipeline = [meta.rawFetchedMain, meta.afterDedupe, meta.eligible, meta.candidates, meta.enriched, written].map(function(n) { return n !== undefined ? n : '—'; }).join(' → ');
+    var rapidLine = (meta.rapidDecision || '—') + (meta.rapidStatus ? ' ' + meta.rapidStatus : '') + (meta.rapidAdded !== undefined ? ' +' + meta.rapidAdded : '');
+    var dropChips = '';
+    if (written === 0 && meta.dropTop) {
+      var parts = String(meta.dropTop).split(',');
+      for (var i = 0; i < Math.min(3, parts.length); i++) {
+        var p = parts[i].trim();
+        if (p) dropChips += '<span class="inline-block px-2 py-0.5 rounded text-xs bg-gray-200 dark:bg-gray-600 mr-1">' + esc(p) + '</span>';
+      }
+    }
+    var card = document.createElement('div');
+    card.className = 'admin-card p-3 border border-gray-200 dark:border-gray-600 rounded-lg';
+    card.innerHTML = '<div class="flex flex-wrap items-center gap-2 mb-2">' +
+      '<span class="font-mono text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">' + esc(rec.batchId || '—') + '</span>' +
+      '<span class="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">' + esc(rec.profileId || '—') + '</span>' +
+      '<span class="text-xs font-medium px-2 py-0.5 rounded ' + statusClass + '">' + status + '</span>' +
+      (meta.durationMs !== undefined ? '<span class="text-xs text-gray-500">' + meta.durationMs + 'ms</span>' : '') +
+      '</div>' +
+      '<div class="text-xs text-gray-600 dark:text-gray-400 mb-1">' + esc(rec.time) + '</div>' +
+      '<div class="text-xs mb-1 font-medium">' + esc(pipeline) + '</div>' +
+      '<div class="text-xs text-gray-500 mb-1">Rapid: ' + esc(rapidLine) + '</div>' +
+      (dropChips ? '<div class="mb-2">' + dropChips + '</div>' : '') +
+      '<button type="button" class="btn btn-ghost btn-sm receipt-view-details">View run details</button>';
+    container.appendChild(card);
+    var btn = card.querySelector('.receipt-view-details');
+    if (btn) btn.addEventListener('click', function() { openLogsDrawer(rec); });
+  }
+  function openLogsDrawer(rec) {
+    var drawer = document.getElementById('logsDrawer');
+    var overlay = document.getElementById('logsDrawerOverlay');
+    var headerEl = document.getElementById('logsDrawerHeader');
+    var metaPre = document.getElementById('logsDrawerMetaPre');
+    var timelineList = document.getElementById('logsDrawerTimelineList');
+    if (headerEl) headerEl.innerHTML = '<span class="font-mono">' + esc(rec.batchId || '') + '</span> ' + esc(rec.profileId || '') + ' · ' + esc(rec.time);
+    if (metaPre) metaPre.textContent = JSON.stringify(rec.meta || {}, null, 2);
+    if (timelineList) timelineList.innerHTML = '';
+    if (drawer) { drawer.classList.remove('translate-x-full'); drawer.setAttribute('aria-hidden', 'false'); }
+    if (overlay) overlay.classList.remove('hidden');
+    if (rec.batchId && typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(function(r2) {
+        if (r2.ok && r2.rows && r2.rows.length && timelineList) {
+          r2.rows.forEach(function(row) {
+            var li = document.createElement('li');
+            li.className = 'text-xs';
+            li.textContent = (row.time || '') + ' ' + (row.source || '') + ': ' + String(row.details || '').slice(0, 60) + (String(row.details).length > 60 ? '…' : '');
+            timelineList.appendChild(li);
+          });
+        }
+      }).withFailureHandler(function() {}).adminGetLogsByBatchId(rec.batchId);
+    }
+  }
+  function closeLogsDrawer() {
+    var drawer = document.getElementById('logsDrawer');
+    var overlay = document.getElementById('logsDrawerOverlay');
+    if (drawer) { drawer.classList.add('translate-x-full'); drawer.setAttribute('aria-hidden', 'true'); }
+    if (overlay) overlay.classList.add('hidden');
+  }
+  var logsDrawerClose = document.getElementById('logsDrawerClose');
+  if (logsDrawerClose) logsDrawerClose.addEventListener('click', closeLogsDrawer);
+  var logsDrawerOverlay = document.getElementById('logsDrawerOverlay');
+  if (logsDrawerOverlay) logsDrawerOverlay.addEventListener('click', closeLogsDrawer);
   var btnExportLogs = document.getElementById('btnExportLogs');
   if (btnExportLogs) btnExportLogs.addEventListener('click', function() {
     var btn = btnExportLogs;

@@ -673,6 +673,157 @@ function adminGetLogs(limit, profileIdFilter, actionFilter, batchIdFilter) {
   }
 }
 
+/**
+ * Parse batchId from receipt details string (e.g. "BATCH RECEIPT (batch: b_0301_0950, ...)").
+ */
+function parseReceiptBatchId_(detailsStr) {
+  if (!detailsStr || typeof detailsStr !== "string") return "";
+  var match = detailsStr.match(/batch:\s*([^\s,)]+)/);
+  return match ? String(match[1]).trim() : "";
+}
+
+/**
+ * Parse receipt meta from details string for BATCH RECEIPT rows.
+ * Returns object with numeric/string fields used by receipt cards.
+ */
+function parseReceiptMeta_(detailsStr) {
+  var meta = {};
+  if (!detailsStr || typeof detailsStr !== "string") return meta;
+  var num = function (v) { return v !== undefined && v !== "" ? Number(v) : undefined; };
+  var patterns = [
+    { key: "rawFetchedMain", re: /rawMain:\s*(\d+)/ },
+    { key: "rawFetchedRapid", re: /rawRapid:\s*(\d+)/ },
+    { key: "afterDedupe", re: /afterDedupe:\s*(\d+)/ },
+    { key: "eligible", re: /eligible:\s*(\d+)/ },
+    { key: "candidates", re: /candidates:\s*(\d+)/ },
+    { key: "enriched", re: /enriched:\s*(\d+)/ },
+    { key: "written", re: /written:\s*(\d+)/ },
+    { key: "durationMs", re: /durationMs:\s*(\d+)/ },
+    { key: "rapidDecision", re: /rapid:\s*([^\s,)]+)/ },
+    { key: "rapidStatus", re: /rapidStatus:\s*([^\s,)]+)/ },
+    { key: "rapidRawCount", re: /rapidRaw:\s*(\d+)/ },
+    { key: "rapidParsedCount", re: /rapidParsed:\s*(\d+)/ },
+    { key: "rapidRejectedCount", re: /rapidRejected:\s*(\d+)/ },
+    { key: "rapidAdded", re: /rapidAdded:\s*(\d+)/ },
+    { key: "dropTop", re: /dropTop:\s*([^\s)]+)/ }
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    var m = detailsStr.match(patterns[i].re);
+    if (m) {
+      var val = m[1];
+      var key = patterns[i].key;
+      meta[key] = (key === "dropTop" || key === "rapidDecision" || key === "rapidStatus") ? val : num(val);
+    }
+  }
+  return meta;
+}
+
+/**
+ * Return receipt-only list for Logs UI (Run Receipt Cards).
+ * limit: max receipts to return (e.g. 25)
+ * profileIdFilter: optional profile id
+ * batchIdFilter: optional batch id substring
+ * afterTimestamp: optional; return receipts older than this (row time < afterTimestamp). Pass epoch ms or null.
+ */
+function adminGetReceipts(limit, profileIdFilter, batchIdFilter, afterTimestamp) {
+  logAdmin_("start", "Get receipts started", {});
+  try {
+    var lim = Math.min(Math.max(Number(limit) || 25, 1), 100);
+    var sh = assertSheetExists_("📓 Logs");
+    var lastRow = sh.getLastRow();
+    if (lastRow < 2) return { ok: true, receipts: [], hasMore: false };
+
+    var numCols = 7;
+    var detailsCol = 5;
+    var profileCol = 2;
+    var timeCol = 1;
+    var values = sh.getRange(1, 1, lastRow, numCols).getValues();
+    var data = values.slice(1);
+    var receiptRows = [];
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var detailsStr = String(row[detailsCol] || "");
+      if (detailsStr.indexOf("BATCH RECEIPT") === -1) continue;
+      if (profileIdFilter && String(profileIdFilter).trim()) {
+        if (String(row[profileCol] || "").trim() !== String(profileIdFilter).trim()) continue;
+      }
+      if (batchIdFilter && String(batchIdFilter).trim()) {
+        if (detailsStr.indexOf(String(batchIdFilter).trim()) === -1) continue;
+      }
+      var rowTime = row[timeCol];
+      var rowTimeMs = rowTime instanceof Date ? rowTime.getTime() : (typeof rowTime === "number" ? rowTime : new Date(rowTime).getTime());
+      if (afterTimestamp != null && afterTimestamp !== "" && !isNaN(Number(afterTimestamp))) {
+        if (rowTimeMs >= Number(afterTimestamp)) continue;
+      }
+      receiptRows.push({ row: row, rowIndex: i, timeMs: rowTimeMs });
+    }
+    receiptRows.sort(function (a, b) { return b.timeMs - a.timeMs; });
+    var page = receiptRows.slice(0, lim);
+    var hasMore = receiptRows.length > lim;
+    var receipts = page.map(function (item) {
+      var row = item.row;
+      var detailsStr = String(row[detailsCol] || "");
+      var batchId = parseReceiptBatchId_(detailsStr);
+      var meta = parseReceiptMeta_(detailsStr);
+      return {
+        batchId: batchId,
+        profileId: row[2],
+        time: formatLogTimestamp_(row[1]),
+        timeMs: item.timeMs,
+        action: row[3],
+        source: row[4],
+        details: detailsStr,
+        level: row[6],
+        meta: meta
+      };
+    });
+    logAdmin_("ok", "Get receipts completed", { count: receipts.length, hasMore: hasMore });
+    return { ok: true, receipts: receipts, hasMore: hasMore };
+  } catch (e) {
+    logAdmin_("error", "Get receipts failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+/**
+ * Return all log rows whose details contain the given batchId (for drawer stage timeline).
+ */
+function adminGetLogsByBatchId(batchId) {
+  logAdmin_("start", "Get logs by batchId started", { batchId: batchId });
+  try {
+    if (!batchId || String(batchId).trim() === "") return { ok: true, rows: [] };
+    var sh = assertSheetExists_("📓 Logs");
+    var lastRow = sh.getLastRow();
+    if (lastRow < 2) return { ok: true, rows: [] };
+
+    var numCols = 7;
+    var detailsCol = 5;
+    var batchStr = String(batchId).trim();
+    var values = sh.getRange(1, 1, lastRow, numCols).getValues();
+    var data = values.slice(1);
+    var rows = [];
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      if (String(row[detailsCol] || "").indexOf(batchStr) === -1) continue;
+      rows.push({
+        time: formatLogTimestamp_(row[1]),
+        timeMs: row[1] instanceof Date ? row[1].getTime() : new Date(row[1]).getTime(),
+        profileId: row[2],
+        action: row[3],
+        source: row[4],
+        details: row[5],
+        level: row[6]
+      });
+    }
+    rows.sort(function (a, b) { return a.timeMs - b.timeMs; });
+    logAdmin_("ok", "Get logs by batchId completed", { count: rows.length });
+    return { ok: true, rows: rows };
+  } catch (e) {
+    logAdmin_("error", "Get logs by batchId failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
 function adminExportLogs(options) {
   logAdmin_("start", "Export logs started", {});
   try {
