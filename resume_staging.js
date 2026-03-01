@@ -3,7 +3,7 @@
  * Resume parse staging: suggested lanes/roles go here; admin approves then "Apply Approved Lanes".
  */
 
-var RESUME_STAGING_HEADERS = ["profileId", "roleTitle", "keywords", "confidence", "reason", "Approved", "Applied"];
+var RESUME_STAGING_HEADERS = ["profileId", "roleTitle", "keywords", "confidence", "reason", "Approved", "Applied", "role_bank_id", "resolution_status", "source"];
 
 function ensureResumeStagingSheet_() {
   var sh = ensureSheet_("Resume_Staging");
@@ -11,46 +11,113 @@ function ensureResumeStagingSheet_() {
     sh.getRange(1, 1, 1, RESUME_STAGING_HEADERS.length).setValues([RESUME_STAGING_HEADERS]);
     sh.getRange(1, 1, 1, RESUME_STAGING_HEADERS.length).setFontWeight("bold");
     sh.setFrozenRows(1);
+  } else {
+    ensureResumeStagingColumns_(sh);
   }
-  formatResumeStagingSheet_(sh);
+  if (typeof formatResumeStagingSheet_ === "function") formatResumeStagingSheet_(sh);
   return sh;
 }
 
 /**
+ * Ensure Option A columns exist (role_bank_id, resolution_status, source); backfill empty for existing rows.
+ */
+function ensureResumeStagingColumns_(sh) {
+  var lastRow = sh.getLastRow();
+  var lastCol = sh.getLastColumn();
+  if (lastRow < 1) return;
+  var headers = sh.getRange(1, 1, 1, Math.max(lastCol, 1)).getValues()[0].map(function (h) { return String(h || "").trim(); });
+  if (headers.indexOf("role_bank_id") >= 0) return;
+  for (var c = headers.length; c < RESUME_STAGING_HEADERS.length; c++) {
+    sh.getRange(1, c + 1).setValue(RESUME_STAGING_HEADERS[c]);
+  }
+  for (var r = 2; r <= lastRow; r++) {
+    sh.getRange(r, 8).setValue("");
+    sh.getRange(r, 9).setValue("");
+    sh.getRange(r, 10).setValue("");
+  }
+}
+
+/**
+ * Normalize role title for dedupe: use normalizeRoleTitle_ from lane_bank when available for consistency.
+ */
+function normalizeRoleTitleForDedupe_(title) {
+  if (typeof normalizeRoleTitle_ === "function") return normalizeRoleTitle_(title);
+  return String(title || "").trim().toLowerCase();
+}
+
+/**
  * Write suggested roles from parse to staging; Approved = FALSE.
+ * Option A: Resolve each via upsertLaneRoleBankEntry_(source=resume_parse, statusDefault=pending); set role_bank_id, resolution_status, source on each row.
+ * Dedupes against existing staging for this profile (normalized title); idempotent key = profileId + normalizeRoleTitle(title) + source.
  */
 function writeStagingFromParsed_(profileId, parsed) {
   var suggestedRoles = Array.isArray(parsed.suggestedRoles) ? parsed.suggestedRoles : [];
   if (suggestedRoles.length === 0) return 0;
 
   var sh = ensureResumeStagingSheet_();
+  ensureResumeStagingColumns_(sh);
   var lastRow = sh.getLastRow();
   var pid = String(profileId || "").trim();
   if (!pid) throw new Error("profileId is empty.");
 
+  // Build set of existing staging keys for this profile (normalized title + role_bank_id) so we don't duplicate
+  var existingStagingSet = {};
+  var existingRows = typeof getAllStagingRowsForProfileIncludingApplied_ === "function"
+    ? getAllStagingRowsForProfileIncludingApplied_(pid)
+    : [];
+  existingRows.forEach(function (row) {
+    var k = normalizeRoleTitleForDedupe_(row.roleTitle);
+    if (k) existingStagingSet[k] = true;
+    if (row.role_bank_id) existingStagingSet["id:" + String(row.role_bank_id).trim()] = true;
+  });
+
   var rows = [];
+  var seenInBatch = {};
   for (var i = 0; i < suggestedRoles.length; i++) {
     var r = suggestedRoles[i];
     var title = String(r.title || "").trim();
     if (!title) continue;
-    var keywords = Array.isArray(r.keywords) ? r.keywords : [];
+    var key = normalizeRoleTitleForDedupe_(title);
+    if (existingStagingSet[key] || seenInBatch[key]) continue;
+    seenInBatch[key] = true;
+
+    var role_bank_id = "";
+    var resolution_status = "unresolved";
+    if (typeof upsertLaneRoleBankEntry_ === "function") {
+      try {
+        var keywords = Array.isArray(r.keywords) ? r.keywords : [];
+        var u = upsertLaneRoleBankEntry_({
+          role_name: title,
+          aliases: keywords.join(", "),
+          source: "resume_parse",
+          statusDefault: "pending"
+        });
+        role_bank_id = u.id || "";
+        resolution_status = (u.status === "active") ? "matched" : ((u.status === "pending") ? "pending" : "unresolved");
+      } catch (e) {
+        if (typeof Logger !== "undefined") Logger.log("writeStagingFromParsed_: upsert " + title + " " + (e.message || e));
+      }
+    }
+
     rows.push([
       pid,
       title,
-      keywords.join(", "),
-      "",  // confidence
+      (Array.isArray(r.keywords) ? r.keywords : []).join(", "),
+      "",
       "Resume parse",
       false,
-      ""
+      "",
+      role_bank_id,
+      resolution_status,
+      "resume_parse"
     ]);
   }
   if (rows.length === 0) return 0;
 
-  var startRow = lastRow + 1;
   var numRows = rows.length;
-  var numCols = rows[0] && rows[0].length ? rows[0].length : RESUME_STAGING_HEADERS.length;
-  if (typeof Logger !== "undefined") Logger.log("Staging write: values rows=" + numRows + " cols=" + numCols + ", range " + numRows + "x" + numCols);
-  sh.getRange(startRow, 1, numRows, numCols).setValues(rows);
+  var numCols = rows[0].length;
+  var startRow = lastRow + 1;
+  sh.getRange(startRow, 1, startRow + numRows - 1, numCols).setValues(rows);
   return rows.length;
 }
 
@@ -63,7 +130,7 @@ function getAllStagingRowsForProfile_(profileId) {
   var lastRow = sh.getLastRow();
   if (lastRow < 2) return [];
 
-  var data = sh.getRange(1, 1, lastRow, RESUME_STAGING_HEADERS.length).getValues();
+  var data = sh.getRange(1, 1, lastRow, Math.max(sh.getLastColumn(), RESUME_STAGING_HEADERS.length)).getValues();
   var headers = data[0].map(function(h) { return String(h || "").trim(); });
   var idxProfile = headers.indexOf("profileId");
   var idxTitle = headers.indexOf("roleTitle");
@@ -93,14 +160,15 @@ function getAllStagingRowsForProfile_(profileId) {
 
 /**
  * Get all staging rows for a profile including those already applied (for UI so applied roles stay visible).
- * Returns [{ roleTitle, keywords, confidence, reason, approved, applied }].
+ * Returns [{ roleTitle, keywords, confidence, reason, approved, applied, role_bank_id, resolution_status }].
  */
 function getAllStagingRowsForProfileIncludingApplied_(profileId) {
   var sh = ensureResumeStagingSheet_();
   var lastRow = sh.getLastRow();
   if (lastRow < 2) return [];
 
-  var data = sh.getRange(1, 1, lastRow, RESUME_STAGING_HEADERS.length).getValues();
+  var numCols = Math.max(sh.getLastColumn(), RESUME_STAGING_HEADERS.length);
+  var data = sh.getRange(1, 1, lastRow, numCols).getValues();
   var headers = data[0].map(function(h) { return String(h || "").trim(); });
   var idxProfile = headers.indexOf("profileId");
   var idxTitle = headers.indexOf("roleTitle");
@@ -109,6 +177,8 @@ function getAllStagingRowsForProfileIncludingApplied_(profileId) {
   var idxReason = headers.indexOf("reason");
   var idxApproved = headers.indexOf("Approved");
   var idxApplied = headers.indexOf("Applied");
+  var idxRoleBankId = headers.indexOf("role_bank_id");
+  var idxResolutionStatus = headers.indexOf("resolution_status");
   if (idxProfile === -1 || idxTitle === -1) return [];
 
   var pid = String(profileId || "").trim();
@@ -123,8 +193,27 @@ function getAllStagingRowsForProfileIncludingApplied_(profileId) {
       confidence: String(row[idxConfidence] != null ? row[idxConfidence] : "").trim(),
       reason: String(row[idxReason] != null ? row[idxReason] : "").trim(),
       approved: row[idxApproved] === true || row[idxApproved] === "TRUE",
-      applied: applied
+      applied: applied,
+      role_bank_id: idxRoleBankId >= 0 && row[idxRoleBankId] != null ? String(row[idxRoleBankId] || "").trim() : "",
+      resolution_status: idxResolutionStatus >= 0 && row[idxResolutionStatus] != null ? String(row[idxResolutionStatus] || "").trim() : ""
     });
+  }
+  return out;
+}
+
+/**
+ * Same as getAllStagingRowsForProfileIncludingApplied_ but deduped by normalized role title (first occurrence wins).
+ * Use for display so the staging table shows one row per unique role.
+ */
+function getStagingRowsForProfileDeduped_(profileId) {
+  var rows = getAllStagingRowsForProfileIncludingApplied_(profileId);
+  var seen = {};
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    var key = normalizeRoleTitleForDedupe_(rows[i].roleTitle);
+    if (!key || seen[key]) continue;
+    seen[key] = true;
+    out.push(rows[i]);
   }
   return out;
 }
@@ -138,7 +227,7 @@ function setStagingApprovedByRoleTitles_(profileId, approvedRoleTitles) {
   var lastRow = sh.getLastRow();
   if (lastRow < 2) return 0;
 
-  var data = sh.getRange(1, 1, lastRow, RESUME_STAGING_HEADERS.length).getValues();
+  var data = sh.getRange(1, 1, lastRow, Math.max(sh.getLastColumn(), RESUME_STAGING_HEADERS.length)).getValues();
   var headers = data[0].map(function(h) { return String(h || "").trim(); });
   var idxProfile = headers.indexOf("profileId");
   var idxTitle = headers.indexOf("roleTitle");
@@ -160,19 +249,23 @@ function setStagingApprovedByRoleTitles_(profileId, approvedRoleTitles) {
 
 /**
  * Get approved (Approved=TRUE, Applied blank) staging rows for a profile.
+ * Returns [{ title, keywords, role_bank_id, resolution_status }].
  */
 function getApprovedStagingRows_(profileId) {
   var sh = ensureResumeStagingSheet_();
   var lastRow = sh.getLastRow();
   if (lastRow < 2) return [];
 
-  var data = sh.getRange(1, 1, lastRow, RESUME_STAGING_HEADERS.length).getValues();
+  var numCols = Math.max(sh.getLastColumn(), RESUME_STAGING_HEADERS.length);
+  var data = sh.getRange(1, 1, lastRow, numCols).getValues();
   var headers = data[0].map(function(h) { return String(h || "").trim(); });
   var idxProfile = headers.indexOf("profileId");
   var idxTitle = headers.indexOf("roleTitle");
   var idxKeywords = headers.indexOf("keywords");
   var idxApproved = headers.indexOf("Approved");
   var idxApplied = headers.indexOf("Applied");
+  var idxRoleBankId = headers.indexOf("role_bank_id");
+  var idxResolutionStatus = headers.indexOf("resolution_status");
   if (idxProfile === -1 || idxTitle === -1) return [];
 
   var pid = String(profileId || "").trim();
@@ -184,14 +277,46 @@ function getApprovedStagingRows_(profileId) {
     if (row[idxApplied] === true || row[idxApplied] === "TRUE") continue;
     var keywordsStr = String(row[idxKeywords] || "").trim();
     var keywords = keywordsStr ? keywordsStr.split(/\s*,\s*/) : [];
-    out.push({ title: String(row[idxTitle] || "").trim(), keywords: keywords });
+    out.push({
+      title: String(row[idxTitle] || "").trim(),
+      keywords: keywords,
+      role_bank_id: idxRoleBankId >= 0 && row[idxRoleBankId] != null ? String(row[idxRoleBankId] || "").trim() : "",
+      resolution_status: idxResolutionStatus >= 0 && row[idxResolutionStatus] != null ? String(row[idxResolutionStatus] || "").trim() : ""
+    });
   }
   return out;
 }
 
 /**
+ * Build roleTracksJSON from bank row ids. Fetches active bank and builds RoleTrack-like objects for each id.
+ */
+function buildRoleTracksFromBankIds_(ids) {
+  if (!ids || ids.length === 0) return "[]";
+  var idSet = {};
+  for (var i = 0; i < ids.length; i++) {
+    var s = String(ids[i] || "").trim();
+    if (s) idSet[s] = true;
+  }
+  if (typeof getLaneRoleBank_ !== "function") return "[]";
+  var bank = getLaneRoleBank_({ activeOnly: true });
+  var tracks = [];
+  bank.forEach(function (row) {
+    if (!idSet[row.id]) return;
+    var keywords = [row.role_name].concat(row.aliases || []).map(function (s) { return String(s).trim().toLowerCase(); }).filter(Boolean);
+    tracks.push({
+      id: row.id,
+      label: row.role_name,
+      roleKeywords: keywords,
+      laneLabel: (row.lane_key ? row.lane_key + " Lane" : row.role_name + " Lane"),
+      priorityWeight: 1.0
+    });
+  });
+  return JSON.stringify(tracks);
+}
+
+/**
  * Build roleTracksJSON from approved staging rows and write to Admin_Profiles; mark rows Applied.
- * Any approved suggested role not already in Lane_Role_Bank is added to the bank first (resume parse feeds the bank).
+ * Option A: Dedupe by role_bank_id (preferred) or normalized title; promote pending bank rows to active; build roleTracks from bank; write roleTracksJSON.
  */
 function applyApprovedLanesForProfile_(profileId) {
   var approved = getApprovedStagingRows_(profileId);
@@ -199,35 +324,50 @@ function applyApprovedLanesForProfile_(profileId) {
     return { ok: false, message: "No approved rows in staging for this profile." };
   }
 
-  // Ensure each approved role exists in Lane_Role_Bank; add if missing (core feature: resume parse feeds lane bank).
-  var addedToBank = 0;
-  if (typeof getLaneRoleBank_ === "function" && typeof addRoleToLaneBank_ === "function") {
-    var bank = getLaneRoleBank_();
-    var bankTitleSet = {};
-    bank.forEach(function(b) {
-      var k = String(b.role_name || "").trim().toLowerCase();
-      if (k) bankTitleSet[k] = true;
-      (b.aliases || []).forEach(function(a) {
-        var ak = String(a || "").trim().toLowerCase();
-        if (ak) bankTitleSet[ak] = true;
-      });
-    });
-    for (var i = 0; i < approved.length; i++) {
-      var title = String(approved[i].title || "").trim();
-      if (!title) continue;
-      var key = title.toLowerCase();
-      if (bankTitleSet[key]) continue;
-      try {
-        addRoleToLaneBank_(null, title, (approved[i].keywords || []).join(", "));
-        bankTitleSet[key] = true;
-        addedToBank++;
-      } catch (e) {
-        if (typeof Logger !== "undefined") Logger.log("applyApprovedLanes: skip add to bank " + title + ": " + (e.message || e));
+  // Dedupe: by role_bank_id if present, else by normalized title (first wins)
+  var seen = {};
+  var unique = [];
+  for (var i = 0; i < approved.length; i++) {
+    var a = approved[i];
+    var title = String(a.title || "").trim();
+    var key = a.role_bank_id ? ("id:" + a.role_bank_id) : ("title:" + normalizeRoleTitleForDedupe_(title));
+    if (seen[key] || (!a.role_bank_id && !title)) continue;
+    seen[key] = true;
+    unique.push(a);
+  }
+
+  var ids = [];
+  if (typeof promoteLaneRoleBankToActive_ === "function" && typeof upsertLaneRoleBankEntry_ === "function") {
+    for (var j = 0; j < unique.length; j++) {
+      var u = unique[j];
+      if (u.role_bank_id) {
+        try {
+          promoteLaneRoleBankToActive_(u.role_bank_id);
+          ids.push(u.role_bank_id);
+        } catch (e) {
+          if (typeof Logger !== "undefined") Logger.log("applyApprovedLanes: promote " + u.role_bank_id + " " + (e.message || e));
+        }
+      } else {
+        try {
+          var res = upsertLaneRoleBankEntry_({
+            role_name: u.title,
+            aliases: (u.keywords || []).join(", "),
+            source: "resume_parse",
+            statusDefault: "active"
+          });
+          if (res && res.id) ids.push(res.id);
+        } catch (e) {
+          if (typeof Logger !== "undefined") Logger.log("applyApprovedLanes: upsert " + u.title + " " + (e.message || e));
+        }
       }
     }
   }
 
-  var roleTracksJSON = buildRoleTracksFromSuggested_(approved);
+  var roleTracksJSON = buildRoleTracksFromBankIds_(ids);
+  if (roleTracksJSON === "[]" && ids.length > 0) {
+    roleTracksJSON = buildRoleTracksFromSuggested_(unique);
+  }
+
   var sheet = assertSheetExists_("Admin_Profiles");
   var lastRow = sheet.getLastRow();
   var lastCol = sheet.getLastColumn();
@@ -259,19 +399,19 @@ function applyApprovedLanesForProfile_(profileId) {
     details: {
       level: "INFO",
       message: "Apply Approved Lanes",
-      meta: { profileId: profileId, count: approved.length, addedToBank: addedToBank },
+      meta: { profileId: profileId, count: unique.length },
       version: Sygnalist_VERSION
     }
   });
 
-  return { ok: true, count: approved.length, addedToBank: addedToBank };
+  return { ok: true, count: unique.length };
 }
 
 function markStagingApplied_(profileId) {
   var sh = ensureResumeStagingSheet_();
   var lastRow = sh.getLastRow();
   if (lastRow < 2) return;
-  var data = sh.getRange(1, 1, lastRow, RESUME_STAGING_HEADERS.length).getValues();
+  var data = sh.getRange(1, 1, lastRow, Math.max(sh.getLastColumn(), RESUME_STAGING_HEADERS.length)).getValues();
   var headers = data[0].map(function(h) { return String(h || "").trim(); });
   var idxProfile = headers.indexOf("profileId");
   var idxApproved = headers.indexOf("Approved");

@@ -460,8 +460,8 @@ function formatAdminProfilesSheet_() {
 }
 
 /**
- * Create/update "Admin Profiles View" sheet: profileId, displayName, status, isAdmin, Lanes (read-only from roleTracksJSON).
- * Lane roles are editable only via Apply Approved Lanes (resume_staging.js).
+ * Create/update "Admin Profiles View" sheet: profileId, displayName, status, isAdmin, Lanes (read-only).
+ * Lanes: from laneControls when set (enabled lane keys), else from roleTracksJSON. Matches engine resolution.
  */
 function ensureAdminProfilesView_() {
   var profiles;
@@ -482,9 +482,20 @@ function ensureAdminProfilesView_() {
   var rows = [headers];
   for (var i = 0; i < profiles.length; i++) {
     var p = profiles[i];
-    var tracks = Array.isArray(p.roleTracks) ? p.roleTracks : [];
-    var laneLabels = tracks.map(function(t) { return (t && t.label) ? String(t.label).trim() : ""; }).filter(Boolean);
-    var lanesStr = laneLabels.join(", ") || "—";
+    var lanesStr = "—";
+    if (p.laneControls && typeof p.laneControls === "object" && Object.keys(p.laneControls).length > 0) {
+      var enabled = [];
+      for (var key in p.laneControls) {
+        if (!Object.prototype.hasOwnProperty.call(p.laneControls, key)) continue;
+        var c = p.laneControls[key];
+        if (c && c.is_enabled === true) enabled.push(String(key).trim());
+      }
+      lanesStr = enabled.length > 0 ? enabled.join(", ") : "—";
+    } else {
+      var tracks = Array.isArray(p.roleTracks) ? p.roleTracks : [];
+      var laneLabels = tracks.map(function(t) { return (t && t.label) ? String(t.label).trim() : ""; }).filter(Boolean);
+      lanesStr = laneLabels.length > 0 ? laneLabels.join(", ") : "—";
+    }
     rows.push([
       p.profileId,
       p.displayName || p.profileId,
@@ -518,7 +529,7 @@ function formatResumeStagingSheet_(sh) {
   var accentGreen = (typeof ACCENT_GREEN !== "undefined") ? ACCENT_GREEN : "#e6f4ea";
 
   sh.setFrozenRows(1);
-  var lastCol = Math.max(sh.getLastColumn(), 7);
+  var lastCol = Math.max(sh.getLastColumn(), 10);
   var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) { return String(h || "").trim(); });
   var idxApproved = headers.indexOf("Approved");
   var idxApplied = headers.indexOf("Applied");
@@ -602,8 +613,8 @@ function formatRoleBankSheet_(sh) {
 }
 
 /**
- * Apply ops-style format to Lane_Role_Bank: theme header, is_active checkboxes, dim inactive rows.
- * Do not add lane_key dropdown (do not over-validate lane_key per plan).
+ * Apply ops-style format to Lane_Role_Bank: theme header, is_active checkboxes, dim inactive/merged/hidden rows.
+ * Handles Option A columns: status, role_slug, source, merged_into_id.
  */
 function formatLaneRoleBankSheet_(sh) {
   if (!sh) return;
@@ -614,23 +625,37 @@ function formatLaneRoleBankSheet_(sh) {
   var headerText = (typeof HEADER_TEXT !== "undefined") ? HEADER_TEXT : "#202124";
   var mutedBg = (typeof PANEL_DARK !== "undefined") ? PANEL_DARK : "#f1f3f4";
 
+  var lastCol = Math.max(sh.getLastColumn(), 11);
   sh.setFrozenRows(1);
-  sh.getRange(1, 1, 1, sh.getLastColumn()).setBackground(headerBg).setFontColor(headerText).setFontWeight("bold");
+  sh.getRange(1, 1, 1, lastCol).setBackground(headerBg).setFontColor(headerText).setFontWeight("bold");
   if (typeof ROW_HEIGHT_HEADER !== "undefined") sh.setRowHeight(1, ROW_HEIGHT_HEADER);
 
-  var headers = sh.getRange(1, 1, 1, 7).getValues()[0].map(function(h) { return String(h || "").trim(); });
+  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) { return String(h || "").trim(); });
   var idxActive = headers.indexOf("is_active");
+  var idxStatus = headers.indexOf("status");
   if (idxActive >= 0 && lastRow >= 2) {
     sh.getRange(2, idxActive + 1, lastRow, idxActive + 1).insertCheckboxes();
-    var dataRange = sh.getRange(2, 1, lastRow, 7);
-    var colLetter = idxActive + 1 <= 26 ? String.fromCharCode(64 + idxActive + 1) : "E";
-    var rules = [
-      SpreadsheetApp.newConditionalFormatRule()
+  }
+  if (lastRow >= 2) {
+    var dataRange = sh.getRange(2, 1, lastRow, lastCol);
+    var rules = [];
+    if (idxActive >= 0) {
+      var colLetter = idxActive + 1 <= 26 ? String.fromCharCode(64 + idxActive + 1) : "E";
+      rules.push(SpreadsheetApp.newConditionalFormatRule()
         .whenFormulaSatisfied("=$" + colLetter + "2=FALSE")
         .setBackground(mutedBg)
         .setRanges([dataRange])
-        .build()
-    ];
-    sh.setConditionalFormatRules(rules);
+        .build());
+    }
+    if (idxStatus >= 0) {
+      var colStatus = idxStatus + 1;
+      var letterStatus = colStatus <= 26 ? String.fromCharCode(64 + colStatus) : "K";
+      rules.push(SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied("=OR(LOWER($" + letterStatus + "2)=\"merged\",LOWER($" + letterStatus + "2)=\"hidden\")")
+        .setBackground(mutedBg)
+        .setRanges([dataRange])
+        .build());
+    }
+    if (rules.length > 0) sh.setConditionalFormatRules(rules);
   }
 }

@@ -308,9 +308,11 @@ function adminGetStaging(profileId) {
 function adminGetStagingIncludingApplied(profileId) {
   logAdmin_("start", "Get staging including applied started", { profileId: profileId });
   try {
-    var rows = typeof getAllStagingRowsForProfileIncludingApplied_ === "function"
-      ? getAllStagingRowsForProfileIncludingApplied_(profileId)
-      : getAllStagingRowsForProfile_(profileId);
+    var rows = typeof getStagingRowsForProfileDeduped_ === "function"
+      ? getStagingRowsForProfileDeduped_(profileId)
+      : (typeof getAllStagingRowsForProfileIncludingApplied_ === "function"
+          ? getAllStagingRowsForProfileIncludingApplied_(profileId)
+          : getAllStagingRowsForProfile_(profileId));
     logAdmin_("ok", "Get staging including applied completed", { profileId: profileId, count: (rows && rows.length) || 0 });
     return { ok: true, rows: rows };
   } catch (e) {
@@ -382,11 +384,59 @@ function adminGetLaneBank() {
 function adminAddRoleToLaneBank(role_name, keywordsOrAliases, lane_key) {
   logAdmin_("start", "Add role to lane bank started", { lane_key: lane_key });
   try {
-    var out = addRoleToLaneBank_(lane_key || null, role_name, keywordsOrAliases || "");
+    var out = (typeof upsertLaneRoleBankEntry_ === "function")
+      ? upsertLaneRoleBankEntry_({ role_name: role_name, lane_key: lane_key || undefined, aliases: keywordsOrAliases || "", source: "admin", statusDefault: "active" })
+      : addRoleToLaneBank_(lane_key || null, role_name, keywordsOrAliases || "");
     logAdmin_("ok", "Add role to lane bank completed", { lane_key: out.lane_key, role_name: out.role_name });
     return { ok: true, id: out.id, lane_key: out.lane_key, role_name: out.role_name };
   } catch (e) {
     logAdmin_("error", "Add role to lane bank failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+/** Returns lane bank for Jobs Intake enrich UI: active roles and unique lane_keys. opts: { activeOnly: true }. */
+function adminGetLaneBankForEnrich(opts) {
+  logAdmin_("start", "Get lane bank for enrich", {});
+  try {
+    var bank = getLaneRoleBank_(opts && opts.activeOnly === true ? { activeOnly: true } : {});
+    var lane_keys = [];
+    var seen = {};
+    for (var i = 0; i < bank.length; i++) {
+      var k = String(bank[i].lane_key || "").trim();
+      if (k && !seen[k]) {
+        seen[k] = true;
+        lane_keys.push(k);
+      }
+    }
+    logAdmin_("ok", "Get lane bank for enrich completed", {});
+    return { ok: true, lane_keys: lane_keys, roles: bank };
+  } catch (e) {
+    logAdmin_("error", "Get lane bank for enrich failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+/** Create a pending role from a job (email intake); attach role_bank_id to job if Jobs_Inbox has column. */
+function adminCreatePendingRoleFromJob(jobId, role_name, lane_key) {
+  logAdmin_("start", "Create pending role from job", { jobId: jobId });
+  try {
+    if (typeof upsertLaneRoleBankEntry_ !== "function") {
+      return { ok: false, error: "Lane bank upsert not available." };
+    }
+    var out = upsertLaneRoleBankEntry_({
+      role_name: role_name || "",
+      lane_key: lane_key || undefined,
+      source: "email_intake",
+      statusDefault: "pending"
+    });
+    if (typeof setJobRoleBankId_ === "function" && jobId) {
+      setJobRoleBankId_(jobId, out.id);
+    }
+    logAdmin_("ok", "Create pending role from job completed", { id: out.id });
+    return { ok: true, id: out.id, lane_key: out.lane_key, role_name: out.role_name };
+  } catch (e) {
+    logAdmin_("error", "Create pending role from job failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }

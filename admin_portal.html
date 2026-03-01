@@ -69,28 +69,19 @@
       .toast-admin.error { border-color: var(--color-tier-x); color: #fca5a5; }
       .toast-admin.success { border-color: var(--color-radar-mid); color: var(--color-radar-light); }
       #analyticsKpiRow .metric-card-value.metric-card-value-date { font-size: 0.875rem; line-height: 1.3; }
-      /* Lane toggle pill: OFF = gray, ON = accent; sliding handle */
-      .lane-toggle-wrap { display: inline-flex; align-items: center; position: relative; }
+      /* Lane toggle: SVG ON/OFF only; unique IDs per toggle via suffix */
+      .lane-toggle-wrap { display: inline-flex; align-items: center; position: relative; cursor: pointer; }
       .lane-toggle-wrap .lane-toggle { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none; }
-      .lane-toggle-pill {
-        display: inline-flex; align-items: center; justify-content: space-between;
-        width: 52px; height: 26px; padding: 0 6px; box-sizing: border-box;
-        background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 999px;
-        cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease;
-      }
-      .lane-toggle-wrap.on .lane-toggle-pill { background: rgba(106, 215, 163, 0.35); border-color: var(--color-radar-mid); }
-      .lane-toggle-pill .lane-toggle-handle {
-        position: absolute; left: 2px; top: 2px; width: 20px; height: 20px;
-        background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-        transition: transform 0.2s ease; pointer-events: none;
-      }
-      .lane-toggle-wrap.on .lane-toggle-pill .lane-toggle-handle { transform: translateX(26px); }
-      .lane-toggle-pill .lane-toggle-off,
-      .lane-toggle-pill .lane-toggle-on { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; z-index: 0; pointer-events: none; }
-      .lane-toggle-pill .lane-toggle-off { color: var(--color-text-muted); margin-left: 22px; }
-      .lane-toggle-pill .lane-toggle-on { color: var(--color-radar-dark, #2F8A63); margin-right: 22px; visibility: hidden; }
-      .lane-toggle-wrap.on .lane-toggle-pill .lane-toggle-off { visibility: hidden; margin-left: 0; }
-      .lane-toggle-wrap.on .lane-toggle-pill .lane-toggle-on { visibility: visible; }
+      .lane-toggle-wrap .lane-svg-off,
+      .lane-toggle-wrap .lane-svg-on { width: 64px; height: 32px; flex-shrink: 0; display: block; }
+      .lane-toggle-wrap.on .lane-svg-off { display: none !important; }
+      .lane-toggle-wrap:not(.on) .lane-svg-on { display: none !important; }
+      .lane-remove-x { background: transparent; border: none; color: var(--color-text-muted); cursor: pointer; padding: 2px 6px; font-size: 1rem; line-height: 1; border-radius: var(--radius-sm); }
+      .lane-remove-x:hover { color: var(--color-tier-x, #f87171); }
+      .job-lanes-list-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+      .job-lanes-list-table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+      .job-lanes-list-table tr:last-child td { border-bottom: none; }
+      .job-lanes-add-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
     </style>
   </head>
   <body>
@@ -165,6 +156,7 @@
           <button type="button" class="tab-btn active" data-tab="profiles">Profiles</button>
           <button type="button" class="tab-btn" data-tab="jobsIntake">Jobs Intake</button>
           <button type="button" class="tab-btn" data-tab="jobLanes">Job Lanes</button>
+          <button type="button" class="tab-btn" data-tab="jobBank">Job bank</button>
           <button type="button" class="tab-btn" data-tab="logs">Logs</button>
           <button type="button" class="tab-btn" data-tab="analytics">Analytics</button>
           <button type="button" class="tab-btn" data-tab="ops">Ops</button>
@@ -201,10 +193,34 @@
         </div>
         <div id="jobLanesTogglesBlock" class="admin-card">
           <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">2. Profile lane toggles</div>
-          <p class="admin-sub" style="margin-bottom: var(--space-2);">Enable the lanes this profile should see. Add or remove by checking or unchecking.</p>
+          <p class="admin-sub" style="margin-bottom: var(--space-2);">Enable the lanes this profile should see. Toggle ON/OFF; use × to remove from profile.</p>
+          <p class="admin-sub" style="margin-bottom: var(--space-2); font-size: 0.75rem; color: var(--color-text-muted);"><strong>Hint:</strong> &quot;Apply selected&quot; above updates <strong>roleTracks</strong> (from staging). &quot;Save lane toggles&quot; updates <strong>laneControls</strong>. When both are set, the engine uses lane toggles for fetch and display.</p>
+          <div class="job-lanes-add-bank-row" style="margin-bottom: var(--space-2);">
+            <label>Add job lane to bank:</label>
+            <input type="text" id="jobLaneNameBank" placeholder="Job lane name (required)" style="max-width:200px;padding:var(--space-1) var(--space-2);" />
+            <input type="text" id="jobLaneKeywordsBank" placeholder="Keywords (optional)" style="max-width:180px;padding:var(--space-1) var(--space-2);" />
+            <button type="button" class="btn btn-ghost btn-sm" id="btnAddJobLaneToBank">Add</button>
+          </div>
           <div id="jobLanesTogglesContainer"></div>
-          <button type="button" class="btn btn-primary" id="btnSaveJobLaneControls" style="margin-top: var(--space-3);">Save lane toggles</button>
+          <div class="job-lanes-add-row">
+            <button type="button" class="btn btn-ghost btn-sm" id="btnAddJobLane">Add job lane</button>
+            <button type="button" class="btn btn-primary" id="btnSaveJobLaneControls">Save lane toggles</button>
+          </div>
         </div>
+      </div>
+
+      <!-- Job bank (Global_Job_Bank) -->
+      <div id="sectionJobBank" class="admin-section">
+        <div class="admin-toolbar">
+          <button type="button" class="btn btn-primary" id="btnLoadJobBank">Refresh</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="jobBankTable">
+            <thead><tr><th>Company</th><th>Title</th><th>Location</th><th>Source</th><th>Created</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="admin-sub" id="jobBankEmpty" style="display:none;">No jobs in global job bank.</p>
       </div>
 
       <!-- Logs -->
@@ -243,7 +259,9 @@
           <div class="form-group"><label>Company *</label><input type="text" id="enrichCompany" /></div>
           <div class="form-group"><label>Location *</label><input type="text" id="enrichLocation" /></div>
           <div class="form-group"><label>Work mode *</label><select id="enrichWorkMode"><option value="">—</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></div>
-          <div class="form-group"><label>Job family *</label><input type="text" id="enrichJobFamily" /></div>
+          <div class="form-group"><label>Job family *</label><input type="text" id="enrichJobFamily" list="enrichJobFamilyList" placeholder="Pick from lanes or type" /><datalist id="enrichJobFamilyList"></datalist></div>
+          <div class="form-group"><label>Role (optional)</label><input type="text" id="enrichRole" list="enrichRoleList" placeholder="Pick from bank" /><datalist id="enrichRoleList"></datalist><input type="hidden" id="enrichRoleBankId" /></div>
+          <div class="form-group"><button type="button" class="btn btn-ghost btn-sm" id="btnCreatePendingRoleFromJob">Create pending role from this job</button></div>
           <div class="form-group"><label>Description snippet *</label><textarea id="enrichDescSnippet" rows="3"></textarea></div>
           <div class="form-group"><label>Promote to profile</label><select id="enrichPromoteProfileSelect" class="admin-select"><option value="">Select profile</option></select></div>
           <div class="modal-actions">
@@ -376,6 +394,7 @@
           </div>
           <div class="modal-actions">
             <button type="button" class="btn btn-primary" id="createWizardApplyBtn">Apply to profile</button>
+            <button type="button" class="btn btn-ghost" id="createWizardApplyLanesBtn" style="display:none;">Apply suggested lanes</button>
           </div>
           <div id="createWizardApplyStatus" class="admin-sub" style="margin-top: var(--space-2);"></div>
         </div>
@@ -450,6 +469,7 @@
           <div class="modal-actions">
             <button type="button" class="btn btn-ghost" id="resumeParseBackBtn">Back</button>
             <button type="button" class="btn btn-primary" id="resumeParseApplyBtn">Apply to profile</button>
+            <button type="button" class="btn btn-ghost" id="resumeParseApplyLanesBtn" style="display:none;">Apply suggested lanes</button>
           </div>
           <div id="resumeParseApplyStatus" class="admin-sub" style="margin-top: var(--space-2);"></div>
         </div>
@@ -548,6 +568,7 @@
             renderProfileList(profilesCache);
             if (profilesCache.length === 0) loadProfiles();
           } else if (tab === 'jobLanes') { updateJobLanesContext(); loadJobLanes(); }
+          else if (tab === 'jobBank') loadJobBank();
           else if (tab === 'analytics') loadAnalytics();
           else if (tab === 'jobsIntake') loadJobsInbox();
         });
@@ -740,6 +761,8 @@
           document.getElementById('resumeParseForm').style.display = 'none';
           document.getElementById('resumeParseReview').style.display = 'block';
           var p = r.parsed || {};
+          var lanesBtnResume = document.getElementById('resumeParseApplyLanesBtn');
+          if (lanesBtnResume) lanesBtnResume.style.display = ((p.suggestedRoles || []).length > 0) ? 'inline-flex' : 'none';
           document.getElementById('resumeParseParsedSummary').textContent = (p.skillProfileText || '').substring(0, 600) || '—';
           document.getElementById('resumeParseParsedPrefs').textContent = [
             (p.topSkills || []).join(', '),
@@ -799,6 +822,39 @@
           resumeParseApplyBtn.disabled = false;
           statusEl.textContent = adminErrorMessage(err, 'Error');
         }).adminResumeApplyApproved(resumeParseProfileId, resumeParseLastParsed, { applySkills: applySkills, applyPreferences: applyPrefs });
+      });
+      var resumeParseApplyLanesBtn = document.getElementById('resumeParseApplyLanesBtn');
+      if (resumeParseApplyLanesBtn) resumeParseApplyLanesBtn.addEventListener('click', function() {
+        if (!resumeParseProfileId || !resumeParseLastParsed) { showToast('Parse a resume first', true); return; }
+        var titles = (resumeParseLastParsed.suggestedRoles || []).map(function(r) { return (r && r.title) ? String(r.title).trim() : ''; }).filter(Boolean);
+        if (titles.length === 0) { showToast('No suggested roles to apply', true); return; }
+        resumeParseApplyLanesBtn.disabled = true;
+        var statusEl = document.getElementById('resumeParseApplyStatus');
+        statusEl.textContent = 'Applying lanes...';
+        google.script.run.withSuccessHandler(function(setRes) {
+          if (!setRes || !setRes.ok) {
+            resumeParseApplyLanesBtn.disabled = false;
+            statusEl.textContent = (setRes && setRes.error) ? setRes.error : 'Set approved failed';
+            return;
+          }
+          google.script.run.withSuccessHandler(function(applyRes) {
+            resumeParseApplyLanesBtn.disabled = false;
+            statusEl.textContent = '';
+            if (applyRes && applyRes.ok) {
+              showToast('Applied ' + (applyRes.count || 0) + ' lane(s).');
+              closeResumeParseModal();
+              loadProfiles();
+            } else {
+              statusEl.textContent = (applyRes && applyRes.message) ? applyRes.message : 'Apply lanes failed';
+            }
+          }).withFailureHandler(function(err) {
+            resumeParseApplyLanesBtn.disabled = false;
+            statusEl.textContent = adminErrorMessage(err, 'Apply lanes failed');
+          }).adminApplyApprovedLanes(resumeParseProfileId);
+        }).withFailureHandler(function(err) {
+          resumeParseApplyLanesBtn.disabled = false;
+          statusEl.textContent = adminErrorMessage(err, 'Set approved failed');
+        }).adminSetStagingApproved(resumeParseProfileId, titles);
       });
 
       function openEditModal(profileId) {
@@ -920,6 +976,8 @@
           window.createWizardStagingRows = r.stagingRows || 0;
           document.getElementById('createStep2').style.display = 'none';
           document.getElementById('createStep3').style.display = '';
+          var lanesBtn = document.getElementById('createWizardApplyLanesBtn');
+          if (lanesBtn) lanesBtn.style.display = (window.createWizardStagingRows > 0) ? 'inline-flex' : 'none';
           document.getElementById('createModalTitle').textContent = 'Add profile – Review and apply';
           var p = r.parsed || {};
           document.getElementById('createWizardParsedSummary').textContent = (p.skillProfileText || '').substring(0, 600) || '—';
@@ -978,6 +1036,41 @@
           createWizardApplyBtn.disabled = false;
           document.getElementById('createWizardApplyStatus').textContent = adminErrorMessage(err, 'Error');
         }).adminResumeApplyApproved(profileId, parsed, { applySkills: applySkills, applyPreferences: applyPrefs });
+      });
+      var createWizardApplyLanesBtn = document.getElementById('createWizardApplyLanesBtn');
+      if (createWizardApplyLanesBtn) createWizardApplyLanesBtn.addEventListener('click', function() {
+        var profileId = window.createWizardProfileId;
+        var parsed = window.createWizardParsed;
+        if (!profileId || !parsed) { showToast('Missing profile or parsed data', true); return; }
+        var titles = (parsed.suggestedRoles || []).map(function(r) { return (r && r.title) ? String(r.title).trim() : ''; }).filter(Boolean);
+        if (titles.length === 0) { showToast('No suggested roles to apply', true); return; }
+        createWizardApplyLanesBtn.disabled = true;
+        document.getElementById('createWizardApplyStatus').textContent = 'Applying lanes...';
+        google.script.run.withSuccessHandler(function(setRes) {
+          if (!setRes || !setRes.ok) {
+            createWizardApplyLanesBtn.disabled = false;
+            document.getElementById('createWizardApplyStatus').textContent = (setRes && setRes.error) ? setRes.error : 'Set approved failed';
+            return;
+          }
+          google.script.run.withSuccessHandler(function(applyRes) {
+            createWizardApplyLanesBtn.disabled = false;
+            document.getElementById('createWizardApplyStatus').textContent = '';
+            if (applyRes && applyRes.ok) {
+              showToast('Applied ' + (applyRes.count || 0) + ' lane(s).');
+              window.createWizardStagingRows = 0;
+              var lanesBtnEl = document.getElementById('createWizardApplyLanesBtn');
+              if (lanesBtnEl) lanesBtnEl.style.display = 'none';
+            } else {
+              document.getElementById('createWizardApplyStatus').textContent = (applyRes && applyRes.message) ? applyRes.message : 'Apply lanes failed';
+            }
+          }).withFailureHandler(function(err) {
+            createWizardApplyLanesBtn.disabled = false;
+            document.getElementById('createWizardApplyStatus').textContent = adminErrorMessage(err, 'Apply lanes failed');
+          }).adminApplyApprovedLanes(profileId);
+        }).withFailureHandler(function(err) {
+          createWizardApplyLanesBtn.disabled = false;
+          document.getElementById('createWizardApplyStatus').textContent = adminErrorMessage(err, 'Set approved failed');
+        }).adminSetStagingApproved(profileId, titles);
       });
       var createStepDoneClose = document.getElementById('createStepDoneClose');
       if (createStepDoneClose) createStepDoneClose.addEventListener('click', function() {
@@ -1045,33 +1138,44 @@
               Object.keys(controls).forEach(function(k) { allLaneKeys[k] = true; });
               var laneKeysSorted = Object.keys(allLaneKeys).sort();
               if (laneKeysSorted.length === 0) {
-                container.innerHTML = '<p class="admin-sub">No lanes in bank. Add rows to Lane_Role_Bank sheet.</p>';
+                container.innerHTML = '<p class="admin-sub">No lanes in bank. Add a job lane above or add rows to Lane_Role_Bank sheet.</p>';
                 return;
               }
+              function laneToggleSvgs(suffix) {
+                var s = suffix || 'default';
+                var off = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32" viewBox="0 0 64 32" role="img" aria-label="Toggle off" class="lane-svg-off"><defs><linearGradient id="trackOff-' + s + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0B141A"/><stop offset="1" stop-color="#0B141A"/></linearGradient><filter id="softShadowOff-' + s + '" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.45"/></filter></defs><rect x="2" y="4" width="60" height="24" rx="12" fill="url(#trackOff-' + s + ')" stroke="#233038" stroke-opacity="1"/><path d="M8 9.5c7-4.5 41-4.5 48 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.05" stroke-width="2" stroke-linecap="round"/><g filter="url(#softShadowOff-' + s + ')"><circle cx="20" cy="16" r="9.5" fill="#0A1216" stroke="#2C3A44" stroke-opacity="1"/><circle cx="20" cy="16" r="7.5" fill="#0D171C"/><path d="M15.8 13.2c2.8-2.2 6.4-2.2 8.9 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.8" stroke-linecap="round"/></g></svg>';
+                var on = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32" viewBox="0 0 64 32" role="img" aria-label="Toggle on" class="lane-svg-on"><defs><linearGradient id="trackOn-' + s + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0B141A"/><stop offset="1" stop-color="#0F1F1A"/></linearGradient><radialGradient id="knobGlow-' + s + '" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#7CFFD8" stop-opacity="0.65"/><stop offset="1" stop-color="#2EF2A6" stop-opacity="0"/></radialGradient><filter id="outerGlow-' + s + '" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation="2.2" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.18 0 0 0 0 0.95 0 0 0 0 0.68 0 0 0 0.85 0" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="softShadowOn-' + s + '" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.45"/></filter></defs><rect x="2" y="4" width="60" height="24" rx="12" fill="url(#trackOn-' + s + ')" stroke="#2EF2A6" stroke-opacity="0.8" filter="url(#outerGlow-' + s + ')"/><path d="M8 9.5c7-4.5 41-4.5 48 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="2" stroke-linecap="round"/><rect x="3.5" y="5.5" width="57" height="21" rx="10.5" fill="#2EF2A6" opacity="0.08"/><circle cx="44" cy="16" r="14" fill="url(#knobGlow-' + s + ')" opacity="0.9"/><g filter="url(#softShadowOn-' + s + ')"><circle cx="44" cy="16" r="9.5" fill="#0A1216" stroke="#2EF2A6" stroke-opacity="0.9"/><circle cx="44" cy="16" r="7.5" fill="#0D171C"/><path d="M39.8 13.2c2.8-2.2 6.4-2.2 8.9 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="1.8" stroke-linecap="round"/></g></svg>';
+                return { off: off, on: on };
+              }
+              var table = document.createElement('table');
+              table.className = 'admin-table job-lanes-list-table';
+              table.innerHTML = '<tbody></tbody>';
+              var tbody = table.querySelector('tbody');
               laneKeysSorted.forEach(function(laneKey) {
                 var c = controls[laneKey];
                 var isEnabled = !!(c && c.is_enabled);
                 laneControlsState[laneKey] = { is_enabled: isEnabled, allowed_bank_role_ids: (c && c.allowed_bank_role_ids) ? c.allowed_bank_role_ids : [] };
-                var div = document.createElement('div');
-                div.className = 'admin-card';
-                div.style.marginBottom = '8px';
-                div.setAttribute('data-lane-key', laneKey);
-                div.innerHTML = '<label style="display:flex;align-items:center;gap:8px;"><span class="lane-toggle-wrap' + (isEnabled ? ' on' : '') + '"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '><span class="lane-toggle-pill"><span class="lane-toggle-handle"></span><span class="lane-toggle-off">OFF</span><span class="lane-toggle-on">ON</span></span></span> ' + esc(laneKey) + '</label> <button type="button" class="btn btn-ghost btn-sm lane-remove" data-lane="' + esc(laneKey) + '" title="Remove from my lanes">Remove</button>';
-                var toggle = div.querySelector('.lane-toggle');
-                var wrap = div.querySelector('.lane-toggle-wrap');
+                var slug = String(laneKey).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 35) || 'lane';
+                var svgs = laneToggleSvgs(slug);
+                var tr = document.createElement('tr');
+                tr.setAttribute('data-lane-key', laneKey);
+                tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(laneKey) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap' + (isEnabled ? ' on' : '') + '"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">×</button></td>';
+                var toggle = tr.querySelector('.lane-toggle');
+                var wrap = tr.querySelector('.lane-toggle-wrap');
                 if (toggle) toggle.addEventListener('change', function() {
                   laneControlsState[laneKey].is_enabled = this.checked;
                   if (wrap) wrap.classList.toggle('on', this.checked);
                 });
-                var removeBtn = div.querySelector('.lane-remove');
+                var removeBtn = tr.querySelector('.lane-remove-x');
                 if (removeBtn) removeBtn.addEventListener('click', function() {
                   var k = this.getAttribute('data-lane');
                   if (k && removedLaneKeys.indexOf(k) === -1) removedLaneKeys.push(k);
-                  var card = this.closest('[data-lane-key]');
-                  if (card) card.remove();
+                  var row = this.closest("tr[data-lane-key]");
+                  if (row) row.remove();
                 });
-                container.appendChild(div);
+                tbody.appendChild(tr);
               });
+              container.appendChild(table);
               var bankTitleSet = {};
               bank.forEach(function(r) {
                 var k = String(r.role_name || '').toLowerCase().trim();
@@ -1171,6 +1275,117 @@
           if (r.ok) { showToast('Lane controls saved'); removedLaneKeys = []; } else showToast(r.error || 'Failed', true);
         }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminSetLaneControls(id, { laneControls: laneControlsState, removed: removedLaneKeys });
       });
+
+      var btnAddJobLaneToBank = document.getElementById('btnAddJobLaneToBank');
+      if (btnAddJobLaneToBank) btnAddJobLaneToBank.addEventListener('click', function() {
+        if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
+        var nameEl = document.getElementById('jobLaneNameBank');
+        var kwEl = document.getElementById('jobLaneKeywordsBank');
+        var name = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
+        if (!name) { showToast('Job lane name is required.', true); return; }
+        var kw = (kwEl && kwEl.value) ? kwEl.value.trim() : '';
+        btnAddJobLaneToBank.disabled = true;
+        google.script.run.withSuccessHandler(function(r) {
+          btnAddJobLaneToBank.disabled = false;
+          if (r.ok) { showToast('Added "' + name + '" to lane bank'); if (nameEl) nameEl.value = ''; if (kwEl) kwEl.value = ''; loadJobLanes(); }
+          else showToast(r.error || 'Failed', true);
+        }).withFailureHandler(function(err) {
+          btnAddJobLaneToBank.disabled = false;
+          showToast(adminErrorMessage(err, 'Error'), true);
+        }).adminAddRoleToLaneBank(name, kw, null);
+      });
+
+      var btnAddJobLane = document.getElementById('btnAddJobLane');
+      if (btnAddJobLane) btnAddJobLane.addEventListener('click', function() {
+        if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
+        var id = jobLanesProfileId;
+        if (!id) { showToast('Click Lanes on a profile card first.', true); return; }
+        var nameEl = document.getElementById('jobLaneNameBank');
+        var kwEl = document.getElementById('jobLaneKeywordsBank');
+        var name = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
+        if (!name) { showToast('Enter a job lane name above and click Add, or type a name and click Add job lane.', true); return; }
+        var kw = (kwEl && kwEl.value) ? kwEl.value.trim() : '';
+        btnAddJobLane.disabled = true;
+        google.script.run.withSuccessHandler(function(r) {
+          btnAddJobLane.disabled = false;
+          if (r.ok) {
+            var laneKey = (r.lane_key != null) ? r.lane_key : name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'general';
+            laneControlsState[laneKey] = { is_enabled: true, allowed_bank_role_ids: [] };
+            var container = document.getElementById('jobLanesTogglesContainer');
+            var tbody = container && container.querySelector('tbody');
+            if (tbody) {
+              function laneToggleSvgs(suffix) {
+                var s = suffix || 'default';
+                var off = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32" viewBox="0 0 64 32" role="img" aria-label="Toggle off" class="lane-svg-off"><defs><linearGradient id="trackOff-' + s + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0B141A"/><stop offset="1" stop-color="#0B141A"/></linearGradient><filter id="softShadowOff-' + s + '" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.45"/></filter></defs><rect x="2" y="4" width="60" height="24" rx="12" fill="url(#trackOff-' + s + ')" stroke="#233038" stroke-opacity="1"/><path d="M8 9.5c7-4.5 41-4.5 48 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.05" stroke-width="2" stroke-linecap="round"/><g filter="url(#softShadowOff-' + s + ')"><circle cx="20" cy="16" r="9.5" fill="#0A1216" stroke="#2C3A44" stroke-opacity="1"/><circle cx="20" cy="16" r="7.5" fill="#0D171C"/><path d="M15.8 13.2c2.8-2.2 6.4-2.2 8.9 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.8" stroke-linecap="round"/></g></svg>';
+                var on = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32" viewBox="0 0 64 32" role="img" aria-label="Toggle on" class="lane-svg-on"><defs><linearGradient id="trackOn-' + s + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0B141A"/><stop offset="1" stop-color="#0F1F1A"/></linearGradient><radialGradient id="knobGlow-' + s + '" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="#7CFFD8" stop-opacity="0.65"/><stop offset="1" stop-color="#2EF2A6" stop-opacity="0"/></radialGradient><filter id="outerGlow-' + s + '" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation="2.2" result="blur"/><feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.18 0 0 0 0 0.95 0 0 0 0 0.68 0 0 0 0.85 0" result="glow"/><feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="softShadowOn-' + s + '" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.45"/></filter></defs><rect x="2" y="4" width="60" height="24" rx="12" fill="url(#trackOn-' + s + ')" stroke="#2EF2A6" stroke-opacity="0.8" filter="url(#outerGlow-' + s + ')"/><path d="M8 9.5c7-4.5 41-4.5 48 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="2" stroke-linecap="round"/><rect x="3.5" y="5.5" width="57" height="21" rx="10.5" fill="#2EF2A6" opacity="0.08"/><circle cx="44" cy="16" r="14" fill="url(#knobGlow-' + s + ')" opacity="0.9"/><g filter="url(#softShadowOn-' + s + ')"><circle cx="44" cy="16" r="9.5" fill="#0A1216" stroke="#2EF2A6" stroke-opacity="0.9"/><circle cx="44" cy="16" r="7.5" fill="#0D171C"/><path d="M39.8 13.2c2.8-2.2 6.4-2.2 8.9 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="1.8" stroke-linecap="round"/></g></svg>';
+                return { off: off, on: on };
+              }
+              var slug = String(laneKey).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 35) || 'lane';
+              var svgs = laneToggleSvgs(slug);
+              var tr = document.createElement('tr');
+              tr.setAttribute('data-lane-key', laneKey);
+              tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(laneKey) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap on"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" checked>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">×</button></td>';
+              var toggle = tr.querySelector('.lane-toggle');
+              var wrap = tr.querySelector('.lane-toggle-wrap');
+              if (toggle) toggle.addEventListener('change', function() { laneControlsState[laneKey].is_enabled = this.checked; if (wrap) wrap.classList.toggle('on', this.checked); });
+              var removeBtn = tr.querySelector('.lane-remove-x');
+              if (removeBtn) removeBtn.addEventListener('click', function() {
+                var k = this.getAttribute('data-lane');
+                if (k && removedLaneKeys.indexOf(k) === -1) removedLaneKeys.push(k);
+                var row = this.closest("tr[data-lane-key]");
+                if (row) row.remove();
+              });
+              tbody.appendChild(tr);
+            }
+            showToast('Added "' + name + '" to profile. Click Save lane toggles to persist.');
+          } else showToast(r.error || 'Failed', true);
+        }).withFailureHandler(function(err) {
+          btnAddJobLane.disabled = false;
+          showToast(adminErrorMessage(err, 'Error'), true);
+        }).adminAddRoleToLaneBank(name, kw, null);
+      });
+
+      function loadJobBank() {
+        if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
+        google.script.run.withSuccessHandler(function(r) {
+          if (!r.ok) { showToast(r.error || 'Failed', true); return; }
+          var jobs = r.jobs || [];
+          var tbody = document.getElementById('jobBankTable');
+          var emptyEl = document.getElementById('jobBankEmpty');
+          if (!tbody) return;
+          if (!jobs.length) {
+            tbody.innerHTML = '';
+            if (emptyEl) emptyEl.style.display = 'block';
+            return;
+          }
+          if (emptyEl) emptyEl.style.display = 'none';
+          var html = '';
+          jobs.forEach(function(job) {
+            var created = job.created_at ? (typeof job.created_at === 'string' ? job.created_at : (job.created_at.getTime ? new Date(job.created_at).toISOString().slice(0, 10) : '')) : '';
+            html += '<tr data-url="' + esc(job.url || '') + '">';
+            html += '<td>' + esc(job.company || '') + '</td>';
+            html += '<td>' + esc(job.title || '') + '</td>';
+            html += '<td>' + esc(job.location || '') + '</td>';
+            html += '<td>' + esc(job.source || '') + '</td>';
+            html += '<td>' + esc(created) + '</td>';
+            html += '<td><button type="button" class="btn btn-ghost btn-sm btn-job-bank-remove" data-url="' + esc(job.url || '') + '">Remove</button></td>';
+            html += '</tr>';
+          });
+          tbody.innerHTML = html;
+          tbody.querySelectorAll('.btn-job-bank-remove').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var url = this.getAttribute('data-url');
+              if (!url) return;
+              if (!window.confirm('Remove this job from the global job bank?')) return;
+              google.script.run.withSuccessHandler(function(res) {
+                if (res.ok) { showToast('Removed'); loadJobBank(); } else showToast(res.error || 'Failed', true);
+              }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminRemoveFromGlobalJobBank(url);
+            });
+          });
+        }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminGetGlobalJobBank();
+      }
+      var btnLoadJobBank = document.getElementById('btnLoadJobBank');
+      if (btnLoadJobBank) btnLoadJobBank.addEventListener('click', function() { loadJobBank(); });
 
       // Jobs Intake
       var jobsInboxCache = [];
@@ -1389,14 +1604,61 @@
       function openEnrichPanel(row) {
         var panel = document.getElementById('jobsIntakeEnrichment');
         if (!panel) return;
+        window._enrichCurrentRow = row;
         document.getElementById('enrichJobId').value = row.job_id || '';
         document.getElementById('enrichCompany').value = row.company || '';
         document.getElementById('enrichLocation').value = row.location || '';
         document.getElementById('enrichWorkMode').value = row.work_mode || '';
         document.getElementById('enrichJobFamily').value = row.job_family || '';
+        document.getElementById('enrichRole').value = '';
+        document.getElementById('enrichRoleBankId').value = row.role_bank_id || '';
         document.getElementById('enrichDescSnippet').value = row.description_snippet || '';
         panel.style.display = 'block';
         panel.scrollIntoView({ behavior: 'smooth' });
+        var dlFamily = document.getElementById('enrichJobFamilyList');
+        var dlRole = document.getElementById('enrichRoleList');
+        if ((dlFamily || dlRole) && typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run.withSuccessHandler(function(r) {
+            if (!r || !r.ok) return;
+            var lane_keys = r.lane_keys || [];
+            var roles = r.roles || [];
+            if (dlFamily) {
+              var seen = {};
+              dlFamily.innerHTML = '';
+              lane_keys.forEach(function(k) { if (k && !seen[k]) { seen[k] = true; var o = document.createElement('option'); o.value = k; dlFamily.appendChild(o); } });
+              roles.forEach(function(b) {
+                var laneKey = (b.lane_key || '').trim();
+                var roleName = (b.role_name || '').trim();
+                if (laneKey && !seen[laneKey]) { seen[laneKey] = true; var o = document.createElement('option'); o.value = laneKey; dlFamily.appendChild(o); }
+                if (roleName && !seen[roleName]) { seen[roleName] = true; var o2 = document.createElement('option'); o2.value = roleName; dlFamily.appendChild(o2); }
+              });
+            }
+            if (dlRole) {
+              dlRole.innerHTML = '';
+              roles.forEach(function(b) {
+                var roleName = (b.role_name || '').trim();
+                if (roleName) { var o = document.createElement('option'); o.value = roleName; o.setAttribute('data-id', b.id || ''); dlRole.appendChild(o); }
+                (b.aliases || []).forEach(function(a) { var s = String(a || '').trim(); if (s) { var o = document.createElement('option'); o.value = s; o.setAttribute('data-id', b.id || ''); dlRole.appendChild(o); } });
+              });
+              window._enrichLaneBankRoles = roles;
+            }
+          }).withFailureHandler(function() {}).adminGetLaneBankForEnrich({ activeOnly: true });
+        }
+        var roleInput = document.getElementById('enrichRole');
+        var roleBankIdEl = document.getElementById('enrichRoleBankId');
+        if (roleInput && roleBankIdEl) {
+          roleInput.oninput = roleInput.onblur = function() {
+            var val = (this.value || '').trim();
+            var roles = window._enrichLaneBankRoles || [];
+            for (var i = 0; i < roles.length; i++) {
+              if ((roles[i].role_name || '').trim() === val || (roles[i].aliases || []).indexOf(val) !== -1) {
+                roleBankIdEl.value = roles[i].id || '';
+                return;
+              }
+            }
+            if (!val) roleBankIdEl.value = '';
+          };
+        }
       }
       function closeEnrichPanel() {
         var panel = document.getElementById('jobsIntakeEnrichment');
@@ -1450,6 +1712,24 @@
       });
       var btnEnrichCancel = document.getElementById('btnEnrichCancel');
       if (btnEnrichCancel) btnEnrichCancel.addEventListener('click', closeEnrichPanel);
+      var btnCreatePendingRoleFromJob = document.getElementById('btnCreatePendingRoleFromJob');
+      if (btnCreatePendingRoleFromJob) btnCreatePendingRoleFromJob.addEventListener('click', function() {
+        var jobId = document.getElementById('enrichJobId').value;
+        if (!jobId) { showToast('No job selected', true); return; }
+        var role_name = (document.getElementById('enrichRole').value || '').trim() || (window._enrichCurrentRow && (window._enrichCurrentRow.title || window._enrichCurrentRow.role_name)) || document.getElementById('enrichCompany').value || 'Job role';
+        var lane_key = (document.getElementById('enrichJobFamily').value || '').trim();
+        if (!role_name) { showToast('Enter a role name or job title', true); return; }
+        var btn = btnCreatePendingRoleFromJob;
+        btn.disabled = true;
+        google.script.run.withSuccessHandler(function(r) {
+          btn.disabled = false;
+          if (r && r.ok) {
+            document.getElementById('enrichRoleBankId').value = r.id || '';
+            if (r.role_name) document.getElementById('enrichRole').value = r.role_name;
+            showToast('Created pending role: ' + (r.role_name || r.id));
+          } else showToast(r.error || 'Failed', true);
+        }).withFailureHandler(function(err) { btn.disabled = false; showToast(adminErrorMessage(err, 'Error'), true); }).adminCreatePendingRoleFromJob(jobId, role_name, lane_key);
+      });
       var btnEnrichSave = document.getElementById('btnEnrichSave');
       if (btnEnrichSave) btnEnrichSave.addEventListener('click', function() {
         if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
@@ -1460,6 +1740,7 @@
         var work_mode = document.getElementById('enrichWorkMode').value;
         var job_family = document.getElementById('enrichJobFamily').value;
         var description_snippet = document.getElementById('enrichDescSnippet').value;
+        var role_bank_id = document.getElementById('enrichRoleBankId').value;
         var allFilled = [company, location, work_mode, job_family, description_snippet].every(function(v) { return (v || '').trim().length > 0; });
         var patch = {
           company: company,
@@ -1469,6 +1750,7 @@
           description_snippet: description_snippet,
           enrichment_status: allFilled ? 'ENRICHED' : 'NEEDS_ENRICHMENT'
         };
+        if (role_bank_id !== undefined && role_bank_id !== null) patch.role_bank_id = role_bank_id;
         google.script.run.withSuccessHandler(function(r) {
           if (r.ok) { showToast('Saved'); closeEnrichPanel(); loadJobsInbox(); }
           else showToast(r.error || 'Failed', true);

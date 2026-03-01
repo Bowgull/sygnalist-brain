@@ -311,6 +311,11 @@
       <div class="status" id="statusStepB"></div>
       <div id="laneControlsList" class="lane-controls-list"></div>
       <div class="step-b-actions">
+        <? if (portalUrl) { ?>
+        <a href="<?= portalUrl ?>?tab=jobLanes" target="_blank" rel="noopener" class="btn btn-secondary" style="text-align:center; text-decoration:none;">Open Job Lanes tab</a>
+        <? } else { ?>
+        <p class="hint">Open the Master Portal and go to the Job Lanes tab for full role bank management.</p>
+        <? } ?>
         <button class="btn btn-secondary" onclick="laneControlsUseSuggestions()">Use parse suggestions</button>
         <button class="btn btn-secondary" onclick="laneControlsClearRoles()">Clear roles</button>
         <button class="btn" id="laneControlsSaveBtn" onclick="laneControlsSave()">Save</button>

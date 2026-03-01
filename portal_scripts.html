@@ -1068,7 +1068,7 @@
   }
 
   /** Build inbox role filter from bootstrap assignedLaneLabels (single source of truth) plus unique laneLabel from inboxCache.
-   *  After changing job lanes (Save lane toggles or Apply Approved Lanes), a browser refresh refetches bootstrap and updates this dropdown. */
+   *  After changing job lanes in admin (Save lane toggles or Apply Approved Lanes), a full page refresh refetches bootstrap and updates this dropdown. */
   function renderInboxFilters() {
     var row = $('inboxFiltersRow');
     if (!row) return;

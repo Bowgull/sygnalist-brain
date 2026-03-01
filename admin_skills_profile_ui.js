@@ -8,6 +8,7 @@ function openSkillProfileBuilder_() {
   const tpl = HtmlService.createTemplateFromFile("sidebar_skill_profile");
   tpl.profiles = skillProfile_listProfiles_();
   tpl.version = (typeof Sygnalist_VERSION !== "undefined" ? Sygnalist_VERSION : "unknown");
+  tpl.portalUrl = (typeof CONFIG !== "undefined" && CONFIG.WEB_APP_URL) ? CONFIG.WEB_APP_URL : "";
 
   const html = tpl.evaluate()
     .setTitle("🧬 Skill Profile Builder")

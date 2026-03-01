@@ -186,24 +186,31 @@ function normalizeSuggestedRoles_(roles) {
 
 /**
  * Build roleTracksJSON from suggested roles.
+ * Dedupes by normalized role title so one role title produces one track.
  */
 function buildRoleTracksFromSuggested_(suggestedRoles) {
   if (!Array.isArray(suggestedRoles)) return "[]";
-  
+
+  var seen = {};
   var tracks = [];
   for (var i = 0; i < suggestedRoles.length; i++) {
     var r = suggestedRoles[i];
-    var id = String(r.title || "").toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 20);
-    
+    var title = String(r.title || "").trim();
+    if (!title) continue;
+    var key = title.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "") || "_";
+    if (seen[key]) continue;
+    seen[key] = true;
+
+    var id = title.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 20) || ("role_" + i);
     tracks.push({
-      id: id || ("role_" + i),
-      label: r.title,
+      id: id,
+      label: title,
       roleKeywords: r.keywords || [],
-      laneLabel: r.title + " Lane",
+      laneLabel: title + " Lane",
       priorityWeight: 1.0
     });
   }
-  
+
   return JSON.stringify(tracks);
 }
 

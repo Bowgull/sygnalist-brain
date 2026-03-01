@@ -74,7 +74,7 @@ function getEffectiveRoleTracks_(profile) {
     return Array.isArray(profile.roleTracks) ? profile.roleTracks : [];
   }
 
-  var bank = getLaneRoleBank_();
+  var bank = getLaneRoleBank_({ activeOnly: true });
   var allowedSet = {};
   for (var laneKey in profile.laneControls) {
     if (!Object.prototype.hasOwnProperty.call(profile.laneControls, laneKey)) continue;

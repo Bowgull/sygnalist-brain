@@ -36,6 +36,9 @@
   #adminTabContent .staging-row-new-lane { background: rgba(106, 215, 163, 0.08); }
   #adminTabContent .staging-row-new-lane .td-role { box-shadow: 0 0 0 1px rgba(106, 215, 163, 0.35); border-radius: var(--radius-sm); padding-left: var(--space-2); }
   #adminTabContent .badge-new-lane { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-pill); background: rgba(106, 215, 163, 0.25); color: var(--color-radar-mid); margin-left: 4px; }
+  #adminTabContent .badge-matched { background: rgba(106, 215, 163, 0.2); color: var(--color-radar-mid); }
+  #adminTabContent .badge-pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+  #adminTabContent .badge-unresolved { background: rgba(156, 163, 175, 0.2); color: var(--color-text-muted); }
   #adminTabContent .btn-sm { font-size: 0.75rem; padding: var(--space-1) var(--space-2); }
   #adminTabContent .field-missing { color: var(--color-tier-x); font-weight: 600; }
   #adminTabContent .jobs-intake-check-wrap { display: inline-flex; align-items: center; margin-right: var(--space-2); flex-shrink: 0; }
@@ -63,28 +66,19 @@
   #adminTabContent .admin-load-error .admin-load-error-msg { margin-bottom: var(--space-3); }
   #adminTabContent .admin-load-error .admin-load-error-url { font-size: 0.75rem; margin-top: var(--space-2); word-break: break-all; opacity: 0.9; }
   #adminTabContent .admin-load-error .btn { margin-top: var(--space-2); }
-  /* Lane toggle pill: OFF = gray, ON = accent; sliding handle */
-  #adminTabContent .lane-toggle-wrap { display: inline-flex; align-items: center; position: relative; }
+  /* Lane toggle: SVG ON/OFF only; unique IDs per toggle via suffix */
+  #adminTabContent .lane-toggle-wrap { display: inline-flex; align-items: center; position: relative; cursor: pointer; }
   #adminTabContent .lane-toggle-wrap .lane-toggle { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none; }
-  #adminTabContent .lane-toggle-pill {
-    display: inline-flex; align-items: center; justify-content: space-between;
-    width: 52px; height: 26px; padding: 0 6px; box-sizing: border-box;
-    background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: 999px;
-    cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease;
-  }
-  #adminTabContent .lane-toggle-wrap.on .lane-toggle-pill { background: rgba(106, 215, 163, 0.35); border-color: var(--color-radar-mid); }
-  #adminTabContent .lane-toggle-pill .lane-toggle-handle {
-    position: absolute; left: 2px; top: 2px; width: 20px; height: 20px;
-    background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-    transition: transform 0.2s ease; pointer-events: none;
-  }
-  #adminTabContent .lane-toggle-wrap.on .lane-toggle-pill .lane-toggle-handle { transform: translateX(26px); }
-  #adminTabContent .lane-toggle-pill .lane-toggle-off,
-  #adminTabContent .lane-toggle-pill .lane-toggle-on { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; z-index: 0; pointer-events: none; }
-  #adminTabContent .lane-toggle-pill .lane-toggle-off { color: var(--color-text-muted); margin-left: 22px; }
-  #adminTabContent .lane-toggle-pill .lane-toggle-on { color: var(--color-radar-dark, #2F8A63); margin-right: 22px; visibility: hidden; }
-  #adminTabContent .lane-toggle-wrap.on .lane-toggle-pill .lane-toggle-off { visibility: hidden; margin-left: 0; }
-  #adminTabContent .lane-toggle-wrap.on .lane-toggle-pill .lane-toggle-on { visibility: visible; }
+  #adminTabContent .lane-toggle-wrap .lane-svg-off,
+  #adminTabContent .lane-toggle-wrap .lane-svg-on { width: 64px; height: 32px; flex-shrink: 0; display: block; }
+  #adminTabContent .lane-toggle-wrap.on .lane-svg-off { display: none !important; }
+  #adminTabContent .lane-toggle-wrap:not(.on) .lane-svg-on { display: none !important; }
+  #adminTabContent .lane-remove-x { background: transparent; border: none; color: var(--color-text-muted); cursor: pointer; padding: 2px 6px; font-size: 1rem; line-height: 1; border-radius: var(--radius-sm); }
+  #adminTabContent .lane-remove-x:hover { color: var(--color-tier-x, #f87171); }
+  #adminTabContent .job-lanes-list-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  #adminTabContent .job-lanes-list-table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+  #adminTabContent .job-lanes-list-table tr:last-child td { border-bottom: none; }
+  #adminTabContent .job-lanes-add-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
 </style>
 <div id="adminTabContent">
   <div id="adminLoadError" class="admin-load-error" role="alert" aria-live="polite">
@@ -127,19 +121,46 @@
       <div class="admin-toolbar" id="jobLanesToolbar" style="display:none;">
         <button type="button" class="btn btn-ghost" id="btnLoadJobLanes">Load</button>
       </div>
+
+      <!-- Section 1: Effective Lanes for This Profile (Used for Scanning) -->
+      <div id="jobLanesSectionEffective" class="admin-card" style="margin-bottom: var(--space-4);">
+        <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">1. Effective Lanes for This Profile (Used for Scanning)</div>
+        <p class="admin-sub" style="margin-bottom: var(--space-2);">Lane toggles from laneControls; for each enabled lane, allowed roles from the <strong>active</strong> bank. Lane Controls override roleTracks when set.</p>
+        <div class="job-lanes-add-bank-row" style="margin-bottom: var(--space-2);">
+          <label>Add job lane to bank:</label>
+          <input type="text" id="jobLaneNameBank" placeholder="Job lane name (required)" style="max-width:200px;padding:var(--space-1) var(--space-2);" />
+          <input type="text" id="jobLaneKeywordsBank" placeholder="Keywords (optional)" style="max-width:180px;padding:var(--space-1) var(--space-2);" />
+          <button type="button" class="btn btn-ghost btn-sm" id="btnAddJobLaneToBank">Add</button>
+        </div>
+        <div id="jobLanesTogglesContainer"></div>
+        <div class="job-lanes-add-row">
+          <button type="button" class="btn btn-ghost btn-sm" id="btnAddJobLane">Add job lane</button>
+          <button type="button" class="btn btn-primary" id="btnSaveJobLaneControls">Save lane toggles</button>
+        </div>
+      </div>
+
+      <!-- Section 2: Resume Suggestions (Review & Approve) -->
       <div id="jobLanesVerifyBlock" class="admin-card" style="margin-bottom: var(--space-4); display: none;">
-        <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">1. Verify parse suggestions</div>
-        <p class="admin-sub" style="margin-bottom: var(--space-2);">Resume parse suggested these roles. Check Include for roles to apply, then click Apply selected.</p>
+        <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">2. Resume Suggestions (Review &amp; Approve)</div>
+        <p class="admin-sub" style="margin-bottom: var(--space-2);">Suggested roles from resume parse. Check Include to apply; pending roles are promoted to active on Apply selected.</p>
         <div class="admin-table-wrap" style="margin-bottom: var(--space-2);">
-          <table class="admin-table" id="jobLanesStagingTable"><thead><tr><th>Role</th><th>Keywords</th><th>Include</th><th class="th-add-to-bank" style="display:none;">Add to bank</th></tr></thead><tbody></tbody></table>
+          <table class="admin-table" id="jobLanesStagingTable"><thead><tr><th>Role</th><th>Resolved / Status</th><th>Keywords</th><th>Include</th><th class="th-add-to-bank" style="display:none;">Add to bank</th></tr></thead><tbody></tbody></table>
         </div>
         <button type="button" class="btn btn-primary" id="btnApplyJobLanesSuggestions">Apply selected</button>
       </div>
-      <div id="jobLanesTogglesBlock" class="admin-card">
-        <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">2. Profile lane toggles</div>
-        <p class="admin-sub" style="margin-bottom: var(--space-2);">Enable the lanes this profile should see. Add or remove by checking or unchecking.</p>
-        <div id="jobLanesTogglesContainer"></div>
-        <button type="button" class="btn btn-primary" id="btnSaveJobLaneControls" style="margin-top: var(--space-3);">Save lane toggles</button>
+
+      <!-- Section 3: Global Role Bank (Taxonomy) -->
+      <div id="jobLanesSectionBank" class="admin-card">
+        <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">3. Global Role Bank (Taxonomy)</div>
+        <p class="admin-sub" style="margin-bottom: var(--space-2);">All lanes and roles; status: active, pending, merged, hidden. Only <strong>active</strong> roles are used for scanning.</p>
+        <div class="admin-toolbar" style="margin-bottom: var(--space-2);">
+          <input type="text" id="jobLanesBankSearch" class="admin-search" placeholder="Search role or lane..." style="max-width: 220px;" />
+          <span id="jobLanesBankPendingCount" class="admin-sub" style="margin-left: var(--space-2);"></span>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table job-lanes-list-table" id="jobLanesBankTable"><thead><tr><th>Role</th><th>Lane</th><th>Status</th><th>Source</th><th>Aliases</th></tr></thead><tbody></tbody></table>
+        </div>
+        <p class="admin-sub" style="margin-top: var(--space-2); font-size: 0.75rem;">Edit roles and status in the Lane_Role_Bank sheet, or use Add job lane to bank above (adds as active).</p>
       </div>
     </div>
 
@@ -190,7 +211,9 @@
         <div class="form-group"><label>Company *</label><input type="text" id="enrichCompany" /></div>
         <div class="form-group"><label>Location *</label><input type="text" id="enrichLocation" /></div>
         <div class="form-group"><label>Work mode *</label><select id="enrichWorkMode"><option value="">—</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></div>
-        <div class="form-group"><label>Job family *</label><input type="text" id="enrichJobFamily" /></div>
+        <div class="form-group"><label>Job family *</label><input type="text" id="enrichJobFamily" list="enrichJobFamilyList" placeholder="Pick from lanes or type" /><datalist id="enrichJobFamilyList"></datalist></div>
+        <div class="form-group"><label>Role (optional)</label><input type="text" id="enrichRole" list="enrichRoleList" placeholder="Pick from bank" /><datalist id="enrichRoleList"></datalist><input type="hidden" id="enrichRoleBankId" /></div>
+        <div class="form-group"><button type="button" class="btn btn-ghost btn-sm" id="btnCreatePendingRoleFromJob">Create pending role from this job</button></div>
         <div class="form-group"><label>Description snippet *</label><textarea id="enrichDescSnippet" rows="3"></textarea></div>
         <div class="form-group"><label>Promote to profile</label><select id="enrichPromoteProfileSelect" class="admin-select"><option value="">Select profile</option></select></div>
         <div class="modal-actions">
@@ -317,9 +340,10 @@
         <div class="form-group">
           <label><input type="checkbox" id="createWizardApplyPrefsCb" checked> Apply suggested preferences (locations, remote)</label>
         </div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-primary" id="createWizardApplyBtn">Apply to profile</button>
-        </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-primary" id="createWizardApplyBtn">Apply to profile</button>
+            <button type="button" class="btn btn-ghost" id="createWizardApplyLanesBtn" style="display:none;">Apply suggested lanes</button>
+          </div>
         <div id="createWizardApplyStatus" class="admin-sub" style="margin-top: var(--space-2);"></div>
       </div>
 
@@ -388,10 +412,11 @@
         <div class="form-group">
           <label><input type="checkbox" id="resumeParseApplyPrefsCb" checked> Apply suggested preferences (locations, remote)</label>
         </div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" id="resumeParseBackBtn">Back</button>
-          <button type="button" class="btn btn-primary" id="resumeParseApplyBtn">Apply to profile</button>
-        </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="resumeParseBackBtn">Back</button>
+            <button type="button" class="btn btn-primary" id="resumeParseApplyBtn">Apply to profile</button>
+            <button type="button" class="btn btn-ghost" id="resumeParseApplyLanesBtn" style="display:none;">Apply suggested lanes</button>
+          </div>
         <div id="resumeParseApplyStatus" class="admin-sub" style="margin-top: var(--space-2);"></div>
       </div>
     </div>
