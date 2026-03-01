@@ -297,84 +297,17 @@ function fetchForProfileWithEnrichment_(profileId) {
         }
       }
 
-      // RapidAPI fallback: only if enabled and still need more candidates (curated plan stays first)
-      var rapidLinkedInCount = 0;
-      var rapidATSCount = 0;
-      var rapidSkipped = true;
-      var rapidSkipReason = "disabled";
-      if (typeof resultsBySource === "undefined") resultsBySource = {};
-      resultsBySource.rapidLinkedIn = 0;
-      resultsBySource.rapidATS = 0;
-
-      var gateMin = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_GATE_MIN_CANDIDATES === "number")
-        ? CONFIG.RAPID_GATE_MIN_CANDIDATES
-        : 5;
-      var rapidEnabled = (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_LINKEDIN) || (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_ATS);
-      if (rapidEnabled && jobs.length < gateMin) {
-        var rapidCapRemaining = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_TOTAL_MAX_PER_SCAN === "number")
-          ? CONFIG.RAPID_TOTAL_MAX_PER_SCAN
-          : 30;
-        if (typeof fetchRapidLinkedInActive1h_ === "function" && CONFIG.RAPID_ENABLE_LINKEDIN) {
-          var linkedInJobs = fetchRapidLinkedInActive1h_({ limit: CONFIG.RAPID_LINKEDIN_MAX });
-          var takeLinkedIn = Math.min(linkedInJobs.length, rapidCapRemaining);
-          if (takeLinkedIn > 0) {
-            jobs = jobs.concat(linkedInJobs.slice(0, takeLinkedIn));
-            rapidLinkedInCount = takeLinkedIn;
-            rapidCapRemaining -= takeLinkedIn;
-          }
-        }
-        if (typeof fetchRapidATSActiveExpired_ === "function" && CONFIG.RAPID_ENABLE_ATS && rapidCapRemaining > 0) {
-          var atsJobs = fetchRapidATSActiveExpired_();
-          var takeATS = Math.min(atsJobs.length, rapidCapRemaining);
-          if (takeATS > 0) {
-            jobs = jobs.concat(atsJobs.slice(0, takeATS));
-            rapidATSCount = takeATS;
-          }
-        }
-        resultsBySource.rapidLinkedIn = rapidLinkedInCount;
-        resultsBySource.rapidATS = rapidATSCount;
-        rapidSkipped = (rapidLinkedInCount + rapidATSCount) === 0;
-        rapidSkipReason = rapidSkipped ? "no results" : "";
-        logEvent_({
-          timestamp: Date.now(),
-          profileId: profile.profileId,
-          action: "fetch_enriched",
-          source: "pipeline",
-          details: {
-            level: "INFO",
-            message: rapidSkipped ? "RapidAPI skipped (enough candidates)" : "RapidAPI fallback ran",
-            meta: { batchId: batchId, rapidLinkedInCount: rapidLinkedInCount, rapidATSCount: rapidATSCount, rapidSkipped: rapidSkipped, rapidSkipReason: rapidSkipReason },
-            batchId,
-            version: Sygnalist_VERSION
-          }
-        });
-      } else {
-        if (rapidEnabled) rapidSkipReason = "enough candidates";
-        logEvent_({
-          timestamp: Date.now(),
-          profileId: profile.profileId,
-          action: "fetch_enriched",
-          source: "pipeline",
-          details: {
-            level: "INFO",
-            message: "RapidAPI skipped",
-            meta: { batchId: batchId, rapidSkipped: true, rapidSkipReason: rapidSkipReason },
-            batchId,
-            version: Sygnalist_VERSION
-          }
-        });
-      }
-
       const rawFetched = jobs.length;
+      var rawPoolBeforeDedupe = jobs.slice();
 
       // 2) Dedupe + classify + score
       jobs = dedupeJobs_(jobs);
       var afterDedupe = jobs.length;
 
-      const classified = classifyJobsForProfile_(jobs, profile);
-      const scoredAll = scoreJobsForProfile_(classified, profile);
+      var classified = classifyJobsForProfile_(jobs, profile);
+      var scoredAll = scoreJobsForProfile_(classified, profile);
 
-      // 3) Filter/cap candidates for enrichment (never show 0: if none pass, take top by score; if all excluded, take top anyway)
+      // 3) Filter/cap candidates for enrichment (never include excluded/X-tier in fallback)
       var candidates = scoredAll
         .filter(j => !j.excluded && Number(j.score || 0) >= CONFIG.MIN_SCORE_FOR_INBOX)
         .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
@@ -385,11 +318,140 @@ function fetchForProfileWithEnrichment_(profileId) {
           .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
           .slice(0, CONFIG.MAX_JOBS_PER_FETCH);
       }
-      if (candidates.length === 0 && scoredAll.length > 0) {
-        candidates = scoredAll
-          .filter(j => !j.excluded)
-          .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
-          .slice(0, CONFIG.MAX_JOBS_PER_FETCH);
+
+      var eligibleAfterHardFilters = scoredAll.filter(function (j) { return !j.excluded; }).length;
+      var candidateCount = candidates.length;
+      var topScore = 0;
+      if (candidates.length > 0) {
+        for (var ci = 0; ci < candidates.length; ci++) { var s = Number(candidates[ci].score || 0); if (s > topScore) topScore = s; }
+      } else {
+        for (var ei = 0; ei < scoredAll.length; ei++) { if (!scoredAll[ei].excluded) { var s = Number(scoredAll[ei].score || 0); if (s > topScore) topScore = s; } }
+      }
+
+      var rapidEnabled = (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_LINKEDIN) || (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_ATS);
+      var gateResult = shouldRunRapidApi_(eligibleAfterHardFilters, candidateCount, topScore, rapidEnabled);
+      var rapidDecision = gateResult.run ? "RUN" : "SKIP";
+      var rapidReason = gateResult.reason;
+      var rapidLinkedInCount = 0;
+      var rapidATSCount = 0;
+      if (typeof resultsBySource === "undefined") resultsBySource = {};
+      resultsBySource.rapidLinkedIn = 0;
+      resultsBySource.rapidATS = 0;
+
+      logEvent_({
+        timestamp: Date.now(),
+        profileId: profile.profileId,
+        action: "fetch_enriched",
+        source: "pipeline",
+        details: {
+          level: "INFO",
+          message: "RapidAPI gate: " + rapidDecision,
+          meta: {
+            batchId: batchId,
+            rapidDecision: rapidDecision,
+            rapidReason: rapidReason,
+            countsBeforeRapid: {
+              rawFetched: rawFetched,
+              afterDedupe: afterDedupe,
+              eligibleAfterHardFilters: eligibleAfterHardFilters,
+              candidateCount: candidateCount,
+              topScore: topScore
+            }
+          },
+          batchId,
+          version: Sygnalist_VERSION
+        }
+      });
+
+      if (gateResult.run && typeof fetchRapidLinkedInActive1h_ === "function" && typeof fetchRapidATSActiveExpired_ === "function") {
+        var rapidCapRemaining = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_TOTAL_MAX_PER_SCAN === "number")
+          ? CONFIG.RAPID_TOTAL_MAX_PER_SCAN
+          : 30;
+        if (CONFIG.RAPID_ENABLE_LINKEDIN) {
+          var linkedInJobs = fetchRapidLinkedInActive1h_({ limit: CONFIG.RAPID_LINKEDIN_MAX });
+          var takeLinkedIn = Math.min(linkedInJobs.length, rapidCapRemaining);
+          if (takeLinkedIn > 0) {
+            rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(linkedInJobs.slice(0, takeLinkedIn));
+            rapidLinkedInCount = takeLinkedIn;
+            rapidCapRemaining -= takeLinkedIn;
+          }
+        }
+        if (CONFIG.RAPID_ENABLE_ATS && rapidCapRemaining > 0) {
+          var atsJobs = fetchRapidATSActiveExpired_();
+          var takeATS = Math.min(atsJobs.length, rapidCapRemaining);
+          if (takeATS > 0) {
+            rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(atsJobs.slice(0, takeATS));
+            rapidATSCount = takeATS;
+          }
+        }
+        resultsBySource.rapidLinkedIn = rapidLinkedInCount;
+        resultsBySource.rapidATS = rapidATSCount;
+
+        if (rapidLinkedInCount + rapidATSCount > 0) {
+          jobs = dedupeJobs_(rawPoolBeforeDedupe);
+          var afterDedupe2 = jobs.length;
+          classified = classifyJobsForProfile_(jobs, profile);
+          scoredAll = scoreJobsForProfile_(classified, profile);
+          eligibleAfterHardFilters = scoredAll.filter(function (j) { return !j.excluded; }).length;
+          candidates = scoredAll
+            .filter(j => !j.excluded && Number(j.score || 0) >= CONFIG.MIN_SCORE_FOR_INBOX)
+            .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+            .slice(0, CONFIG.MAX_JOBS_PER_FETCH);
+          if (candidates.length === 0 && scoredAll.length > 0) {
+            candidates = scoredAll
+              .filter(j => !j.excluded)
+              .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+              .slice(0, CONFIG.MAX_JOBS_PER_FETCH);
+          }
+          candidateCount = candidates.length;
+          topScore = 0;
+          if (candidates.length > 0) {
+            for (var cj = 0; cj < candidates.length; cj++) { var s2 = Number(candidates[cj].score || 0); if (s2 > topScore) topScore = s2; }
+          } else {
+            for (var ej = 0; ej < scoredAll.length; ej++) { if (!scoredAll[ej].excluded) { var s2 = Number(scoredAll[ej].score || 0); if (s2 > topScore) topScore = s2; } }
+          }
+          logEvent_({
+            timestamp: Date.now(),
+            profileId: profile.profileId,
+            action: "fetch_enriched",
+            source: "pipeline",
+            details: {
+              level: "INFO",
+              message: "RapidAPI fallback ran; second pass complete",
+              meta: {
+                batchId: batchId,
+                rapidDecision: "RUN",
+                rapidReason: rapidReason,
+                rapidLinkedInCount: rapidLinkedInCount,
+                rapidATSCount: rapidATSCount,
+                countsAfterRapid: {
+                  rawFetched: rawFetched,
+                  afterDedupe: afterDedupe2,
+                  eligibleAfterHardFilters: eligibleAfterHardFilters,
+                  candidateCount: candidateCount,
+                  topScore: topScore
+                }
+              },
+              batchId,
+              version: Sygnalist_VERSION
+            }
+          });
+        } else {
+          rapidReason = "no results";
+          logEvent_({
+            timestamp: Date.now(),
+            profileId: profile.profileId,
+            action: "fetch_enriched",
+            source: "pipeline",
+            details: {
+              level: "INFO",
+              message: "RapidAPI gate RUN but quota or API returned 0 jobs",
+              meta: { batchId: batchId, rapidDecision: "RUN", rapidReason: rapidReason },
+              batchId,
+              version: Sygnalist_VERSION
+            }
+          });
+        }
       }
 
       // #region agent log - DEBUG: after dedupe and score
@@ -442,8 +504,10 @@ function fetchForProfileWithEnrichment_(profileId) {
             totalFetchedBeforeDedupe: rawFetched,
             afterDedupe: afterDedupe,
             candidatesSelectedForEnrich: candidatesToEnrich.length,
-            rapidSkipped: rapidSkipped,
-            rapidSkipReason: rapidSkipReason
+            rapidDecision: rapidDecision,
+            rapidReason: rapidReason,
+            rapidLinkedInCount: rapidLinkedInCount,
+            rapidATSCount: rapidATSCount
           },
           batchId,
           version: Sygnalist_VERSION
@@ -502,6 +566,19 @@ function fetchForProfileWithEnrichment_(profileId) {
   } catch (e) {
     return { ok: false, version: Sygnalist_VERSION, message: e.message };
   }
+}
+
+/**
+ * Gate: should we run RapidAPI fallback? Based on usable candidates, not raw count.
+ * Returns { run: boolean, reason: string }.
+ */
+function shouldRunRapidApi_(eligibleAfterHardFilters, candidateCount, topScore, rapidEnabled) {
+  if (!rapidEnabled) return { run: false, reason: "rapidDisabled" };
+  var minCand = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_MIN_CANDIDATES === "number") ? CONFIG.RAPID_MIN_CANDIDATES : 5;
+  var minEligible = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_MIN_ELIGIBLE === "number") ? CONFIG.RAPID_MIN_ELIGIBLE : 10;
+  if (candidateCount >= minCand) return { run: false, reason: "candidateCount>=5" };
+  if (eligibleAfterHardFilters >= minEligible) return { run: false, reason: "eligible>=10" };
+  return { run: true, reason: "candidateCount<5" };
 }
 
 /**

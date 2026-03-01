@@ -21,13 +21,14 @@ const CONFIG = {
   LAST_DITCH_SOURCES: ["remotive", "remoteok"],
   LAST_DITCH_TERMS: ["remote", "software", "customer success"],
 
-  // RapidAPI (secondary fallback only; curated plan runs first)
+  // RapidAPI (secondary fallback only; gate on usable candidates, not raw count)
   RAPID_ENABLE_LINKEDIN: true,
   RAPID_ENABLE_ATS: true,
   RAPID_LINKEDIN_MAX: 20,
   RAPID_ATS_MAX: 20,
   RAPID_TOTAL_MAX_PER_SCAN: 30,
-  RAPID_GATE_MIN_CANDIDATES: 5,
+  RAPID_MIN_CANDIDATES: 5,
+  RAPID_MIN_ELIGIBLE: 10,
   RAPID_MAX_CALLS_PER_DAY: 2,
   RAPID_MAX_CALLS_PER_MONTH: 25,
 
