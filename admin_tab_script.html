@@ -100,6 +100,10 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
     });
   }
+  function humanizeLaneKey(key) {
+    if (key == null || key === '') return '';
+    return String(key).replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  }
 
   function showToast(msg, isError) {
     var el = document.getElementById('toastAdmin');
@@ -816,9 +820,10 @@
                 if (role.indexOf(term) === -1 && lane.indexOf(term) === -1 && aliasesStr.indexOf(term) === -1) return;
               }
               var tr = document.createElement('tr');
-              var status = (r.status || 'active').toLowerCase();
-              var statusClass = status === 'active' ? 'badge-matched' : (status === 'pending' ? 'badge-pending' : 'badge-unresolved');
-              tr.innerHTML = '<td>' + esc(r.role_name) + '</td><td>' + esc(r.lane_key) + '</td><td><span class="admin-card-status ' + statusClass + '">' + esc(status) + '</span></td><td>' + esc(r.source || '') + '</td><td>' + esc(Array.isArray(r.aliases) ? r.aliases.join(', ') : '') + '</td>';
+              var statusVal = (r.status || 'active').toLowerCase();
+              var statusDisplay = statusVal === 'active' ? 'Active' : (statusVal === 'pending' ? 'Pending' : (statusVal === 'merged' ? 'Merged' : (statusVal === 'hidden' ? 'Hidden' : (statusVal === 'false' || statusVal === '' ? 'Inactive' : statusVal))));
+              var statusClass = statusVal === 'active' ? 'badge-matched' : (statusVal === 'pending' ? 'badge-pending' : 'badge-unresolved');
+              tr.innerHTML = '<td>' + esc(r.role_name) + '</td><td>' + esc(humanizeLaneKey(r.lane_key)) + '</td><td><span class="admin-card-status ' + statusClass + '">' + esc(statusDisplay) + '</span></td><td>' + esc(r.source || '') + '</td><td>' + esc(Array.isArray(r.aliases) ? r.aliases.join(', ') : '') + '</td>';
               bankTableBody.appendChild(tr);
             });
           }
@@ -864,7 +869,7 @@
             var svgs = laneToggleSvgs(slug);
             var tr = document.createElement('tr');
             tr.setAttribute('data-lane-key', laneKey);
-            tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(laneKey) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap' + (isEnabled ? ' on' : '') + '"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">×</button></td>';
+            tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(humanizeLaneKey(laneKey)) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap' + (isEnabled ? ' on' : '') + '"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">Remove</button></td>';
             var toggle = tr.querySelector('.lane-toggle');
             var wrap = tr.querySelector('.lane-toggle-wrap');
             if (toggle) toggle.addEventListener('change', function() {
@@ -1074,7 +1079,7 @@
           var svgs = laneToggleSvgs(slug);
           var tr = document.createElement('tr');
           tr.setAttribute('data-lane-key', laneKey);
-          tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(laneKey) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap on"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" checked>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">×</button></td>';
+          tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(humanizeLaneKey(laneKey)) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap on"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" checked>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">Remove</button></td>';
           var toggle = tr.querySelector('.lane-toggle');
           var wrap = tr.querySelector('.lane-toggle-wrap');
           if (toggle) toggle.addEventListener('change', function() { laneControlsState[laneKey].is_enabled = this.checked; if (wrap) wrap.classList.toggle('on', this.checked); });

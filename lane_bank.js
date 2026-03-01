@@ -41,29 +41,42 @@ function ensureLaneRoleBankSheet_() {
 
 /**
  * Ensure Option A columns exist; backfill existing rows with status=active, role_slug, source=manual.
+ * When status column already exists, backfill status='active' for any row where is_active is true and status is empty or false.
  */
 function ensureLaneRoleBankColumns_(sh) {
   var lastRow = sh.getLastRow();
   var lastCol = sh.getLastColumn();
   if (lastRow < 1) return;
-  var headers = sh.getRange(1, 1, 1, Math.max(lastCol, 1)).getValues()[0].map(function (h) { return String(h || "").trim(); });
-  if (headers.length >= LANE_ROLE_BANK_HEADERS.length) return;
+  var headers = sh.getRange(1, 1, 1, Math.max(lastCol, LANE_ROLE_BANK_HEADERS.length)).getValues()[0].map(function (h) { return String(h || "").trim(); });
   var idxStatus = headers.indexOf("status");
-  if (idxStatus >= 0) return;
-  for (var c = headers.length; c < LANE_ROLE_BANK_HEADERS.length; c++) {
-    sh.getRange(1, c + 1).setValue(LANE_ROLE_BANK_HEADERS[c]);
+  var idxActive = headers.indexOf("is_active");
+
+  if (idxStatus < 0 || headers.length < LANE_ROLE_BANK_HEADERS.length) {
+    for (var c = headers.length; c < LANE_ROLE_BANK_HEADERS.length; c++) {
+      sh.getRange(1, c + 1).setValue(LANE_ROLE_BANK_HEADERS[c]);
+    }
+    headers = LANE_ROLE_BANK_HEADERS.slice();
+    idxStatus = headers.indexOf("status");
+    idxActive = headers.indexOf("is_active");
+    var idxRole = headers.indexOf("role_name");
+    for (var r = 2; r <= lastRow; r++) {
+      sh.getRange(r, 8).setValue("active");
+      sh.getRange(r, 9).setValue(roleSlug_(sh.getRange(r, idxRole + 1).getValue()));
+      sh.getRange(r, 10).setValue("manual");
+      sh.getRange(r, 11).setValue("");
+    }
+    return;
   }
-  var newHeaders = LANE_ROLE_BANK_HEADERS;
-  var idxRole = headers.indexOf("role_name");
-  var idxId = headers.indexOf("id");
+
   for (var r = 2; r <= lastRow; r++) {
-    var statusVal = "active";
-    var roleNameVal = sh.getRange(r, idxRole + 1).getValue();
-    var roleSlugVal = roleSlug_(roleNameVal);
-    sh.getRange(r, 8).setValue(statusVal);
-    sh.getRange(r, 9).setValue(roleSlugVal);
-    sh.getRange(r, 10).setValue("manual");
-    sh.getRange(r, 11).setValue("");
+    var isActiveVal = sh.getRange(r, idxActive + 1).getValue();
+    var isActive = isActiveVal === true || String(isActiveVal || "").toLowerCase().trim() === "true";
+    if (!isActive) continue;
+    var statusVal = sh.getRange(r, idxStatus + 1).getValue();
+    var statusStr = String(statusVal || "").trim().toLowerCase();
+    if (statusStr === "" || statusStr === "false" || statusVal === false) {
+      sh.getRange(r, idxStatus + 1).setValue("active");
+    }
   }
 }
 
@@ -95,8 +108,16 @@ function getLaneRoleBank_(opts) {
     var row = data[r];
     var isActive = row[idxActive];
     if (isActive === false || String(isActive || "").toLowerCase().trim() === "false") continue;
-    var status = (idxStatus >= 0 && row[idxStatus] != null && String(row[idxStatus]).trim() !== "")
-      ? String(row[idxStatus]).trim().toLowerCase() : "active";
+    var rawStatus = (idxStatus >= 0 && row[idxStatus] != null) ? row[idxStatus] : "";
+    var statusStr = String(rawStatus).trim().toLowerCase();
+    var status = "active";
+    if (statusStr === "active" || statusStr === "pending" || statusStr === "merged" || statusStr === "hidden") {
+      status = statusStr;
+    } else if (statusStr === "false" || statusStr === "" || rawStatus === false) {
+      status = "active";
+    } else if (statusStr) {
+      status = statusStr;
+    }
     if (activeOnly && status !== "active") continue;
 
     var aliasesStr = String(row[idxAliases] != null ? row[idxAliases] : "").trim();

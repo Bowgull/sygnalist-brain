@@ -1067,6 +1067,19 @@
     return s.replace(/\s+Lane\s*$/i, '').trim() || s;
   }
 
+  /** Humanize snake_case lane key for display (e.g. client_success_manager → Client Success Manager). */
+  function humanizeLaneKey(key) {
+    if (key == null || key === '') return '';
+    return String(key).replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  }
+
+  /** Humanized display text for inbox role filter: strip " Lane" then title-case (e.g. "client_success_manager Lane" → "Client Success Manager"). */
+  function humanizeForDisplay(laneLabel) {
+    var base = roleDisplayLabel(laneLabel);
+    if (base.toLowerCase() === 'review jd') return 'Review JD';
+    return humanizeLaneKey(base);
+  }
+
   /** Build inbox role filter from bootstrap assignedLaneLabels (single source of truth) plus unique laneLabel from inboxCache.
    *  After changing job lanes in admin (Save lane toggles or Apply Approved Lanes), a full page refresh refetches bootstrap and updates this dropdown. */
   function renderInboxFilters() {
@@ -1084,7 +1097,7 @@
     }
     roles.sort();
     var roleOpts = '<option value="">All roles</option>';
-    for (var r = 0; r < roles.length; r++) roleOpts += '<option value="' + esc(roles[r]) + '">' + esc(roleDisplayLabel(roles[r])) + '</option>';
+    for (var r = 0; r < roles.length; r++) roleOpts += '<option value="' + esc(roles[r]) + '">' + esc(humanizeForDisplay(roles[r])) + '</option>';
     row.innerHTML =
       '<select class="form-select inbox-role" id="inboxLane" style="max-width:160px" aria-label="Role">' + roleOpts + '</select>';
     var laneEl = $('inboxLane');
@@ -1532,7 +1545,7 @@
           '</div>' +
           '<div class="job-meta">' +
             '<span class="chip chip-tier chip-tier-' + tier.toLowerCase() + '">Tier ' + tier + ' · ' + esc(job.score) + '</span>' +
-            (job.laneLabel ? '<span class="chip chip-role">' + esc(roleDisplayLabel(job.laneLabel)) + '</span>' : '') +
+            (job.laneLabel ? '<span class="chip chip-role">' + esc(humanizeForDisplay(job.laneLabel)) + '</span>' : '') +
             salaryChipHtml +
             '<span class="chip">' + esc(job.location || 'Remote') + '</span>' +
             '<span class="chip">' + esc(job.source) + '</span>' +

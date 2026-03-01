@@ -193,7 +193,8 @@
         </div>
         <div id="jobLanesTogglesBlock" class="admin-card">
           <div class="admin-heading" style="font-size: 1rem; margin-bottom: var(--space-2);">2. Profile lane toggles</div>
-          <p class="admin-sub" style="margin-bottom: var(--space-2);">Enable the lanes this profile should see. Toggle ON/OFF; use × to remove from profile.</p>
+          <p class="admin-sub" style="margin-bottom: var(--space-2);">Enable the lanes this profile should see. Toggle ON/OFF; use Remove to take a lane off this profile.</p>
+          <p class="admin-sub" style="margin-bottom: var(--space-2); font-size: 0.75rem; color: var(--color-text-muted);">Role Bank (lanes/titles) is for scanning and filters. For curated job listings, use the <strong>Job bank</strong> tab.</p>
           <p class="admin-sub" style="margin-bottom: var(--space-2); font-size: 0.75rem; color: var(--color-text-muted);"><strong>Hint:</strong> &quot;Apply selected&quot; above updates <strong>roleTracks</strong> (from staging). &quot;Save lane toggles&quot; updates <strong>laneControls</strong>. When both are set, the engine uses lane toggles for fetch and display.</p>
           <div class="job-lanes-add-bank-row" style="margin-bottom: var(--space-2);">
             <label>Add job lane to bank:</label>
@@ -537,6 +538,10 @@
         return String(s || '').replace(/[&<>"']/g, function(m) {
           return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
         });
+      }
+      function humanizeLaneKey(key) {
+        if (key == null || key === '') return '';
+        return String(key).replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
       }
 
       function showToast(msg, isError) {
@@ -1159,7 +1164,7 @@
                 var svgs = laneToggleSvgs(slug);
                 var tr = document.createElement('tr');
                 tr.setAttribute('data-lane-key', laneKey);
-                tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(laneKey) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap' + (isEnabled ? ' on' : '') + '"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">×</button></td>';
+                tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(humanizeLaneKey(laneKey)) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap' + (isEnabled ? ' on' : '') + '"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" ' + (isEnabled ? 'checked' : '') + '>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">Remove</button></td>';
                 var toggle = tr.querySelector('.lane-toggle');
                 var wrap = tr.querySelector('.lane-toggle-wrap');
                 if (toggle) toggle.addEventListener('change', function() {
@@ -1324,7 +1329,7 @@
               var svgs = laneToggleSvgs(slug);
               var tr = document.createElement('tr');
               tr.setAttribute('data-lane-key', laneKey);
-              tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(laneKey) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap on"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" checked>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">×</button></td>';
+              tr.innerHTML = '<td class="lane-name-cell"><span class="lane-name">' + esc(humanizeLaneKey(laneKey)) + '</span><span class="admin-card-meta lane-counts" style="display:block;margin-top:2px;"></span></td><td class="lane-toggle-cell"><label class="lane-toggle-wrap on"><input type="checkbox" class="lane-toggle" data-lane="' + esc(laneKey) + '" checked>' + svgs.off + svgs.on + '</label></td><td class="lane-remove-cell"><button type="button" class="lane-remove-x" data-lane="' + esc(laneKey) + '" aria-label="Remove lane" title="Remove from my lanes">Remove</button></td>';
               var toggle = tr.querySelector('.lane-toggle');
               var wrap = tr.querySelector('.lane-toggle-wrap');
               if (toggle) toggle.addEventListener('change', function() { laneControlsState[laneKey].is_enabled = this.checked; if (wrap) wrap.classList.toggle('on', this.checked); });
