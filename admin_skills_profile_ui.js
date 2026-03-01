@@ -292,6 +292,24 @@ function setProfileLaneControls(profileId, laneControlsOrPayload) {
       }
     }
 
+    // Backfill empty allowed_bank_role_ids for enabled lanes so resolver returns tracks and client dropdown populates
+    if (typeof getLaneRoleBank_ === "function") {
+      var bank = getLaneRoleBank_({ activeOnly: true });
+      for (var laneKey in merged) {
+        if (!Object.prototype.hasOwnProperty.call(merged, laneKey)) continue;
+        var c = merged[laneKey];
+        if (!c || typeof c !== "object") continue;
+        if (c.is_enabled !== true) continue;
+        var ids = Array.isArray(c.allowed_bank_role_ids) ? c.allowed_bank_role_ids : [];
+        if (ids.length > 0) continue;
+        var roleIds = [];
+        for (var b = 0; b < bank.length; b++) {
+          if (String(bank[b].lane_key || "").trim() === String(laneKey || "").trim()) roleIds.push(String(bank[b].id || "").trim());
+        }
+        merged[laneKey] = { is_enabled: true, allowed_bank_role_ids: roleIds.filter(Boolean) };
+      }
+    }
+
     var jsonStr = JSON.stringify(merged);
     sh.getRange(rowIndex + 1, idxLaneControls + 1).setValue(jsonStr);
 

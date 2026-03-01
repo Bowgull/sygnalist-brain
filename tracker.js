@@ -231,7 +231,8 @@ function updateTrackerEntryForProfile_(profileId, patch) {
       else if (c === idxSalary && newSalary !== null) val = newSalary;
       slice.push(val);
     }
-    sh.getRange(r + 1, minCol + 1, r + 1, maxCol + 1).setValues([slice]);
+    var numColsToWrite = maxCol - minCol + 1;
+    sh.getRange(r + 1, minCol + 1, 1, numColsToWrite).setValues([slice]);
 
     if (oldStatus !== newStatus && !isInterviewStatus_(oldStatus) && isInterviewStatus_(newStatus)) {
       const trackerKey = (wantUrl && wantUrl.length) ? wantUrl : wantKey;

@@ -1408,6 +1408,7 @@
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
 
     var res;
+    var errMsg;
     try {
       var payload = {
         url: url,
@@ -1427,6 +1428,7 @@
       res = await api('updateTracker', payload);
     } catch (e) {
       res = null;
+      errMsg = e && e.message ? e.message : 'Unknown error';
     }
 
     if (saveBtn) {
@@ -1450,7 +1452,7 @@
         trackerCache[idx].salary = salary || trackerCache[idx].salary;
       }
     } else {
-      showToast('Save failed: ' + (res && res.message ? res.message : 'Unknown error'), 'error');
+      showToast('Save failed: ' + (res && res.message ? res.message : errMsg), 'error');
     }
   }
 
@@ -1861,10 +1863,10 @@
           } else {
             showToast(res && res.message ? res.message : 'Save failed', 'error');
           }
-        }).catch(function() {
+        }).catch(function(err) {
           btn.disabled = false;
           btn.innerHTML = origHtml;
-          showToast('Save failed', 'error');
+          showToast('Save failed' + (err && err.message ? ': ' + err.message : ''), 'error');
         });
       });
     });
@@ -1938,10 +1940,10 @@
           } else {
             showToast(res && res.message ? res.message : 'Save failed', 'error');
           }
-        }).catch(function() {
+        }).catch(function(err) {
           btn.disabled = false;
           btn.innerHTML = iconHtml('save', 18) + ' Save';
-          showToast('Save failed', 'error');
+          showToast('Save failed' + (err && err.message ? ': ' + err.message : ''), 'error');
         });
       });
     });

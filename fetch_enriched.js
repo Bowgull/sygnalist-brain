@@ -297,6 +297,74 @@ function fetchForProfileWithEnrichment_(profileId) {
         }
       }
 
+      // RapidAPI fallback: only if enabled and still need more candidates (curated plan stays first)
+      var rapidLinkedInCount = 0;
+      var rapidATSCount = 0;
+      var rapidSkipped = true;
+      var rapidSkipReason = "disabled";
+      if (typeof resultsBySource === "undefined") resultsBySource = {};
+      resultsBySource.rapidLinkedIn = 0;
+      resultsBySource.rapidATS = 0;
+
+      var gateMin = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_GATE_MIN_CANDIDATES === "number")
+        ? CONFIG.RAPID_GATE_MIN_CANDIDATES
+        : 5;
+      var rapidEnabled = (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_LINKEDIN) || (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_ATS);
+      if (rapidEnabled && jobs.length < gateMin) {
+        var rapidCapRemaining = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_TOTAL_MAX_PER_SCAN === "number")
+          ? CONFIG.RAPID_TOTAL_MAX_PER_SCAN
+          : 30;
+        if (typeof fetchRapidLinkedInActive1h_ === "function" && CONFIG.RAPID_ENABLE_LINKEDIN) {
+          var linkedInJobs = fetchRapidLinkedInActive1h_({ limit: CONFIG.RAPID_LINKEDIN_MAX });
+          var takeLinkedIn = Math.min(linkedInJobs.length, rapidCapRemaining);
+          if (takeLinkedIn > 0) {
+            jobs = jobs.concat(linkedInJobs.slice(0, takeLinkedIn));
+            rapidLinkedInCount = takeLinkedIn;
+            rapidCapRemaining -= takeLinkedIn;
+          }
+        }
+        if (typeof fetchRapidATSActiveExpired_ === "function" && CONFIG.RAPID_ENABLE_ATS && rapidCapRemaining > 0) {
+          var atsJobs = fetchRapidATSActiveExpired_();
+          var takeATS = Math.min(atsJobs.length, rapidCapRemaining);
+          if (takeATS > 0) {
+            jobs = jobs.concat(atsJobs.slice(0, takeATS));
+            rapidATSCount = takeATS;
+          }
+        }
+        resultsBySource.rapidLinkedIn = rapidLinkedInCount;
+        resultsBySource.rapidATS = rapidATSCount;
+        rapidSkipped = (rapidLinkedInCount + rapidATSCount) === 0;
+        rapidSkipReason = rapidSkipped ? "no results" : "";
+        logEvent_({
+          timestamp: Date.now(),
+          profileId: profile.profileId,
+          action: "fetch_enriched",
+          source: "pipeline",
+          details: {
+            level: "INFO",
+            message: rapidSkipped ? "RapidAPI skipped (enough candidates)" : "RapidAPI fallback ran",
+            meta: { batchId: batchId, rapidLinkedInCount: rapidLinkedInCount, rapidATSCount: rapidATSCount, rapidSkipped: rapidSkipped, rapidSkipReason: rapidSkipReason },
+            batchId,
+            version: Sygnalist_VERSION
+          }
+        });
+      } else {
+        if (rapidEnabled) rapidSkipReason = "enough candidates";
+        logEvent_({
+          timestamp: Date.now(),
+          profileId: profile.profileId,
+          action: "fetch_enriched",
+          source: "pipeline",
+          details: {
+            level: "INFO",
+            message: "RapidAPI skipped",
+            meta: { batchId: batchId, rapidSkipped: true, rapidSkipReason: rapidSkipReason },
+            batchId,
+            version: Sygnalist_VERSION
+          }
+        });
+      }
+
       const rawFetched = jobs.length;
 
       // 2) Dedupe + classify + score
@@ -319,6 +387,7 @@ function fetchForProfileWithEnrichment_(profileId) {
       }
       if (candidates.length === 0 && scoredAll.length > 0) {
         candidates = scoredAll
+          .filter(j => !j.excluded)
           .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
           .slice(0, CONFIG.MAX_JOBS_PER_FETCH);
       }
@@ -372,7 +441,9 @@ function fetchForProfileWithEnrichment_(profileId) {
             sourcesShortCircuited: sourcesShortCircuited,
             totalFetchedBeforeDedupe: rawFetched,
             afterDedupe: afterDedupe,
-            candidatesSelectedForEnrich: candidatesToEnrich.length
+            candidatesSelectedForEnrich: candidatesToEnrich.length,
+            rapidSkipped: rapidSkipped,
+            rapidSkipReason: rapidSkipReason
           },
           batchId,
           version: Sygnalist_VERSION
@@ -393,6 +464,7 @@ function fetchForProfileWithEnrichment_(profileId) {
         return true;
       });
       forInbox = filterTierGate_(forInbox);
+      forInbox = forInbox.filter(function (j) { return String(j.tier || "").toUpperCase() !== "X"; });
 
       // 6) Write enriched inbox (replace profile inbox)
       var written;
