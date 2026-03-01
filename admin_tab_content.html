@@ -181,11 +181,20 @@
       <div class="admin-toolbar">
         <input type="text" id="logsProfileFilter" class="admin-search" placeholder="Profile ID filter" />
         <input type="text" id="logsActionFilter" class="admin-search" placeholder="Action filter" />
+        <input type="text" id="logsBatchFilter" class="admin-search" placeholder="Batch ID (e.g. b_0301_0950)" />
+        <label class="inline-flex items-center gap-1"><input type="checkbox" id="logsReceiptsOnly" /> Receipts only</label>
+        <label class="inline-flex items-center gap-1"><input type="checkbox" id="logsHideDebug" /> Hide debug</label>
         <button type="button" class="btn btn-ghost" id="btnLoadLogs">Load logs</button>
         <button type="button" class="btn btn-primary" id="btnExportLogs">Export logs</button>
       </div>
       <div class="admin-table-wrap">
-        <table class="admin-table" id="logsTable"><thead><tr><th>Time</th><th>Profile</th><th>Action</th><th>Source</th><th>Details</th></tr></thead><tbody></tbody></table>
+        <table class="admin-table" id="logsTable"><thead><tr><th>Time</th><th>Profile</th><th>Action</th><th>Source</th><th>Details</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+      <div id="logDetailModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/50" aria-hidden="true">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto p-4">
+          <div class="flex justify-between items-center mb-2"><span class="font-semibold">Log details</span><button type="button" id="logDetailModalClose" class="btn btn-ghost btn-sm">Close</button></div>
+          <pre id="logDetailContent" class="text-sm whitespace-pre-wrap break-words"></pre>
+        </div>
       </div>
     </div>
 

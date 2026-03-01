@@ -229,11 +229,20 @@
         <div class="admin-toolbar">
           <input type="text" id="logsProfileFilter" class="admin-search" placeholder="Profile ID filter" />
           <input type="text" id="logsActionFilter" class="admin-search" placeholder="Action filter" />
+          <input type="text" id="logsBatchFilter" class="admin-search" placeholder="Batch ID (e.g. b_0301_0950)" />
+          <label class="inline-flex items-center gap-1"><input type="checkbox" id="logsReceiptsOnly" /> Receipts only</label>
+          <label class="inline-flex items-center gap-1"><input type="checkbox" id="logsHideDebug" /> Hide debug</label>
           <button type="button" class="btn btn-ghost" id="btnLoadLogs">Load logs</button>
           <button type="button" class="btn btn-primary" id="btnExportLogs">Export logs</button>
         </div>
         <div class="admin-table-wrap">
-          <table class="admin-table" id="logsTable"><thead><tr><th>Time</th><th>Profile</th><th>Action</th><th>Source</th><th>Details</th></tr></thead><tbody></tbody></table>
+          <table class="admin-table" id="logsTable"><thead><tr><th>Time</th><th>Profile</th><th>Action</th><th>Source</th><th>Details</th><th></th></tr></thead><tbody></tbody></table>
+        </div>
+        <div id="logDetailModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/50" aria-hidden="true">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto p-4">
+            <div class="flex justify-between items-center mb-2"><span class="font-semibold">Log details</span><button type="button" id="logDetailModalClose" class="btn btn-ghost btn-sm">Close</button></div>
+            <pre id="logDetailContent" class="text-sm whitespace-pre-wrap break-words"></pre>
+          </div>
         </div>
       </div>
 
@@ -1778,14 +1787,41 @@
         if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
         var profileFilter = document.getElementById('logsProfileFilter').value.trim();
         var actionFilter = document.getElementById('logsActionFilter').value.trim();
+        var batchIdFilter = document.getElementById('logsBatchFilter') ? document.getElementById('logsBatchFilter').value.trim() : '';
+        var receiptsOnly = document.getElementById('logsReceiptsOnly') ? document.getElementById('logsReceiptsOnly').checked : false;
+        var hideDebug = document.getElementById('logsHideDebug') ? document.getElementById('logsHideDebug').checked : false;
         google.script.run.withSuccessHandler(function(r) {
           if (!r.ok) { showToast(r.error || 'Failed', true); return; }
+          var rows = (r.rows || []).slice(-100).reverse();
+          if (receiptsOnly) rows = rows.filter(function(row) {
+            var d = String(row.details || '');
+            return d.indexOf('BATCH RECEIPT') !== -1 || d.indexOf('Fetch+Enrich pipeline complete') !== -1 || d.indexOf('Fetch pipeline complete') !== -1;
+          });
+          if (hideDebug) rows = rows.filter(function(row) { return String(row.source || '').toLowerCase() !== 'debug'; });
           var tbody = document.querySelector('#logsTable tbody');
           tbody.innerHTML = '';
-          (r.rows || []).slice(-100).reverse().forEach(function(row) {
-            tbody.innerHTML += '<tr><td>' + esc(row.time) + '</td><td>' + esc(row.profileId) + '</td><td>' + esc(row.action) + '</td><td>' + esc(row.source) + '</td><td>' + esc(String(row.details || '').slice(0, 80)) + '</td></tr>';
+          var DETAILS_PREVIEW_LEN = 220;
+          rows.forEach(function(row, idx) {
+            var detailsPreview = String(row.details || '').slice(0, DETAILS_PREVIEW_LEN);
+            if (String(row.details || '').length > DETAILS_PREVIEW_LEN) detailsPreview += '…';
+            var viewBtn = '<button type="button" class="btn btn-ghost btn-sm log-view-detail" data-idx="' + idx + '" title="View full details">View</button>';
+            var fullDetails = [row.time, row.profileId, row.action, row.source, row.level, row.details].join('\n');
+            tbody.innerHTML += '<tr><td>' + esc(row.time) + '</td><td>' + esc(row.profileId) + '</td><td>' + esc(row.action) + '</td><td>' + esc(row.source) + '</td><td>' + esc(detailsPreview) + '</td><td>' + viewBtn + '</td></tr>';
+            var lastRow = tbody.rows[tbody.rows.length - 1];
+            var btn = lastRow.querySelector('.log-view-detail');
+            if (btn) btn.addEventListener('click', function() {
+              var content = document.getElementById('logDetailContent');
+              var modal = document.getElementById('logDetailModal');
+              if (content) content.textContent = fullDetails;
+              if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+            });
           });
-        }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminGetLogs(200, profileFilter || null, actionFilter || null);
+        }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminGetLogs(200, profileFilter || null, actionFilter || null, batchIdFilter || null);
+      });
+      var logDetailModalClose = document.getElementById('logDetailModalClose');
+      if (logDetailModalClose) logDetailModalClose.addEventListener('click', function() {
+        var modal = document.getElementById('logDetailModal');
+        if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
       });
       var btnExportLogs = document.getElementById('btnExportLogs');
       if (btnExportLogs) btnExportLogs.addEventListener('click', function() {

@@ -90,6 +90,33 @@ function fetchJobsRawForProfile_(profileId) {
       }
     });
 
+    logEvent_({
+      timestamp: Date.now(),
+      profileId: profile.profileId,
+      action: "fetch",
+      source: "pipeline",
+      details: {
+        level: "INFO",
+        message: "BATCH RECEIPT",
+        meta: {
+          batchId: batchId,
+          profileId: profile.profileId,
+          rawFetchedMain: jobs.length,
+          rawFetchedRapid: 0,
+          afterDedupe: jobs.length,
+          eligible: scored.length,
+          candidates: scored.length,
+          enriched: 0,
+          written: written,
+          rapidDecision: "SKIP",
+          rapidStatus: "N/A",
+          durationMs: 0
+        },
+        batchId,
+        version: Sygnalist_VERSION
+      }
+    });
+
     return { ok: true, version: Sygnalist_VERSION, batchId, count: written };
   });
 }

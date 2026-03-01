@@ -86,26 +86,53 @@ function getLogStyle_(action, level) {
 function formatLogDetailsInline_(details) {
   var msg = details.message || "";
   var meta = details.meta || {};
-  
+
   if (msg) {
     var extras = [];
+    // Legacy / generic
     if (meta.count !== undefined) extras.push("count: " + meta.count);
     if (meta.source) extras.push("source: " + meta.source);
     if (meta.profileId) extras.push("profile: " + meta.profileId);
     if (meta.batchId) extras.push("batch: " + meta.batchId);
-    
+    // Receipt / pipeline (high-value, compact)
+    if (meta.written !== undefined) extras.push("written: " + meta.written);
+    if (meta.rawFetched !== undefined) extras.push("rawFetched: " + meta.rawFetched);
+    if (meta.totalFetchedBeforeDedupe !== undefined) extras.push("rawFetched: " + meta.totalFetchedBeforeDedupe);
+    if (meta.rawFetchedMain !== undefined) extras.push("rawMain: " + meta.rawFetchedMain);
+    if (meta.rawFetchedRapid !== undefined) extras.push("rawRapid: " + meta.rawFetchedRapid);
+    if (meta.afterDedupe !== undefined) extras.push("afterDedupe: " + meta.afterDedupe);
+    if (meta.eligibleAfterHardFilters !== undefined) extras.push("eligible: " + meta.eligibleAfterHardFilters);
+    if (meta.eligible !== undefined && meta.eligibleAfterHardFilters === undefined) extras.push("eligible: " + meta.eligible);
+    if (meta.candidates !== undefined) extras.push("candidates: " + meta.candidates);
+    if (meta.candidatesSelected !== undefined && meta.candidates === undefined) extras.push("candidates: " + meta.candidatesSelected);
+    if (meta.enriched !== undefined) extras.push("enriched: " + meta.enriched);
+    if (meta.enrichPhaseMs !== undefined) extras.push("enrichMs: " + meta.enrichPhaseMs);
+    if (meta.fetchPhaseMs !== undefined) extras.push("fetchMs: " + meta.fetchPhaseMs);
+    if (meta.durationMs !== undefined) extras.push("durationMs: " + meta.durationMs);
+    // RapidAPI
+    if (meta.rapidDecision) extras.push("rapid: " + meta.rapidDecision);
+    if (meta.rapidReason) extras.push("rapidReason: " + String(meta.rapidReason).slice(0, 24));
+    if (meta.rapidStatus) extras.push("rapidStatus: " + meta.rapidStatus);
+    if (meta.rapidRawCount !== undefined) extras.push("rapidRaw: " + meta.rapidRawCount);
+    if (meta.rapidParsedCount !== undefined) extras.push("rapidParsed: " + meta.rapidParsedCount);
+    if (meta.rapidRejectedCount !== undefined) extras.push("rapidRejected: " + meta.rapidRejectedCount);
+    if (meta.rapidAdded !== undefined) extras.push("rapidAdded: " + meta.rapidAdded);
+    if (meta.rapidLinkedInCount !== undefined) extras.push("rapidLI: " + meta.rapidLinkedInCount);
+    if (meta.rapidATSCount !== undefined) extras.push("rapidATS: " + meta.rapidATSCount);
+    if (meta.httpStatus !== undefined) extras.push("httpStatus: " + meta.httpStatus);
+
     if (extras.length > 0) {
       return msg + " (" + extras.join(", ") + ")";
     }
     return msg;
   }
-  
+
   // Fallback: stringify meta
   if (Object.keys(meta).length > 0) {
     return Object.keys(meta)
       .map(function(k) { return k + ": " + String(meta[k]).slice(0, 50); })
       .join(", ");
   }
-  
+
   return "—";
 }

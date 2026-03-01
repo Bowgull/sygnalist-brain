@@ -332,6 +332,7 @@ function fetchForProfileWithEnrichment_(profileId) {
       var gateResult = shouldRunRapidApi_(eligibleAfterHardFilters, candidateCount, topScore, rapidEnabled);
       var rapidDecision = gateResult.run ? "RUN" : "SKIP";
       var rapidReason = gateResult.reason;
+      var rapidStatus = gateResult.run ? "" : (rapidEnabled ? "SKIP" : "DISABLED");
       var rapidLinkedInCount = 0;
       var rapidATSCount = 0;
       if (typeof resultsBySource === "undefined") resultsBySource = {};
@@ -367,27 +368,73 @@ function fetchForProfileWithEnrichment_(profileId) {
         var rapidCapRemaining = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_TOTAL_MAX_PER_SCAN === "number")
           ? CONFIG.RAPID_TOTAL_MAX_PER_SCAN
           : 30;
-        if (CONFIG.RAPID_ENABLE_LINKEDIN) {
-          var linkedInJobs = fetchRapidLinkedInActive1h_({ limit: CONFIG.RAPID_LINKEDIN_MAX });
-          var takeLinkedIn = Math.min(linkedInJobs.length, rapidCapRemaining);
-          if (takeLinkedIn > 0) {
-            rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(linkedInJobs.slice(0, takeLinkedIn));
-            rapidLinkedInCount = takeLinkedIn;
-            rapidCapRemaining -= takeLinkedIn;
+        var rapidRawCount = 0;
+        var rapidParsedCount = 0;
+        var rapidRejectedCount = 0;
+        var rapidHttpStatus = null;
+        var rapidQuotaExceeded = false;
+        if (typeof checkRapidApiQuota_ === "function" && !checkRapidApiQuota_().allowed) {
+          rapidQuotaExceeded = true;
+          rapidStatus = "QUOTA_EXCEEDED";
+          logEvent_({
+            timestamp: Date.now(),
+            profileId: profile.profileId,
+            action: "fetch_enriched",
+            source: "pipeline",
+            details: {
+              level: "INFO",
+              message: "RapidAPI quota exceeded",
+              meta: {
+                batchId: batchId,
+                rapidDecision: "RUN",
+                rapidStatus: "QUOTA_EXCEEDED",
+                rapidReason: rapidReason,
+                rapidRawCount: 0,
+                rapidParsedCount: 0,
+                rapidRejectedCount: 0,
+                rapidAdded: 0
+              },
+              batchId,
+              version: Sygnalist_VERSION
+            }
+          });
+        } else {
+          if (CONFIG.RAPID_ENABLE_LINKEDIN) {
+            var resLI = fetchRapidLinkedInActive1h_({ limit: CONFIG.RAPID_LINKEDIN_MAX });
+            var linkedInJobs = resLI && resLI.jobs ? resLI.jobs : (Array.isArray(resLI) ? resLI : []);
+            if (resLI && resLI.httpStatus) rapidHttpStatus = resLI.httpStatus;
+            if (resLI && resLI.quotaExceeded) rapidQuotaExceeded = true;
+            rapidRawCount += (resLI && resLI.rawCount != null) ? resLI.rawCount : linkedInJobs.length;
+            rapidParsedCount += (resLI && resLI.parsedCount != null) ? resLI.parsedCount : linkedInJobs.length;
+            rapidRejectedCount += (resLI && resLI.rejectedCount != null) ? resLI.rejectedCount : 0;
+            var takeLinkedIn = Math.min(linkedInJobs.length, rapidCapRemaining);
+            if (takeLinkedIn > 0) {
+              rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(linkedInJobs.slice(0, takeLinkedIn));
+              rapidLinkedInCount = takeLinkedIn;
+              rapidCapRemaining -= takeLinkedIn;
+            }
           }
-        }
-        if (CONFIG.RAPID_ENABLE_ATS && rapidCapRemaining > 0) {
-          var atsJobs = fetchRapidATSActiveExpired_();
-          var takeATS = Math.min(atsJobs.length, rapidCapRemaining);
-          if (takeATS > 0) {
-            rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(atsJobs.slice(0, takeATS));
-            rapidATSCount = takeATS;
+          if (CONFIG.RAPID_ENABLE_ATS && rapidCapRemaining > 0) {
+            var resATS = fetchRapidATSActiveExpired_();
+            var atsJobs = resATS && resATS.jobs ? resATS.jobs : (Array.isArray(resATS) ? resATS : []);
+            if (resATS && resATS.httpStatus) rapidHttpStatus = rapidHttpStatus || resATS.httpStatus;
+            if (resATS && resATS.quotaExceeded) rapidQuotaExceeded = true;
+            rapidRawCount += (resATS && resATS.rawCount != null) ? resATS.rawCount : atsJobs.length;
+            rapidParsedCount += (resATS && resATS.parsedCount != null) ? resATS.parsedCount : atsJobs.length;
+            rapidRejectedCount += (resATS && resATS.rejectedCount != null) ? resATS.rejectedCount : 0;
+            var takeATS = Math.min(atsJobs.length, rapidCapRemaining);
+            if (takeATS > 0) {
+              rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(atsJobs.slice(0, takeATS));
+              rapidATSCount = takeATS;
+            }
           }
         }
         resultsBySource.rapidLinkedIn = rapidLinkedInCount;
         resultsBySource.rapidATS = rapidATSCount;
+        var rapidAdded = rapidLinkedInCount + rapidATSCount;
+        var rapidStatus = rapidQuotaExceeded ? "QUOTA_EXCEEDED" : (rapidHttpStatus != null ? "HTTP_ERROR" : (rapidAdded === 0 ? "SUCCESS_EMPTY" : "SUCCESS"));
 
-        if (rapidLinkedInCount + rapidATSCount > 0) {
+        if (rapidAdded > 0) {
           jobs = dedupeJobs_(rawPoolBeforeDedupe);
           var afterDedupe2 = jobs.length;
           classified = classifyJobsForProfile_(jobs, profile);
@@ -422,8 +469,13 @@ function fetchForProfileWithEnrichment_(profileId) {
                 batchId: batchId,
                 rapidDecision: "RUN",
                 rapidReason: rapidReason,
+                rapidStatus: rapidStatus,
                 rapidLinkedInCount: rapidLinkedInCount,
                 rapidATSCount: rapidATSCount,
+                rapidRawCount: rapidRawCount,
+                rapidParsedCount: rapidParsedCount,
+                rapidRejectedCount: rapidRejectedCount,
+                rapidAdded: rapidAdded,
                 countsAfterRapid: {
                   rawFetched: rawFetched,
                   afterDedupe: afterDedupe2,
@@ -436,8 +488,7 @@ function fetchForProfileWithEnrichment_(profileId) {
               version: Sygnalist_VERSION
             }
           });
-        } else {
-          rapidReason = "no results";
+        } else if (!rapidQuotaExceeded) {
           logEvent_({
             timestamp: Date.now(),
             profileId: profile.profileId,
@@ -445,13 +496,25 @@ function fetchForProfileWithEnrichment_(profileId) {
             source: "pipeline",
             details: {
               level: "INFO",
-              message: "RapidAPI gate RUN but quota or API returned 0 jobs",
-              meta: { batchId: batchId, rapidDecision: "RUN", rapidReason: rapidReason },
+              message: "RapidAPI run complete; 0 jobs added",
+              meta: {
+                batchId: batchId,
+                rapidDecision: "RUN",
+                rapidReason: rapidReason,
+                rapidStatus: rapidStatus,
+                rapidRawCount: rapidRawCount,
+                rapidParsedCount: rapidParsedCount,
+                rapidRejectedCount: rapidRejectedCount,
+                rapidAdded: 0,
+                httpStatus: rapidHttpStatus != null ? rapidHttpStatus : undefined
+              },
               batchId,
               version: Sygnalist_VERSION
             }
           });
         }
+      } else {
+        rapidStatus = (rapidEnabled ? "SKIP" : "DISABLED");
       }
 
       // #region agent log - DEBUG: after dedupe and score
@@ -548,6 +611,34 @@ function fetchForProfileWithEnrichment_(profileId) {
           level: "INFO",
           message: "Fetch+Enrich pipeline complete",
           meta: { batchId, rawFetched, candidates: candidates.length, enriched: enriched.length, written, enrichPhaseMs: (typeof tEnrichStart === "number" ? Date.now() - tEnrichStart : 0) },
+          batchId,
+          version: Sygnalist_VERSION
+        }
+      });
+
+      var runDurationMs = typeof tEnrichStart === "number" ? Date.now() - tEnrichStart : 0;
+      logEvent_({
+        timestamp: Date.now(),
+        profileId: profile.profileId,
+        action: "fetch_enriched",
+        source: "pipeline",
+        details: {
+          level: "INFO",
+          message: "BATCH RECEIPT",
+          meta: {
+            batchId: batchId,
+            profileId: profile.profileId,
+            rawFetchedMain: rawFetched,
+            rawFetchedRapid: rapidLinkedInCount + rapidATSCount,
+            afterDedupe: jobs.length,
+            eligible: eligibleAfterHardFilters,
+            candidates: candidates.length,
+            enriched: enriched.length,
+            written: written,
+            rapidDecision: rapidDecision,
+            rapidStatus: rapidStatus,
+            durationMs: runDurationMs
+          },
           batchId,
           version: Sygnalist_VERSION
         }

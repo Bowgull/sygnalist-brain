@@ -1563,17 +1563,44 @@
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
     var profileFilter = document.getElementById('logsProfileFilter').value.trim();
     var actionFilter = document.getElementById('logsActionFilter').value.trim();
+    var batchIdFilter = document.getElementById('logsBatchFilter') ? document.getElementById('logsBatchFilter').value.trim() : '';
+    var receiptsOnly = document.getElementById('logsReceiptsOnly') ? document.getElementById('logsReceiptsOnly').checked : false;
+    var hideDebug = document.getElementById('logsHideDebug') ? document.getElementById('logsHideDebug').checked : false;
     showAdminLoad('Loading logs...');
     google.script.run.withSuccessHandler(function(r) {
       hideAdminLoad();
       if (!r.ok) { showToast(r.error || 'Failed', true); return; }
+      var rows = (r.rows || []).slice(-100).reverse();
+      if (receiptsOnly) rows = rows.filter(function(row) {
+        var d = String(row.details || '');
+        return d.indexOf('BATCH RECEIPT') !== -1 || d.indexOf('Fetch+Enrich pipeline complete') !== -1 || d.indexOf('Fetch pipeline complete') !== -1;
+      });
+      if (hideDebug) rows = rows.filter(function(row) { return String(row.source || '').toLowerCase() !== 'debug'; });
       var tbody = document.querySelector('#logsTable tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
-      (r.rows || []).slice(-100).reverse().forEach(function(row) {
-        tbody.innerHTML += '<tr><td>' + esc(row.time) + '</td><td>' + esc(row.profileId) + '</td><td>' + esc(row.action) + '</td><td>' + esc(row.source) + '</td><td>' + esc(String(row.details || '').slice(0, 80)) + '</td></tr>';
+      var DETAILS_PREVIEW_LEN = 220;
+      rows.forEach(function(row, idx) {
+        var detailsPreview = String(row.details || '').slice(0, DETAILS_PREVIEW_LEN);
+        if (String(row.details || '').length > DETAILS_PREVIEW_LEN) detailsPreview += '…';
+        var viewBtn = '<button type="button" class="btn btn-ghost btn-sm log-view-detail" data-idx="' + idx + '" title="View full details">View</button>';
+        var fullDetails = [row.time, row.profileId, row.action, row.source, row.level, row.details].join('\n');
+        tbody.innerHTML += '<tr><td>' + esc(row.time) + '</td><td>' + esc(row.profileId) + '</td><td>' + esc(row.action) + '</td><td>' + esc(row.source) + '</td><td>' + esc(detailsPreview) + '</td><td>' + viewBtn + '</td></tr>';
+        var lastRow = tbody.rows[tbody.rows.length - 1];
+        var btn = lastRow.querySelector('.log-view-detail');
+        if (btn) btn.addEventListener('click', function() {
+          var content = document.getElementById('logDetailContent');
+          var modal = document.getElementById('logDetailModal');
+          if (content) content.textContent = fullDetails;
+          if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+        });
       });
-    }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminGetLogs(200, profileFilter || null, actionFilter || null);
+    }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminGetLogs(200, profileFilter || null, actionFilter || null, batchIdFilter || null);
+  });
+  var logDetailModalClose = document.getElementById('logDetailModalClose');
+  if (logDetailModalClose) logDetailModalClose.addEventListener('click', function() {
+    var modal = document.getElementById('logDetailModal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
   });
   var btnExportLogs = document.getElementById('btnExportLogs');
   if (btnExportLogs) btnExportLogs.addEventListener('click', function() {

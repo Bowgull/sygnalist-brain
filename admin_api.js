@@ -628,7 +628,7 @@ function adminClearTracker(profileId) {
 // Ops and logs
 // ---------------------------------------------------------------------------
 
-function adminGetLogs(limit, profileIdFilter, actionFilter) {
+function adminGetLogs(limit, profileIdFilter, actionFilter, batchIdFilter) {
   logAdmin_("start", "Get logs started", {});
   try {
     var lim = Math.min(Math.max(Number(limit) || 100, 1), 500);
@@ -637,6 +637,7 @@ function adminGetLogs(limit, profileIdFilter, actionFilter) {
     if (lastRow < 2) return { ok: true, rows: [] };
 
     var numCols = 7;
+    var detailsCol = 5;
     var values = sh.getRange(1, 1, lastRow, numCols).getValues();
     var data = values.slice(1);
     var profileCol = 2;
@@ -648,6 +649,10 @@ function adminGetLogs(limit, profileIdFilter, actionFilter) {
     if (actionFilter && String(actionFilter).trim()) {
       var act = String(actionFilter).trim().toLowerCase();
       data = data.filter(function (row) { return String(row[actionCol] || "").toLowerCase() === act; });
+    }
+    if (batchIdFilter && String(batchIdFilter).trim()) {
+      var batchStr = String(batchIdFilter).trim();
+      data = data.filter(function (row) { return String(row[detailsCol] || "").indexOf(batchStr) !== -1; });
     }
     data = data.slice(-lim);
     var rows = data.map(function (row) {

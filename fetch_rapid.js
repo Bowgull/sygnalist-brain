@@ -197,11 +197,15 @@ function normalizeATSJob_(raw) {
 /**
  * Fetch LinkedIn active jobs (1h). Returns normalized job array; empty if key/host missing or request fails.
  * Applies CONFIG.RAPID_LINKEDIN_MAX cap.
+ * Return shape: { jobs: Array, rawCount: number, parsedCount: number, rejectedCount: number }
+ * for logging; callers should use .jobs for the array.
  */
 function fetchRapidLinkedInActive1h_(opts) {
-  if (typeof checkRapidApiQuota_ === "function" && !checkRapidApiQuota_().allowed) return [];
+  if (typeof checkRapidApiQuota_ === "function" && !checkRapidApiQuota_().allowed) {
+    return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0, quotaExceeded: true };
+  }
   var req = buildRapidLinkedInRequest_(opts || {});
-  if (!req) return [];
+  if (!req) return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0 };
   var limit = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_LINKEDIN_MAX === "number")
     ? CONFIG.RAPID_LINKEDIN_MAX
     : 20;
@@ -212,7 +216,10 @@ function fetchRapidLinkedInActive1h_(opts) {
       headers: req.headers,
       timeout: req.timeout
     });
-    if (resp.getResponseCode() < 200 || resp.getResponseCode() >= 300) return [];
+    var httpStatus = resp.getResponseCode();
+    if (httpStatus < 200 || httpStatus >= 300) {
+      return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0, httpStatus: httpStatus };
+    }
     var json = JSON.parse(resp.getContentText());
     var items = [];
     if (Array.isArray(json)) items = json;
@@ -225,21 +232,27 @@ function fetchRapidLinkedInActive1h_(opts) {
       var job = normalizeLinkedInJob_(items[i]);
       if (job) out.push(job);
     }
+    var rawCount = items.length;
+    var parsedCount = out.length;
+    var rejectedCount = rawCount - parsedCount;
     if (typeof incrementRapidApiUsage_ === "function") incrementRapidApiUsage_();
-    return out;
+    return { jobs: out, rawCount: rawCount, parsedCount: parsedCount, rejectedCount: rejectedCount };
   } catch (e) {
-    return [];
+    return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0, error: e.message };
   }
 }
 
 /**
  * Fetch ATS active/expired jobs. Returns normalized job array; empty if key/host missing or request fails.
  * Applies CONFIG.RAPID_ATS_MAX cap.
+ * Return shape: { jobs: Array, rawCount: number, parsedCount: number, rejectedCount: number }
  */
 function fetchRapidATSActiveExpired_() {
-  if (typeof checkRapidApiQuota_ === "function" && !checkRapidApiQuota_().allowed) return [];
+  if (typeof checkRapidApiQuota_ === "function" && !checkRapidApiQuota_().allowed) {
+    return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0, quotaExceeded: true };
+  }
   var req = buildRapidATSRequest_();
-  if (!req) return [];
+  if (!req) return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0 };
   var limit = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_ATS_MAX === "number")
     ? CONFIG.RAPID_ATS_MAX
     : 20;
@@ -250,7 +263,10 @@ function fetchRapidATSActiveExpired_() {
       headers: req.headers,
       timeout: req.timeout
     });
-    if (resp.getResponseCode() < 200 || resp.getResponseCode() >= 300) return [];
+    var httpStatus = resp.getResponseCode();
+    if (httpStatus < 200 || httpStatus >= 300) {
+      return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0, httpStatus: httpStatus };
+    }
     var json = JSON.parse(resp.getContentText());
     var items = [];
     if (Array.isArray(json)) items = json;
@@ -263,9 +279,12 @@ function fetchRapidATSActiveExpired_() {
       var job = normalizeATSJob_(items[j]);
       if (job) out.push(job);
     }
+    var rawCount = items.length;
+    var parsedCount = out.length;
+    var rejectedCount = rawCount - parsedCount;
     if (typeof incrementRapidApiUsage_ === "function") incrementRapidApiUsage_();
-    return out;
+    return { jobs: out, rawCount: rawCount, parsedCount: parsedCount, rejectedCount: rejectedCount };
   } catch (e) {
-    return [];
+    return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0, error: e.message };
   }
 }
