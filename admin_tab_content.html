@@ -79,6 +79,25 @@
   #adminTabContent .job-lanes-list-table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); vertical-align: middle; }
   #adminTabContent .job-lanes-list-table tr:last-child td { border-bottom: none; }
   #adminTabContent .job-lanes-add-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+  /* Full-log view row styling (mirrors logging.js getLogStyle_) */
+  #adminTabContent .log-row { display: grid; grid-template-columns: 36px 1fr 100px 90px 80px 1fr; gap: var(--space-2); align-items: start; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: 0.8125rem; word-break: break-word; }
+  #adminTabContent .log-row .log-details { grid-column: 6; overflow-wrap: break-word; }
+  #adminTabContent .log-row--error { background: #f8d7da; color: #721c24; }
+  #adminTabContent .log-row--warn { background: #fff3cd; color: #856404; }
+  #adminTabContent .log-row--promote { background: #fef3c7; color: #92400e; }
+  #adminTabContent .log-row--admin { background: #e9d5ff; color: #5b21b6; }
+  #adminTabContent .log-row--fetch { background: #d4edda; color: #155724; }
+  #adminTabContent .log-row--enrich { background: #d1fae5; color: #065f46; }
+  #adminTabContent .log-row--info { background: #e9ecef; color: #212529; }
+  .dark #adminTabContent .log-row--error { background: rgba(220, 38, 38, 0.2); color: #fca5a5; }
+  .dark #adminTabContent .log-row--warn { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+  .dark #adminTabContent .log-row--promote { background: rgba(245, 158, 11, 0.15); color: #fde68a; }
+  .dark #adminTabContent .log-row--admin { background: rgba(168, 85, 247, 0.2); color: #e9d5ff; }
+  .dark #adminTabContent .log-row--fetch { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+  .dark #adminTabContent .log-row--enrich { background: rgba(20, 184, 166, 0.2); color: #5eead4; }
+  .dark #adminTabContent .log-row--info { background: rgba(156, 163, 175, 0.2); color: var(--color-text-muted); }
+  #adminTabContent .logs-receipt-expanded { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
+  #adminTabContent .logs-receipt-meta-pre { max-height: 200px; overflow: auto; font-size: 0.75rem; padding: var(--space-2); background: var(--color-bg-elevated); border-radius: var(--radius-sm); }
 </style>
 <div id="adminTabContent">
   <div id="adminLoadError" class="admin-load-error" role="alert" aria-live="polite">
@@ -181,30 +200,19 @@
       <div class="admin-toolbar flex flex-wrap items-center gap-2">
         <input type="text" id="logsProfileFilter" class="admin-search" placeholder="Profile ID" />
         <input type="text" id="logsBatchFilter" class="admin-search" placeholder="Batch ID (e.g. b_0301_0950)" />
-        <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" id="logsReceiptsOnly" checked /> Receipts only</label>
-        <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" id="logsHideAdmin" checked /> Hide admin</label>
-        <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" id="logsShowDebug" /> Show debug</label>
+        <span class="inline-flex items-center gap-1 text-sm"><label class="lane-toggle-wrap on" id="logsReceiptsOnlyWrap"><input type="checkbox" class="lane-toggle" id="logsReceiptsOnly" checked /><span class="logs-toggle-svgs" data-suffix="logs_receipts"></span></label> Receipts only</span>
+        <span class="inline-flex items-center gap-1 text-sm"><label class="lane-toggle-wrap on" id="logsHideAdminWrap"><input type="checkbox" class="lane-toggle" id="logsHideAdmin" checked /><span class="logs-toggle-svgs" data-suffix="logs_hide_admin"></span></label> Hide admin</span>
+        <span class="inline-flex items-center gap-1 text-sm"><label class="lane-toggle-wrap" id="logsShowDebugWrap"><input type="checkbox" class="lane-toggle" id="logsShowDebug" /><span class="logs-toggle-svgs" data-suffix="logs_show_debug"></span></label> Show debug</span>
         <button type="button" class="btn btn-ghost" id="btnLoadLogs">Load receipts</button>
         <button type="button" class="btn btn-ghost" id="btnLogsLoadMore" style="display:none;">Load more</button>
         <button type="button" class="btn btn-primary" id="btnExportLogs">Export logs</button>
       </div>
-      <div id="logsReceiptCards" class="space-y-3 mt-3">
-        <!-- Receipt cards rendered by JS -->
+      <div id="logsContent" class="space-y-3 mt-3">
+        <div id="logsReceiptCards" class="space-y-3"></div>
+        <div id="logsFullList" class="space-y-1" style="display:none;"></div>
       </div>
       <p id="logsEmpty" class="admin-sub mt-3" style="display:none;">No receipts. Run a fetch to see run receipts.</p>
-      <!-- Right-side drawer -->
-      <div id="logsDrawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-gray-800 shadow-xl z-50 transform translate-x-full transition-transform duration-200 ease-out overflow-hidden flex flex-col" aria-hidden="true">
-        <div class="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700">
-          <span class="font-semibold">Run details</span>
-          <button type="button" id="logsDrawerClose" class="btn btn-ghost btn-sm">Close</button>
-        </div>
-        <div id="logsDrawerContent" class="flex-1 overflow-auto p-3 text-sm">
-          <div id="logsDrawerHeader" class="mb-3"></div>
-          <div id="logsDrawerTimeline" class="mb-3"><span class="text-gray-500">Stage timeline</span><ul id="logsDrawerTimelineList" class="mt-1 space-y-1"></ul></div>
-          <div id="logsDrawerMeta" class="mb-3"><span class="text-gray-500">Receipt meta</span><pre id="logsDrawerMetaPre" class="mt-1 p-2 bg-gray-100 dark:bg-gray-900 rounded text-xs overflow-auto max-h-64"></pre></div>
-        </div>
-      </div>
-      <div id="logsDrawerOverlay" class="fixed inset-0 bg-black/30 z-40 hidden" aria-hidden="true"></div>
+      <p id="logsEmptyFull" class="admin-sub mt-3" style="display:none;">No log entries.</p>
     </div>
 
     <div id="sectionJobsIntake" class="admin-section">
