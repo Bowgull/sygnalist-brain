@@ -765,6 +765,7 @@ function adminGetReceipts(limit, profileIdFilter, batchIdFilter, afterTimestamp)
       var detailsStr = String(row[detailsCol] || "");
       var batchId = parseReceiptBatchId_(detailsStr);
       var meta = parseReceiptMeta_(detailsStr);
+      var isRapidError = meta.rapidStatus === "HTTP_ERROR" || meta.rapidStatus === "QUOTA_EXCEEDED";
       return {
         batchId: batchId,
         profileId: row[2],
@@ -774,7 +775,8 @@ function adminGetReceipts(limit, profileIdFilter, batchIdFilter, afterTimestamp)
         source: row[4],
         details: detailsStr,
         level: row[6],
-        meta: meta
+        meta: meta,
+        error: !!isRapidError
       };
     });
     logAdmin_("ok", "Get receipts completed", { count: receipts.length, hasMore: hasMore });

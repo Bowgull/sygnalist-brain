@@ -101,7 +101,20 @@
       .dark .log-row--enrich { background: rgba(20, 184, 166, 0.2); color: #5eead4; }
       .dark .log-row--info { background: rgba(156, 163, 175, 0.2); color: var(--color-text-muted); }
       .logs-receipt-expanded { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
-      .logs-receipt-meta-pre { max-height: 200px; overflow: auto; font-size: 0.75rem; padding: var(--space-2); background: var(--color-bg-elevated); border-radius: var(--radius-sm); }
+      .logs-receipt-meta-pre { max-height: 200px; overflow: auto; font-size: 0.75rem; padding: var(--space-2); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+      .logs-run-details-inner { padding-top: var(--space-1); }
+      .logs-run-detail-heading { font-size: 1rem; font-weight: 600; margin-bottom: var(--space-2); margin-top: 0; color: var(--color-text-main); }
+      .logs-run-detail-heading:not(:first-child) { margin-top: var(--space-3); }
+      .logs-pipeline-stages { font-size: 0.8125rem; color: var(--color-text-main); }
+      .logs-run-detail-row { margin-bottom: var(--space-2); font-size: 0.8125rem; color: var(--color-text-main); }
+      .logs-run-detail-row--error { background: rgba(220, 38, 38, 0.15); color: #dc2626; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
+      .dark .logs-run-detail-row--error { background: rgba(220, 38, 38, 0.2); color: #fca5a5; }
+      .logs-timeline-list { list-style: none; padding: 0; margin: 0; font-size: 0.8125rem; }
+      .logs-timeline-item { margin-bottom: var(--space-2); word-break: break-word; }
+      .logs-timeline-time { color: var(--color-text-muted); margin-right: var(--space-2); }
+      .logs-timeline-msg { color: var(--color-text-main); }
+      .logs-run-details-meta { margin-top: var(--space-3); }
+      .logs-run-detail-summary { cursor: pointer; color: var(--color-text-muted); font-size: 0.875rem; }
     </style>
   </head>
   <body>
@@ -1922,19 +1935,21 @@
       function buildPipelineStagesFromMeta(meta) {
         var html = '';
         var m = meta || {};
-        var main = m.rawFetchedMain !== undefined ? m.rawFetchedMain : '—';
-        var dedupe = m.afterDedupe !== undefined ? m.afterDedupe : '—';
-        var eligible = m.eligible !== undefined ? m.eligible : '—';
-        var candidates = m.candidates !== undefined ? m.candidates : '—';
-        var enriched = m.enriched !== undefined ? m.enriched : '—';
-        var written = m.written !== undefined ? m.written : '—';
-        html += '<div class="text-xs mb-2"><strong>Main Fetch</strong> ' + main + '</div>';
-        html += '<div class="text-xs mb-2"><strong>Merge & Dedupe</strong> ' + main + ' → ' + dedupe + '</div>';
-        html += '<div class="text-xs mb-2"><strong>Hard Filters</strong> ' + dedupe + ' → ' + eligible + '</div>';
-        html += '<div class="text-xs mb-2"><strong>Candidates</strong> ' + eligible + ' → ' + candidates + '</div>';
-        html += '<div class="text-xs mb-2"><strong>Enrich & Validate</strong> ' + (candidates === 0 ? '(skipped)' : candidates + ' → ' + enriched) + '</div>';
-        html += '<div class="text-xs mb-2"><strong>Write Inbox</strong> ' + written + ' new rows</div>';
-        html += '<div class="text-xs mb-2"><strong>RapidAPI</strong> ' + esc((m.rapidDecision || '—') + (m.rapidStatus ? ' ' + m.rapidStatus : '') + (m.rapidAdded !== undefined ? ' +' + m.rapidAdded : '')) + '</div>';
+        var main = m.rawFetchedMain !== undefined ? m.rawFetchedMain : '\u2014';
+        var dedupe = m.afterDedupe !== undefined ? m.afterDedupe : '\u2014';
+        var eligible = m.eligible !== undefined ? m.eligible : '\u2014';
+        var candidates = m.candidates !== undefined ? m.candidates : '\u2014';
+        var enriched = m.enriched !== undefined ? m.enriched : '\u2014';
+        var written = m.written !== undefined ? m.written : '\u2014';
+        var rapidErr = m.rapidStatus === 'HTTP_ERROR' || m.rapidStatus === 'QUOTA_EXCEEDED';
+        var rowClass = 'logs-run-detail-row';
+        html += '<div class="' + rowClass + '"><strong>Main Fetch</strong> ' + main + '</div>';
+        html += '<div class="' + rowClass + '"><strong>Merge & Dedupe</strong> ' + main + ' \u2192 ' + dedupe + '</div>';
+        html += '<div class="' + rowClass + '"><strong>Hard Filters</strong> ' + dedupe + ' \u2192 ' + eligible + '</div>';
+        html += '<div class="' + rowClass + '"><strong>Candidates</strong> ' + eligible + ' \u2192 ' + candidates + '</div>';
+        html += '<div class="' + rowClass + '"><strong>Enrich & Validate</strong> ' + (candidates === 0 ? '(skipped)' : candidates + ' \u2192 ' + enriched) + '</div>';
+        html += '<div class="' + rowClass + '"><strong>Write Inbox</strong> ' + written + ' new rows</div>';
+        html += '<div class="' + rowClass + (rapidErr ? ' logs-run-detail-row--error' : '') + '"><strong>RapidAPI</strong> ' + esc((m.rapidDecision || '\u2014') + (m.rapidStatus ? ' ' + m.rapidStatus : '') + (m.rapidAdded !== undefined ? ' +' + m.rapidAdded : '')) + '</div>';
         return html;
       }
       function appendReceiptCard(container, rec) {
@@ -1978,9 +1993,12 @@
           if (isExpanded) return;
           if (!expandedBlock) return;
           expandedBlock.style.display = 'block';
-          expandedBlock.innerHTML = '<div class="text-gray-500 text-xs font-medium mb-2">Pipeline stages</div>' + buildPipelineStagesFromMeta(rec.meta) +
-            '<div class="text-gray-500 text-xs font-medium mt-3 mb-1">Stage timeline</div><ul class="logs-timeline-list text-xs space-y-1 mb-3"></ul>' +
-            '<details class="mt-2"><summary class="text-gray-500 text-xs cursor-pointer">Receipt meta (JSON)</summary><pre class="logs-receipt-meta-pre mt-1"></pre></details>';
+          expandedBlock.innerHTML = '<div class="logs-run-details-inner">' +
+            '<div class="admin-heading logs-run-detail-heading">Pipeline stages</div>' +
+            '<div class="logs-pipeline-stages">' + buildPipelineStagesFromMeta(rec.meta) + '</div>' +
+            '<div class="admin-heading logs-run-detail-heading">Stage timeline</div>' +
+            '<ul class="logs-timeline-list space-y-1 mb-3"></ul>' +
+            '<details class="logs-run-details-meta"><summary class="logs-run-detail-summary">Receipt meta (JSON)</summary><pre class="logs-receipt-meta-pre mt-1"></pre></details></div>';
           var metaPre = expandedBlock.querySelector('.logs-receipt-meta-pre');
           if (metaPre) metaPre.textContent = JSON.stringify(rec.meta || {}, null, 2);
           var timelineList = expandedBlock.querySelector('.logs-timeline-list');
@@ -1996,8 +2014,8 @@
               });
               list.forEach(function(row) {
                 var li = document.createElement('li');
-                li.className = 'text-xs';
-                li.textContent = (row.time || '') + ' ' + (row.source || '') + ': ' + String(row.details || '');
+                li.className = 'logs-timeline-item';
+                li.innerHTML = '<span class="logs-timeline-time">' + esc(row.time || '') + '</span> <span class="logs-timeline-msg">' + esc(row.source || '') + ': ' + esc(String(row.details || '')) + '</span>';
                 timelineList.appendChild(li);
               });
             }).withFailureHandler(function() {}).adminGetLogsByBatchId(batchId);

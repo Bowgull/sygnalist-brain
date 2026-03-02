@@ -99,7 +99,20 @@
   .dark #adminTabContent .log-row--enrich { background: rgba(20, 184, 166, 0.2); color: #5eead4; }
   .dark #adminTabContent .log-row--info { background: rgba(156, 163, 175, 0.2); color: var(--color-text-muted); }
   #adminTabContent .logs-receipt-expanded { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
-  #adminTabContent .logs-receipt-meta-pre { max-height: 200px; overflow: auto; font-size: 0.75rem; padding: var(--space-2); background: var(--color-bg-elevated); border-radius: var(--radius-sm); }
+  #adminTabContent .logs-receipt-meta-pre { max-height: 200px; overflow: auto; font-size: 0.75rem; padding: var(--space-2); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+  #adminTabContent .logs-run-details-inner { padding-top: var(--space-1); }
+  #adminTabContent .logs-run-detail-heading { font-size: 1rem; font-weight: 600; margin-bottom: var(--space-2); margin-top: 0; color: var(--color-text-main); }
+  #adminTabContent .logs-run-detail-heading:not(:first-child) { margin-top: var(--space-3); }
+  #adminTabContent .logs-pipeline-stages { font-size: 0.8125rem; color: var(--color-text-main); }
+  #adminTabContent .logs-run-detail-row { margin-bottom: var(--space-2); font-size: 0.8125rem; color: var(--color-text-main); }
+  #adminTabContent .logs-run-detail-row--error { background: rgba(220, 38, 38, 0.15); color: #dc2626; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
+  .dark #adminTabContent .logs-run-detail-row--error { background: rgba(220, 38, 38, 0.2); color: #fca5a5; }
+  #adminTabContent .logs-timeline-list { list-style: none; padding: 0; margin: 0; font-size: 0.8125rem; }
+  #adminTabContent .logs-timeline-item { margin-bottom: var(--space-2); word-break: break-word; }
+  #adminTabContent .logs-timeline-time { color: var(--color-text-muted); margin-right: var(--space-2); }
+  #adminTabContent .logs-timeline-msg { color: var(--color-text-main); }
+  #adminTabContent .logs-run-details-meta { margin-top: var(--space-3); }
+  #adminTabContent .logs-run-detail-summary { cursor: pointer; color: var(--color-text-muted); font-size: 0.875rem; }
 </style>
 <div id="adminTabContent">
   <div id="adminLoadError" class="admin-load-error" role="alert" aria-live="polite">

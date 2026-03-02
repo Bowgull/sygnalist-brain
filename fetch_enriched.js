@@ -382,7 +382,7 @@ function fetchForProfileWithEnrichment_(profileId) {
             action: "fetch_enriched",
             source: "pipeline",
             details: {
-              level: "INFO",
+              level: "ERROR",
               message: "RapidAPI quota exceeded",
               meta: {
                 batchId: batchId,
@@ -463,7 +463,7 @@ function fetchForProfileWithEnrichment_(profileId) {
             action: "fetch_enriched",
             source: "pipeline",
             details: {
-              level: "INFO",
+              level: (rapidStatus === "HTTP_ERROR" || rapidStatus === "QUOTA_EXCEEDED") ? "ERROR" : "INFO",
               message: "RapidAPI fallback ran; second pass complete",
               meta: {
                 batchId: batchId,
@@ -495,7 +495,7 @@ function fetchForProfileWithEnrichment_(profileId) {
             action: "fetch_enriched",
             source: "pipeline",
             details: {
-              level: "INFO",
+              level: (rapidStatus === "HTTP_ERROR" || rapidStatus === "QUOTA_EXCEEDED") ? "ERROR" : "INFO",
               message: "RapidAPI run complete; 0 jobs added",
               meta: {
                 batchId: batchId,
@@ -636,7 +636,7 @@ function fetchForProfileWithEnrichment_(profileId) {
         action: "fetch_enriched",
         source: "pipeline",
         details: {
-          level: "INFO",
+          level: (rapidStatus === "HTTP_ERROR" || rapidStatus === "QUOTA_EXCEEDED") ? "ERROR" : "INFO",
           message: "BATCH RECEIPT",
           meta: {
             batchId: batchId,
