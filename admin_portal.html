@@ -83,6 +83,8 @@
       .job-lanes-list-table tr:last-child td { border-bottom: none; }
       .job-lanes-add-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
       .log-row { display: grid; grid-template-columns: 36px 1fr 100px 90px 80px 1fr; gap: var(--space-2); align-items: start; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: 0.8125rem; word-break: break-word; }
+      .log-row .log-icon { display: inline-flex; align-items: center; justify-content: center; }
+      .log-row .log-icon .icon-inline { flex-shrink: 0; }
       .log-row .log-details { grid-column: 6; overflow-wrap: break-word; }
       .log-row--error { background: #f8d7da; color: #721c24; }
       .log-row--warn { background: #fff3cd; color: #856404; }
@@ -112,6 +114,14 @@
         <symbol id="icon-fetch" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.8" opacity="0.35"/><circle cx="12" cy="12" r="4.6" stroke="currentColor" stroke-width="1.4" opacity="0.55"/><path d="M12 12 L19 9.4 A8.2 8.2 0 0 0 15.6 4.9 Z" fill="currentColor" opacity="0.16"/><path d="M12 12 L19 9.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/><circle cx="12" cy="12" r="1.05" fill="currentColor" opacity="0.95"/></symbol>
         <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
         <symbol id="icon-unlock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M7 11V7a5 5 0 019.9-1" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+        <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+        <symbol id="icon-export" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+        <symbol id="icon-star" viewBox="0 0 24 24"><path d="M12 2l2.5 7.5H22l-6 4.5 2.5 7.5L12 17l-6.5 4.5 2.5-7.5L2 9.5h7.5L12 2z" fill="currentColor"/></symbol>
+        <symbol id="icon-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+        <symbol id="icon-warn" viewBox="0 0 24 24"><path d="M12 3L22 20H2L12 3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><path d="M12 9v4M12 15v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+        <symbol id="icon-admin" viewBox="0 0 24 24"><path d="M10 2v5l-5 5 2 2 5-5V2h-2zm-4 10l-4 4 2 2 4-4-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+        <symbol id="icon-enrich" viewBox="0 0 24 24"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.64 5.64l1.42 1.42M16.94 16.94l1.42 1.42M5.64 18.36l1.42-1.42M16.94 7.06l1.42-1.42M8 12h2M14 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="12" cy="12" r="2" fill="currentColor"/></symbol>
+        <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="12" cy="8" r="1.5" fill="currentColor"/></symbol>
       </defs>
     </svg>
     <nav class="navbar" data-testid="sygnalist-header-admin">
@@ -250,9 +260,9 @@
           <span class="inline-flex items-center gap-1 text-sm"><label class="lane-toggle-wrap on" id="logsReceiptsOnlyWrap"><input type="checkbox" class="lane-toggle" id="logsReceiptsOnly" checked /><span class="logs-toggle-svgs" data-suffix="logs_receipts"></span></label> Receipts only</span>
           <span class="inline-flex items-center gap-1 text-sm"><label class="lane-toggle-wrap on" id="logsHideAdminWrap"><input type="checkbox" class="lane-toggle" id="logsHideAdmin" checked /><span class="logs-toggle-svgs" data-suffix="logs_hide_admin"></span></label> Hide admin</span>
           <span class="inline-flex items-center gap-1 text-sm"><label class="lane-toggle-wrap" id="logsShowDebugWrap"><input type="checkbox" class="lane-toggle" id="logsShowDebug" /><span class="logs-toggle-svgs" data-suffix="logs_show_debug"></span></label> Show debug</span>
-          <button type="button" class="btn btn-ghost" id="btnLoadLogs">Load receipts</button>
+          <button type="button" class="btn btn-ghost btn-with-icon" id="btnLoadLogs" aria-label="Refresh logs"><span class="btn-icon"><svg class="icon-inline" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-refresh"/></svg></span> Refresh</button>
           <button type="button" class="btn btn-ghost" id="btnLogsLoadMore" style="display:none;">Load more</button>
-          <button type="button" class="btn btn-primary" id="btnExportLogs">Export logs</button>
+          <button type="button" class="btn btn-primary btn-with-icon" id="btnExportLogs" aria-label="Export logs"><span class="btn-icon"><svg class="icon-inline" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-export"/></svg></span> Export</button>
         </div>
         <div id="logsContent" class="space-y-3 mt-3">
           <div id="logsReceiptCards" class="space-y-3"></div>
@@ -1884,13 +1894,13 @@
       function getLogStyleForRow(row) {
         var action = String(row.action || '').toLowerCase();
         var level = String(row.level || '').toUpperCase();
-        if (level === 'ERROR' || action === 'error') return { emoji: '❌', rowClass: 'log-row--error' };
-        if (level === 'WARN') return { emoji: '⚠️', rowClass: 'log-row--warn' };
-        if (action === 'promote') return { emoji: '⭐', rowClass: 'log-row--promote' };
-        if (action === 'admin') return { emoji: '🔧', rowClass: 'log-row--admin' };
-        if (action === 'fetch') return { emoji: '📡', rowClass: 'log-row--fetch' };
-        if (action === 'enrich') return { emoji: '✨', rowClass: 'log-row--enrich' };
-        return { emoji: 'ℹ️', rowClass: 'log-row--info' };
+        if (level === 'ERROR' || action === 'error') return { iconId: 'icon-error', rowClass: 'log-row--error' };
+        if (level === 'WARN') return { iconId: 'icon-warn', rowClass: 'log-row--warn' };
+        if (action === 'promote') return { iconId: 'icon-star', rowClass: 'log-row--promote' };
+        if (action === 'admin') return { iconId: 'icon-admin', rowClass: 'log-row--admin' };
+        if (action === 'fetch') return { iconId: 'icon-fetch', rowClass: 'log-row--fetch' };
+        if (action === 'enrich') return { iconId: 'icon-enrich', rowClass: 'log-row--enrich' };
+        return { iconId: 'icon-info', rowClass: 'log-row--info' };
       }
       function renderFullLogRows(container, rows) {
         if (!container) return;
@@ -1900,7 +1910,7 @@
           var details = String(row.details || '');
           var div = document.createElement('div');
           div.className = 'log-row ' + style.rowClass;
-          div.innerHTML = '<span class="log-emoji">' + style.emoji + '</span>' +
+          div.innerHTML = '<span class="log-icon" aria-hidden="true"><svg class="icon-inline" width="18" height="18" viewBox="0 0 24 24"><use href="#' + style.iconId + '"/></svg></span>' +
             '<span class="log-time">' + esc(row.time || '—') + '</span>' +
             '<span class="log-profile">' + esc(row.profileId || '—') + '</span>' +
             '<span class="log-action">' + esc(row.action || '—') + '</span>' +

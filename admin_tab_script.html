@@ -1649,13 +1649,13 @@
   function getLogStyleForRow(row) {
     var action = String(row.action || '').toLowerCase();
     var level = String(row.level || '').toUpperCase();
-    if (level === 'ERROR' || action === 'error') return { emoji: '❌', rowClass: 'log-row--error' };
-    if (level === 'WARN') return { emoji: '⚠️', rowClass: 'log-row--warn' };
-    if (action === 'promote') return { emoji: '⭐', rowClass: 'log-row--promote' };
-    if (action === 'admin') return { emoji: '🔧', rowClass: 'log-row--admin' };
-    if (action === 'fetch') return { emoji: '📡', rowClass: 'log-row--fetch' };
-    if (action === 'enrich') return { emoji: '✨', rowClass: 'log-row--enrich' };
-    return { emoji: 'ℹ️', rowClass: 'log-row--info' };
+    if (level === 'ERROR' || action === 'error') return { iconId: 'icon-error', rowClass: 'log-row--error' };
+    if (level === 'WARN') return { iconId: 'icon-warn', rowClass: 'log-row--warn' };
+    if (action === 'promote') return { iconId: 'icon-star', rowClass: 'log-row--promote' };
+    if (action === 'admin') return { iconId: 'icon-admin', rowClass: 'log-row--admin' };
+    if (action === 'fetch') return { iconId: 'icon-fetch', rowClass: 'log-row--fetch' };
+    if (action === 'enrich') return { iconId: 'icon-enrich', rowClass: 'log-row--enrich' };
+    return { iconId: 'icon-info', rowClass: 'log-row--info' };
   }
   function renderFullLogRows(container, rows) {
     if (!container) return;
@@ -1665,7 +1665,7 @@
           var details = String(row.details || '');
           var div = document.createElement('div');
           div.className = 'log-row ' + style.rowClass;
-          div.innerHTML = '<span class="log-emoji">' + style.emoji + '</span>' +
+          div.innerHTML = '<span class="log-icon" aria-hidden="true"><svg class="icon-inline" width="18" height="18" viewBox="0 0 24 24"><use href="#' + style.iconId + '"/></svg></span>' +
             '<span class="log-time">' + esc(row.time || '—') + '</span>' +
             '<span class="log-profile">' + esc(row.profileId || '—') + '</span>' +
             '<span class="log-action">' + esc(row.action || '—') + '</span>' +
