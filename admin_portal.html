@@ -102,12 +102,16 @@
       .dark .log-row--info { background: rgba(156, 163, 175, 0.2); color: var(--color-text-muted); }
       .logs-receipt-expanded { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
       .logs-receipt-meta-pre { max-height: 200px; overflow: auto; font-size: 0.75rem; padding: var(--space-2); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
-      .logs-receipt-duration { color: var(--color-text-muted); font-weight: 600; }
-      .dark .logs-receipt-duration { color: var(--color-text-muted); }
-      .logs-run-time { font-size: 1rem; font-weight: 600; color: var(--color-text-muted); margin-bottom: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); }
-      .dark .logs-run-time { color: var(--color-text-muted); }
-      .logs-receipt-meta-pre { background: rgba(59, 130, 246, 0.08); color: var(--color-text-main); border-left: 3px solid rgba(59, 130, 246, 0.5); }
-      .dark .logs-receipt-meta-pre { background: rgba(59, 130, 246, 0.12); border-left-color: rgba(59, 130, 246, 0.6); }
+      .logs-run-details-inner .logs-run-detail-heading { color: var(--color-radar-mid); border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-1); }
+      .logs-pipeline-stages { font-size: 0.8125rem; color: var(--color-text-muted); }
+      .logs-pipeline-stages strong { color: var(--color-text-main); }
+      .logs-run-detail-row--success { color: var(--color-radar-mid); }
+      .logs-receipt-duration { color: var(--color-radar-mid); font-weight: 600; }
+      .dark .logs-receipt-duration { color: var(--color-radar-mid); }
+      .logs-run-time { font-size: 1rem; font-weight: 600; color: var(--color-radar-mid); margin-bottom: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); }
+      .dark .logs-run-time { color: var(--color-radar-mid); }
+      .logs-receipt-meta-pre { background: rgba(106, 215, 163, 0.08); color: var(--color-text-muted); border-left: 3px solid rgba(106, 215, 163, 0.4); }
+      .dark .logs-receipt-meta-pre { background: rgba(106, 215, 163, 0.12); border-left-color: rgba(106, 215, 163, 0.5); }
       .logs-run-detail-row { padding-left: var(--space-2); border-left: 2px solid transparent; margin-left: 0; }
       .logs-run-detail-row:not(:last-child) { border-left-color: var(--color-border); }
       .logs-timeline-list { list-style: none; padding: 0; margin: 0; font-size: 0.8125rem; }
@@ -117,13 +121,13 @@
       .logs-timeline-item--warn { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.08); padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
       .dark .logs-timeline-item--warn { background: rgba(245, 158, 11, 0.15); }
       .logs-timeline-item--info { border-left-color: var(--color-border); }
-      .logs-timeline-source { display: inline-block; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-sm); background: rgba(156, 163, 175, 0.25); color: var(--color-text-muted); margin-right: var(--space-2); }
-      .dark .logs-timeline-source { background: rgba(156, 163, 175, 0.2); }
-      .logs-timeline-time { color: var(--color-text-muted); margin-right: var(--space-2); }
+      .logs-timeline-source { display: inline-block; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-sm); background: rgba(106, 215, 163, 0.15); color: var(--color-radar-dark); margin-right: var(--space-2); }
+      .dark .logs-timeline-source { background: rgba(106, 215, 163, 0.2); color: var(--color-radar-mid); }
+      .logs-timeline-time { color: var(--color-text-dim); margin-right: var(--space-2); }
       .logs-timeline-msg { color: var(--color-text-main); }
-      .logs-timeline-meta { color: var(--color-text-muted); font-size: 0.75rem; }
+      .logs-timeline-meta { color: var(--color-text-dim); font-size: 0.75rem; }
       .logs-run-details-meta { margin-top: var(--space-3); }
-      .logs-run-detail-summary { cursor: pointer; color: var(--color-text-muted); font-size: 0.875rem; }
+      .logs-run-detail-summary { cursor: pointer; color: var(--color-text-dim); font-size: 0.875rem; }
     </style>
   </head>
   <body>
@@ -1958,7 +1962,7 @@
         html += '<div class="' + rowClass + '"><strong>Candidates</strong> ' + eligible + ' -> ' + candidates + '</div>';
         html += '<div class="' + rowClass + '"><strong>Enrich & Validate</strong> ' + (candidates === 0 ? '(skipped)' : candidates + ' -> ' + enriched) + '</div>';
         html += '<div class="' + rowClass + '"><strong>Write Inbox</strong> ' + written + ' new rows</div>';
-        html += '<div class="' + rowClass + (rapidErr ? ' logs-run-detail-row--error' : '') + '"><strong>RapidAPI</strong> ' + esc((m.rapidDecision || '\u2014') + (m.rapidStatus ? ' ' + m.rapidStatus : '') + (m.rapidAdded !== undefined ? ' +' + m.rapidAdded : '')) + '</div>';
+        html += '<div class="' + rowClass + (rapidErr ? ' logs-run-detail-row--error' : ' logs-run-detail-row--success') + '"><strong>RapidAPI</strong> ' + esc((m.rapidDecision || '\u2014') + (m.rapidStatus ? ' ' + m.rapidStatus : '') + (m.rapidAdded !== undefined ? ' +' + m.rapidAdded : '')) + '</div>';
         return html;
       }
       function appendReceiptCard(container, rec) {
