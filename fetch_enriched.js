@@ -364,7 +364,7 @@ function fetchForProfileWithEnrichment_(profileId) {
         }
       });
 
-      if (gateResult.run && typeof fetchRapidLinkedInActive1h_ === "function" && typeof fetchRapidATSActiveExpired_ === "function") {
+      if (gateResult.run && typeof fetchRapidLinkedInActive7d_ === "function" && typeof fetchRapidATSActive7d_ === "function") {
         var rapidCapRemaining = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_TOTAL_MAX_PER_SCAN === "number")
           ? CONFIG.RAPID_TOTAL_MAX_PER_SCAN
           : 30;
@@ -373,6 +373,15 @@ function fetchForProfileWithEnrichment_(profileId) {
         var rapidRejectedCount = 0;
         var rapidHttpStatus = null;
         var rapidQuotaExceeded = false;
+        var rapidOpts = { offset: 0 };
+        if (plan && Array.isArray(plan.searchTerms) && plan.searchTerms.length > 0 && typeof plan.searchTerms[0] === "string") {
+          rapidOpts.title_filter = "\"" + String(plan.searchTerms[0]).trim() + "\"";
+        }
+        if (profile && typeof profile.location_filter === "string" && profile.location_filter.trim()) {
+          rapidOpts.location_filter = profile.location_filter.trim();
+        } else if (profile && typeof profile.preferredLocations === "string" && profile.preferredLocations.trim()) {
+          rapidOpts.location_filter = profile.preferredLocations.trim();
+        }
         if (typeof checkRapidApiQuota_ === "function" && !checkRapidApiQuota_().allowed) {
           rapidQuotaExceeded = true;
           rapidStatus = "QUOTA_EXCEEDED";
@@ -400,7 +409,10 @@ function fetchForProfileWithEnrichment_(profileId) {
           });
         } else {
           if (CONFIG.RAPID_ENABLE_LINKEDIN) {
-            var resLI = fetchRapidLinkedInActive1h_({ limit: CONFIG.RAPID_LINKEDIN_MAX });
+            var rapidOptsLI = { limit: CONFIG.RAPID_LINKEDIN_MAX, offset: rapidOpts.offset };
+            if (rapidOpts.title_filter) rapidOptsLI.title_filter = rapidOpts.title_filter;
+            if (rapidOpts.location_filter) rapidOptsLI.location_filter = rapidOpts.location_filter;
+            var resLI = fetchRapidLinkedInActive7d_(rapidOptsLI);
             var linkedInJobs = resLI && resLI.jobs ? resLI.jobs : (Array.isArray(resLI) ? resLI : []);
             if (resLI && resLI.httpStatus) rapidHttpStatus = resLI.httpStatus;
             if (resLI && resLI.quotaExceeded) rapidQuotaExceeded = true;
@@ -415,7 +427,10 @@ function fetchForProfileWithEnrichment_(profileId) {
             }
           }
           if (CONFIG.RAPID_ENABLE_ATS && rapidCapRemaining > 0) {
-            var resATS = fetchRapidATSActiveExpired_();
+            var rapidOptsATS = { limit: CONFIG.RAPID_ATS_MAX, offset: rapidOpts.offset };
+            if (rapidOpts.title_filter) rapidOptsATS.title_filter = rapidOpts.title_filter;
+            if (rapidOpts.location_filter) rapidOptsATS.location_filter = rapidOpts.location_filter;
+            var resATS = fetchRapidATSActive7d_(rapidOptsATS);
             var atsJobs = resATS && resATS.jobs ? resATS.jobs : (Array.isArray(resATS) ? resATS : []);
             if (resATS && resATS.httpStatus) rapidHttpStatus = rapidHttpStatus || resATS.httpStatus;
             if (resATS && resATS.quotaExceeded) rapidQuotaExceeded = true;

@@ -82,8 +82,8 @@ function incrementRapidApiUsage_() {
 }
 
 /**
- * Build UrlFetchApp request for LinkedIn active jobs (last 1h).
- * opts: { limit, offset }
+ * Build UrlFetchApp request for LinkedIn active jobs (last 7 days).
+ * opts: { limit, offset, title_filter?, location_filter? }
  */
 function buildRapidLinkedInRequest_(opts) {
   var key = getRapidApiKey_();
@@ -91,7 +91,13 @@ function buildRapidLinkedInRequest_(opts) {
   if (!key || !host) return null;
   var limit = (opts && typeof opts.limit === "number") ? Math.min(100, Math.max(1, opts.limit)) : 20;
   var offset = (opts && typeof opts.offset === "number") ? Math.max(0, opts.offset) : 0;
-  var url = "https://" + host + "/active-jb-1h?limit=" + limit + "&offset=" + offset + "&description_type=text";
+  var url = "https://" + host + "/active-jb-7d?limit=" + limit + "&offset=" + offset + "&description_type=text";
+  if (opts && typeof opts.title_filter === "string" && opts.title_filter.trim()) {
+    url += "&title_filter=" + encodeURIComponent(opts.title_filter.trim());
+  }
+  if (opts && typeof opts.location_filter === "string" && opts.location_filter.trim()) {
+    url += "&location_filter=" + encodeURIComponent(opts.location_filter.trim());
+  }
   return {
     url: url,
     method: "get",
@@ -105,13 +111,22 @@ function buildRapidLinkedInRequest_(opts) {
 }
 
 /**
- * Build UrlFetchApp request for ATS active/expired jobs.
+ * Build UrlFetchApp request for ATS active jobs (last 7 days).
+ * opts: { limit, offset, title_filter?, location_filter? }
  */
-function buildRapidATSRequest_() {
+function buildRapidATSRequest_(opts) {
   var key = getRapidApiKey_();
   var host = getRapidHost_("ATS");
   if (!key || !host) return null;
-  var url = "https://" + host + "/active-ats-expired";
+  var limit = (opts && typeof opts.limit === "number") ? Math.min(100, Math.max(1, opts.limit)) : 20;
+  var offset = (opts && typeof opts.offset === "number") ? Math.max(0, opts.offset) : 0;
+  var url = "https://" + host + "/active-ats-7d?limit=" + limit + "&offset=" + offset + "&description_type=text";
+  if (opts && typeof opts.title_filter === "string" && opts.title_filter.trim()) {
+    url += "&title_filter=" + encodeURIComponent(opts.title_filter.trim());
+  }
+  if (opts && typeof opts.location_filter === "string" && opts.location_filter.trim()) {
+    url += "&location_filter=" + encodeURIComponent(opts.location_filter.trim());
+  }
   return {
     url: url,
     method: "get",
@@ -130,7 +145,7 @@ function buildRapidATSRequest_() {
 function normalizeLinkedInJob_(raw) {
   if (!raw || typeof raw !== "object") return null;
   var title = String(raw.title || raw.job_title || raw.name || "").trim();
-  var company = String(raw.company_name || raw.company || raw.employer || "").trim();
+  var company = String(raw.company_name || raw.company || raw.employer || raw.organization || "").trim();
   if (!title && !company) return null;
   var url = String(raw.url || raw.link || raw.apply_url || raw.job_url || "").trim();
   var desc = String(raw.description || raw.desc || raw.summary || "").trim();
@@ -195,12 +210,12 @@ function normalizeATSJob_(raw) {
 }
 
 /**
- * Fetch LinkedIn active jobs (1h). Returns normalized job array; empty if key/host missing or request fails.
+ * Fetch LinkedIn active jobs (7d). Returns normalized job array; empty if key/host missing or request fails.
  * Applies CONFIG.RAPID_LINKEDIN_MAX cap.
  * Return shape: { jobs: Array, rawCount: number, parsedCount: number, rejectedCount: number }
  * for logging; callers should use .jobs for the array.
  */
-function fetchRapidLinkedInActive1h_(opts) {
+function fetchRapidLinkedInActive7d_(opts) {
   if (typeof checkRapidApiQuota_ === "function" && !checkRapidApiQuota_().allowed) {
     return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0, quotaExceeded: true };
   }
@@ -243,15 +258,15 @@ function fetchRapidLinkedInActive1h_(opts) {
 }
 
 /**
- * Fetch ATS active/expired jobs. Returns normalized job array; empty if key/host missing or request fails.
+ * Fetch ATS active jobs (7d). Returns normalized job array; empty if key/host missing or request fails.
  * Applies CONFIG.RAPID_ATS_MAX cap.
  * Return shape: { jobs: Array, rawCount: number, parsedCount: number, rejectedCount: number }
  */
-function fetchRapidATSActiveExpired_() {
+function fetchRapidATSActive7d_(opts) {
   if (typeof checkRapidApiQuota_ === "function" && !checkRapidApiQuota_().allowed) {
     return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0, quotaExceeded: true };
   }
-  var req = buildRapidATSRequest_();
+  var req = buildRapidATSRequest_(opts || {});
   if (!req) return { jobs: [], rawCount: 0, parsedCount: 0, rejectedCount: 0 };
   var limit = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_ATS_MAX === "number")
     ? CONFIG.RAPID_ATS_MAX

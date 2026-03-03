@@ -11,7 +11,7 @@
 ### fetch_enriched.js
 - **RapidAPI block**  
   - Check quota before calling APIs; if over limit, log once with `rapidStatus: "QUOTA_EXCEEDED"` and skip calls.  
-  - Use new return shape from `fetchRapidLinkedInActive1h_` / `fetchRapidATSActiveExpired_`: `{ jobs, rawCount, parsedCount, rejectedCount, quotaExceeded?, httpStatus? }`.  
+  - Use new return shape from `fetchRapidLinkedInActive7d_` / `fetchRapidATSActive7d_`: `{ jobs, rawCount, parsedCount, rejectedCount, quotaExceeded?, httpStatus? }`.  
   - Aggregate `rapidRawCount`, `rapidParsedCount`, `rapidRejectedCount`; set `rapidStatus` to `QUOTA_EXCEEDED` | `HTTP_ERROR` | `SUCCESS_EMPTY` | `SUCCESS` (and `SKIP` / `DISABLED` when gate does not run).  
   - Replace message "quota or API returned 0 jobs" with "RapidAPI run complete; 0 jobs added" and always include `rapidStatus`, `rapidRawCount`, `rapidParsedCount`, `rapidRejectedCount`, `rapidAdded`, and `httpStatus` when relevant.  
   **Why:** Disambiguate quota vs empty response vs HTTP error; make counts visible in logs.
@@ -25,8 +25,8 @@
   **Why:** Consistency with enriched pipeline and "Receipts only" filter.
 
 ### fetch_rapid.js
-- **fetchRapidLinkedInActive1h_** / **fetchRapidATSActiveExpired_**  
-  Return `{ jobs, rawCount, parsedCount, rejectedCount }` (and when applicable `quotaExceeded`, `httpStatus`, `error`). Callers use `.jobs` for the array.  
+- **fetchRapidLinkedInActive7d_** / **fetchRapidATSActive7d_**
+  Return `{ jobs, rawCount, parsedCount, rejectedCount }` (and when applicable `quotaExceeded`, `httpStatus`, `error`). Callers use `.jobs` for the array.
   **Why:** Enables logging raw/parsed/rejected and explicit Rapid status without per-job logging.
 
 ### admin_api.js
@@ -93,7 +93,7 @@
 | logging.js | formatLogDetailsInline_: added receipt + Rapid meta keys; rawFetchedMain/rawFetchedRapid |
 | fetch_enriched.js | Rapid block: quota check, new return shape, rapidStatus + counts; BATCH RECEIPT log |
 | fetch_pipeline.js | BATCH RECEIPT log after pipeline complete |
-| fetch_rapid.js | fetchRapidLinkedInActive1h_, fetchRapidATSActiveExpired_: return { jobs, rawCount, parsedCount, rejectedCount, ... } |
+| fetch_rapid.js | fetchRapidLinkedInActive7d_, fetchRapidATSActive7d_: return { jobs, rawCount, parsedCount, rejectedCount, ... } |
 | admin_api.js | adminGetLogs 4th param batchIdFilter; filter by details containing string |
 | admin_tab_content.html | Logs: batch filter input, Receipts only / Hide debug, View column, log detail modal |
 | admin_portal.html | Same Logs UI + modal |
