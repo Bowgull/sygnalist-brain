@@ -100,17 +100,26 @@
   .dark #adminTabContent .log-row--info { background: rgba(156, 163, 175, 0.2); color: var(--color-text-muted); }
   #adminTabContent .logs-receipt-expanded { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
   #adminTabContent .logs-receipt-meta-pre { max-height: 200px; overflow: auto; font-size: 0.75rem; padding: var(--space-2); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
-  #adminTabContent .logs-run-details-inner { padding-top: var(--space-1); }
-  #adminTabContent .logs-run-detail-heading { font-size: 1rem; font-weight: 600; margin-bottom: var(--space-2); margin-top: 0; color: var(--color-text-main); }
-  #adminTabContent .logs-run-detail-heading:not(:first-child) { margin-top: var(--space-3); }
-  #adminTabContent .logs-pipeline-stages { font-size: 0.8125rem; color: var(--color-text-main); }
-  #adminTabContent .logs-run-detail-row { margin-bottom: var(--space-2); font-size: 0.8125rem; color: var(--color-text-main); }
-  #adminTabContent .logs-run-detail-row--error { background: rgba(220, 38, 38, 0.15); color: #dc2626; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
-  .dark #adminTabContent .logs-run-detail-row--error { background: rgba(220, 38, 38, 0.2); color: #fca5a5; }
+  #adminTabContent .logs-receipt-duration { color: var(--color-text-muted); font-weight: 600; }
+  .dark #adminTabContent .logs-receipt-duration { color: var(--color-text-muted); }
+  #adminTabContent .logs-run-time { font-size: 1rem; font-weight: 600; color: var(--color-text-muted); margin-bottom: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); }
+  .dark #adminTabContent .logs-run-time { color: var(--color-text-muted); }
+  #adminTabContent .logs-receipt-meta-pre { background: rgba(59, 130, 246, 0.08); color: var(--color-text-main); border-left: 3px solid rgba(59, 130, 246, 0.5); }
+  .dark #adminTabContent .logs-receipt-meta-pre { background: rgba(59, 130, 246, 0.12); border-left-color: rgba(59, 130, 246, 0.6); }
+  #adminTabContent .logs-run-detail-row { padding-left: var(--space-2); border-left: 2px solid transparent; margin-left: 0; }
+  #adminTabContent .logs-run-detail-row:not(:last-child) { border-left-color: var(--color-border); }
   #adminTabContent .logs-timeline-list { list-style: none; padding: 0; margin: 0; font-size: 0.8125rem; }
-  #adminTabContent .logs-timeline-item { margin-bottom: var(--space-2); word-break: break-word; }
+  #adminTabContent .logs-timeline-item { margin-bottom: var(--space-2); word-break: break-word; padding-left: var(--space-2); border-left: 2px solid transparent; }
+  #adminTabContent .logs-timeline-item--error { border-left-color: #dc2626; background: rgba(220, 38, 38, 0.08); padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .dark #adminTabContent .logs-timeline-item--error { background: rgba(220, 38, 38, 0.15); }
+  #adminTabContent .logs-timeline-item--warn { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.08); padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .dark #adminTabContent .logs-timeline-item--warn { background: rgba(245, 158, 11, 0.15); }
+  #adminTabContent .logs-timeline-item--info { border-left-color: var(--color-border); }
+  #adminTabContent .logs-timeline-source { display: inline-block; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-sm); background: rgba(156, 163, 175, 0.25); color: var(--color-text-muted); margin-right: var(--space-2); }
+  .dark #adminTabContent .logs-timeline-source { background: rgba(156, 163, 175, 0.2); }
   #adminTabContent .logs-timeline-time { color: var(--color-text-muted); margin-right: var(--space-2); }
   #adminTabContent .logs-timeline-msg { color: var(--color-text-main); }
+  #adminTabContent .logs-timeline-meta { color: var(--color-text-muted); font-size: 0.75rem; }
   #adminTabContent .logs-run-details-meta { margin-top: var(--space-3); }
   #adminTabContent .logs-run-detail-summary { cursor: pointer; color: var(--color-text-muted); font-size: 0.875rem; }
 </style>

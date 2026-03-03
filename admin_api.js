@@ -715,6 +715,10 @@ function parseReceiptMeta_(detailsStr) {
       meta[key] = (key === "dropTop" || key === "rapidDecision" || key === "rapidStatus") ? val : num(val);
     }
   }
+  if (meta.durationMs === undefined) {
+    var meMatch = detailsStr.match(/durationMe:\s*(\d+)/);
+    if (meMatch) meta.durationMs = num(meMatch[1]);
+  }
   return meta;
 }
 

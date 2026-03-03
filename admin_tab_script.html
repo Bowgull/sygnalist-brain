@@ -1686,10 +1686,10 @@
     var rapidErr = m.rapidStatus === 'HTTP_ERROR' || m.rapidStatus === 'QUOTA_EXCEEDED';
     var rowClass = 'logs-run-detail-row';
     html += '<div class="' + rowClass + '"><strong>Main Fetch</strong> ' + main + '</div>';
-    html += '<div class="' + rowClass + '"><strong>Merge & Dedupe</strong> ' + main + ' \u2192 ' + dedupe + '</div>';
-    html += '<div class="' + rowClass + '"><strong>Hard Filters</strong> ' + dedupe + ' \u2192 ' + eligible + '</div>';
-    html += '<div class="' + rowClass + '"><strong>Candidates</strong> ' + eligible + ' \u2192 ' + candidates + '</div>';
-    html += '<div class="' + rowClass + '"><strong>Enrich & Validate</strong> ' + (candidates === 0 ? '(skipped)' : candidates + ' \u2192 ' + enriched) + '</div>';
+    html += '<div class="' + rowClass + '"><strong>Merge & Dedupe</strong> ' + main + ' -> ' + dedupe + '</div>';
+    html += '<div class="' + rowClass + '"><strong>Hard Filters</strong> ' + dedupe + ' -> ' + eligible + '</div>';
+    html += '<div class="' + rowClass + '"><strong>Candidates</strong> ' + eligible + ' -> ' + candidates + '</div>';
+    html += '<div class="' + rowClass + '"><strong>Enrich & Validate</strong> ' + (candidates === 0 ? '(skipped)' : candidates + ' -> ' + enriched) + '</div>';
     html += '<div class="' + rowClass + '"><strong>Write Inbox</strong> ' + written + ' new rows</div>';
     html += '<div class="' + rowClass + (rapidErr ? ' logs-run-detail-row--error' : '') + '"><strong>RapidAPI</strong> ' + esc((m.rapidDecision || '\u2014') + (m.rapidStatus ? ' ' + m.rapidStatus : '') + (m.rapidAdded !== undefined ? ' +' + m.rapidAdded : '')) + '</div>';
     return html;
@@ -1700,9 +1700,13 @@
     var written = meta.written !== undefined ? meta.written : 0;
     var status = rec.error ? 'Error' : (written > 0 ? 'Success' : 'Empty');
     var statusClass = written > 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : (rec.error ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200');
-    var pipeline = [meta.rawFetchedMain, meta.afterDedupe, meta.eligible, meta.candidates, meta.enriched, written].map(function(n) { return n !== undefined ? n : '—'; }).join(' → ');
-    var rapidLine = (meta.rapidDecision || '—') + (meta.rapidStatus ? ' ' + meta.rapidStatus : '') + (meta.rapidAdded !== undefined ? ' +' + meta.rapidAdded : '');
+    var pipeline = [meta.rawFetchedMain, meta.afterDedupe, meta.eligible, meta.candidates, meta.enriched, written].map(function(n) { return n !== undefined ? n : '\u2014'; }).join(' -> ');
+    var rapidLine = (meta.rapidDecision || '\u2014') + (meta.rapidStatus ? ' ' + meta.rapidStatus : '') + (meta.rapidAdded !== undefined ? ' +' + meta.rapidAdded : '');
     var dropChips = '';
+    var durationDisplay = '';
+    if (meta.durationMs !== undefined) {
+      durationDisplay = meta.durationMs >= 1000 ? (meta.durationMs / 1000).toFixed(1) + ' s' : meta.durationMs + ' ms';
+    }
     if (written === 0 && meta.dropTop) {
       var parts = String(meta.dropTop).split(',');
       for (var i = 0; i < Math.min(3, parts.length); i++) {
@@ -1714,10 +1718,10 @@
     card.className = 'admin-card p-3 border border-gray-200 dark:border-gray-600 rounded-lg';
     card.setAttribute('data-batch-id', rec.batchId || '');
     card.innerHTML = '<div class="flex flex-wrap items-center gap-2 mb-2">' +
-      '<span class="font-mono text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">' + esc(rec.batchId || '—') + '</span>' +
-      '<span class="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">' + esc(rec.profileId || '—') + '</span>' +
+      '<span class="font-mono text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">' + esc(rec.batchId || '\u2014') + '</span>' +
+      '<span class="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">' + esc(rec.profileId || '\u2014') + '</span>' +
       '<span class="text-xs font-medium px-2 py-0.5 rounded ' + statusClass + '">' + status + '</span>' +
-      (meta.durationMs !== undefined ? '<span class="text-xs text-gray-500">' + meta.durationMs + 'ms</span>' : '') +
+      (durationDisplay ? '<span class="logs-receipt-duration text-sm font-medium">Run time: ' + esc(durationDisplay) + '</span>' : '') +
       '</div>' +
       '<div class="text-xs text-gray-600 dark:text-gray-400 mb-1">' + esc(rec.time) + '</div>' +
       '<div class="text-xs mb-1 font-medium">' + esc(pipeline) + '</div>' +
@@ -1735,7 +1739,13 @@
       if (isExpanded) return;
       if (!expandedBlock) return;
       expandedBlock.style.display = 'block';
+      var runTimeLine = '';
+      if (rec.meta && rec.meta.durationMs !== undefined) {
+        var rt = rec.meta.durationMs >= 1000 ? (rec.meta.durationMs / 1000).toFixed(1) + ' s' : rec.meta.durationMs + ' ms';
+        runTimeLine = '<div class="logs-run-time">Run time: ' + esc(rt) + '</div>';
+      }
       expandedBlock.innerHTML = '<div class="logs-run-details-inner">' +
+        runTimeLine +
         '<div class="admin-heading logs-run-detail-heading">Pipeline stages</div>' +
         '<div class="logs-pipeline-stages">' + buildPipelineStagesFromMeta(rec.meta) + '</div>' +
         '<div class="admin-heading logs-run-detail-heading">Stage timeline</div>' +
@@ -1756,8 +1766,16 @@
           });
           list.forEach(function(row) {
             var li = document.createElement('li');
-            li.className = 'logs-timeline-item';
-            li.innerHTML = '<span class="logs-timeline-time">' + esc(row.time || '') + '</span> <span class="logs-timeline-msg">' + esc(row.source || '') + ': ' + esc(String(row.details || '')) + '</span>';
+            var level = String(row.level || '').toUpperCase();
+            var levelClass = level === 'ERROR' ? ' logs-timeline-item--error' : (level === 'WARN' ? ' logs-timeline-item--warn' : ' logs-timeline-item--info');
+            li.className = 'logs-timeline-item' + levelClass;
+            var detailsStr = String(row.details || '');
+            var parenIdx = detailsStr.indexOf('(');
+            var msgPart = parenIdx >= 0 ? detailsStr.slice(0, parenIdx).trim() : detailsStr;
+            var metaPart = parenIdx >= 0 ? detailsStr.slice(parenIdx) : '';
+            li.innerHTML = '<span class="logs-timeline-time">' + esc(row.time || '') + '</span> ' +
+              '<span class="logs-timeline-source">' + esc(row.source || '') + '</span> ' +
+              (metaPart ? '<span class="logs-timeline-msg">' + esc(msgPart) + '</span> <span class="logs-timeline-meta">' + esc(metaPart) + '</span>' : '<span class="logs-timeline-msg">' + esc(msgPart) + '</span>');
             timelineList.appendChild(li);
           });
         }).withFailureHandler(function() {}).adminGetLogsByBatchId(batchId);
