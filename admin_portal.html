@@ -121,8 +121,22 @@
       .logs-timeline-item--warn { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.08); padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
       .dark .logs-timeline-item--warn { background: rgba(245, 158, 11, 0.15); }
       .logs-timeline-item--info { border-left-color: var(--color-border); }
+      .logs-timeline-item--quota-exceeded { border-left-width: 3px; border-left-color: #d97706; background: rgba(217, 119, 6, 0.12); padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+      .dark .logs-timeline-item--quota-exceeded { background: rgba(217, 119, 6, 0.2); }
       .logs-timeline-source { display: inline-block; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-sm); background: rgba(106, 215, 163, 0.15); color: var(--color-radar-dark); margin-right: var(--space-2); }
       .dark .logs-timeline-source { background: rgba(106, 215, 163, 0.2); color: var(--color-radar-mid); }
+      .logs-timeline-source--planner { background: rgba(59, 130, 246, 0.2); color: var(--color-tier-b, #2563eb); }
+      .dark .logs-timeline-source--planner { background: rgba(59, 130, 246, 0.25); color: var(--color-tier-b); }
+      .logs-timeline-source--pipeline { background: rgba(106, 215, 163, 0.15); color: var(--color-radar-dark); }
+      .dark .logs-timeline-source--pipeline { background: rgba(106, 215, 163, 0.2); color: var(--color-radar-mid); }
+      .logs-timeline-source--admin_api { background: rgba(168, 85, 247, 0.15); color: #7c3aed; }
+      .dark .logs-timeline-source--admin_api { background: rgba(168, 85, 247, 0.2); color: #a78bfa; }
+      .logs-timeline-source--openai { background: rgba(20, 184, 166, 0.2); color: #0d9488; }
+      .dark .logs-timeline-source--openai { background: rgba(20, 184, 166, 0.25); color: #2dd4bf; }
+      .logs-timeline-source--debug { background: var(--color-border); color: var(--color-text-dim); }
+      .dark .logs-timeline-source--debug { background: rgba(255,255,255,0.06); color: var(--color-text-dim); }
+      .logs-timeline-source--other { background: rgba(100, 116, 139, 0.15); color: var(--color-text-muted); }
+      .dark .logs-timeline-source--other { background: rgba(100, 116, 139, 0.2); color: var(--color-text-dim); }
       .logs-timeline-time { color: var(--color-text-dim); margin-right: var(--space-2); }
       .logs-timeline-msg { color: var(--color-text-main); }
       .logs-timeline-meta { color: var(--color-text-dim); font-size: 0.75rem; }
@@ -2042,13 +2056,17 @@
                 var li = document.createElement('li');
                 var level = String(row.level || '').toUpperCase();
                 var levelClass = level === 'ERROR' ? ' logs-timeline-item--error' : (level === 'WARN' ? ' logs-timeline-item--warn' : ' logs-timeline-item--info');
-                li.className = 'logs-timeline-item' + levelClass;
                 var detailsStr = String(row.details || '');
+                var isQuotaExceeded = detailsStr.indexOf('quota exceeded') >= 0 || detailsStr.indexOf('QUOTA_EXCEEDED') >= 0;
+                if (isQuotaExceeded) levelClass += ' logs-timeline-item--quota-exceeded';
+                li.className = 'logs-timeline-item' + levelClass;
                 var parenIdx = detailsStr.indexOf('(');
                 var msgPart = parenIdx >= 0 ? detailsStr.slice(0, parenIdx).trim() : detailsStr;
                 var metaPart = parenIdx >= 0 ? detailsStr.slice(parenIdx) : '';
+                var rawSlug = String(row.source || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+                var sourceSlug = ['planner', 'pipeline', 'admin_api', 'openai', 'debug'].indexOf(rawSlug) >= 0 ? rawSlug : 'other';
                 li.innerHTML = '<span class="logs-timeline-time">' + esc(row.time || '') + '</span> ' +
-                  '<span class="logs-timeline-source">' + esc(row.source || '') + '</span> ' +
+                  '<span class="logs-timeline-source logs-timeline-source--' + sourceSlug + '">' + esc(row.source || '') + '</span> ' +
                   (metaPart ? '<span class="logs-timeline-msg">' + esc(msgPart) + '</span> <span class="logs-timeline-meta">' + esc(metaPart) + '</span>' : '<span class="logs-timeline-msg">' + esc(msgPart) + '</span>');
                 timelineList.appendChild(li);
               });

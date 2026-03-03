@@ -1771,13 +1771,17 @@
             var li = document.createElement('li');
             var level = String(row.level || '').toUpperCase();
             var levelClass = level === 'ERROR' ? ' logs-timeline-item--error' : (level === 'WARN' ? ' logs-timeline-item--warn' : ' logs-timeline-item--info');
-            li.className = 'logs-timeline-item' + levelClass;
             var detailsStr = String(row.details || '');
+            var isQuotaExceeded = detailsStr.indexOf('quota exceeded') >= 0 || detailsStr.indexOf('QUOTA_EXCEEDED') >= 0;
+            if (isQuotaExceeded) levelClass += ' logs-timeline-item--quota-exceeded';
+            li.className = 'logs-timeline-item' + levelClass;
             var parenIdx = detailsStr.indexOf('(');
             var msgPart = parenIdx >= 0 ? detailsStr.slice(0, parenIdx).trim() : detailsStr;
             var metaPart = parenIdx >= 0 ? detailsStr.slice(parenIdx) : '';
+            var rawSlug = String(row.source || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+            var sourceSlug = ['planner', 'pipeline', 'admin_api', 'openai', 'debug'].indexOf(rawSlug) >= 0 ? rawSlug : 'other';
             li.innerHTML = '<span class="logs-timeline-time">' + esc(row.time || '') + '</span> ' +
-              '<span class="logs-timeline-source">' + esc(row.source || '') + '</span> ' +
+              '<span class="logs-timeline-source logs-timeline-source--' + sourceSlug + '">' + esc(row.source || '') + '</span> ' +
               (metaPart ? '<span class="logs-timeline-msg">' + esc(msgPart) + '</span> <span class="logs-timeline-meta">' + esc(metaPart) + '</span>' : '<span class="logs-timeline-msg">' + esc(msgPart) + '</span>');
             timelineList.appendChild(li);
           });

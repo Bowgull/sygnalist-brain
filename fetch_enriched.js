@@ -381,10 +381,26 @@ function fetchForProfileWithEnrichment_(profileId) {
         }
         if (profile && typeof profile.location_filter === "string" && profile.location_filter.trim()) {
           rapidOpts.location_filter = profile.location_filter.trim();
-        } else if (profile && typeof profile.preferredLocations === "string" && profile.preferredLocations.trim()) {
+        } else         if (profile && typeof profile.preferredLocations === "string" && profile.preferredLocations.trim()) {
           rapidOpts.location_filter = profile.preferredLocations.trim();
         }
-        if (typeof checkRapidApiQuota_ === "function" && !checkRapidApiQuota_().allowed) {
+        if (CONFIG.RAPID_ENABLE_JSEARCH && typeof fetchRapidJSearch_ === "function") {
+          var rapidOptsJS = { query: (plan && Array.isArray(plan.searchTerms) && plan.searchTerms.length > 0) ? String(plan.searchTerms[0]).trim() : "developer", country: "us" };
+          var resJS = fetchRapidJSearch_(rapidOptsJS);
+          var jsearchJobs = resJS && resJS.jobs ? resJS.jobs : (Array.isArray(resJS) ? resJS : []);
+          if (resJS && resJS.httpStatus) rapidHttpStatus = resJS.httpStatus;
+          rapidRawCount += (resJS && resJS.rawCount != null) ? resJS.rawCount : jsearchJobs.length;
+          rapidParsedCount += (resJS && resJS.parsedCount != null) ? resJS.parsedCount : jsearchJobs.length;
+          rapidRejectedCount += (resJS && resJS.rejectedCount != null) ? resJS.rejectedCount : 0;
+          var takeJSearch = Math.min(jsearchJobs.length, rapidCapRemaining);
+          if (takeJSearch > 0) {
+            rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(jsearchJobs.slice(0, takeJSearch));
+            rapidJSearchCount = takeJSearch;
+            rapidCapRemaining -= takeJSearch;
+          }
+        }
+        var quotaAllowed = (typeof checkRapidApiQuota_ !== "function") || checkRapidApiQuota_().allowed;
+        if (!quotaAllowed) {
           rapidQuotaExceeded = true;
           rapidStatus = "QUOTA_EXCEEDED";
           logEvent_({
@@ -400,32 +416,17 @@ function fetchForProfileWithEnrichment_(profileId) {
                 rapidDecision: "RUN",
                 rapidStatus: "QUOTA_EXCEEDED",
                 rapidReason: rapidReason,
-                rapidRawCount: 0,
-                rapidParsedCount: 0,
-                rapidRejectedCount: 0,
-                rapidAdded: 0
+                rapidRawCount: rapidRawCount,
+                rapidParsedCount: rapidParsedCount,
+                rapidRejectedCount: rapidRejectedCount,
+                rapidAdded: rapidJSearchCount
               },
               batchId,
               version: Sygnalist_VERSION
             }
           });
-        } else {
-          if (CONFIG.RAPID_ENABLE_JSEARCH && typeof fetchRapidJSearch_ === "function") {
-            var rapidOptsJS = { query: (plan && Array.isArray(plan.searchTerms) && plan.searchTerms.length > 0) ? String(plan.searchTerms[0]).trim() : "developer", country: "us" };
-            var resJS = fetchRapidJSearch_(rapidOptsJS);
-            var jsearchJobs = resJS && resJS.jobs ? resJS.jobs : (Array.isArray(resJS) ? resJS : []);
-            if (resJS && resJS.httpStatus) rapidHttpStatus = resJS.httpStatus;
-            rapidRawCount += (resJS && resJS.rawCount != null) ? resJS.rawCount : jsearchJobs.length;
-            rapidParsedCount += (resJS && resJS.parsedCount != null) ? resJS.parsedCount : jsearchJobs.length;
-            rapidRejectedCount += (resJS && resJS.rejectedCount != null) ? resJS.rejectedCount : 0;
-            var takeJSearch = Math.min(jsearchJobs.length, rapidCapRemaining);
-            if (takeJSearch > 0) {
-              rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(jsearchJobs.slice(0, takeJSearch));
-              rapidJSearchCount = takeJSearch;
-              rapidCapRemaining -= takeJSearch;
-            }
-          }
-          if (CONFIG.RAPID_ENABLE_LINKEDIN && rapidCapRemaining > 0) {
+        }
+        if (quotaAllowed && CONFIG.RAPID_ENABLE_LINKEDIN && rapidCapRemaining > 0) {
             var rapidOptsLI = { limit: CONFIG.RAPID_LINKEDIN_MAX, offset: rapidOpts.offset };
             if (rapidOpts.title_filter) rapidOptsLI.title_filter = rapidOpts.title_filter;
             if (rapidOpts.location_filter) rapidOptsLI.location_filter = rapidOpts.location_filter;
@@ -442,8 +443,8 @@ function fetchForProfileWithEnrichment_(profileId) {
               rapidLinkedInCount = takeLinkedIn;
               rapidCapRemaining -= takeLinkedIn;
             }
-          }
-          if (CONFIG.RAPID_ENABLE_ATS && rapidCapRemaining > 0) {
+        }
+        if (quotaAllowed && CONFIG.RAPID_ENABLE_ATS && rapidCapRemaining > 0) {
             var rapidOptsATS = { limit: CONFIG.RAPID_ATS_MAX, offset: rapidOpts.offset };
             if (rapidOpts.title_filter) rapidOptsATS.title_filter = rapidOpts.title_filter;
             if (rapidOpts.location_filter) rapidOptsATS.location_filter = rapidOpts.location_filter;
@@ -459,7 +460,6 @@ function fetchForProfileWithEnrichment_(profileId) {
               rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(atsJobs.slice(0, takeATS));
               rapidATSCount = takeATS;
             }
-          }
         }
         resultsBySource.rapidJSearch = rapidJSearchCount;
         resultsBySource.rapidLinkedIn = rapidLinkedInCount;
