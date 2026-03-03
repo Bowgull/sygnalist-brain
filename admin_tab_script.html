@@ -1691,6 +1691,9 @@
     html += '<div class="' + rowClass + '"><strong>Candidates</strong> ' + eligible + ' -> ' + candidates + '</div>';
     html += '<div class="' + rowClass + '"><strong>Enrich & Validate</strong> ' + (candidates === 0 ? '(skipped)' : candidates + ' -> ' + enriched) + '</div>';
     html += '<div class="' + rowClass + '"><strong>Write Inbox</strong> ' + written + ' new rows</div>';
+    if (m.rapidJSearchCount !== undefined) {
+      html += '<div class="' + rowClass + '"><strong>JSearch</strong> ' + m.rapidJSearchCount + '</div>';
+    }
     html += '<div class="' + rowClass + (rapidErr ? ' logs-run-detail-row--error' : ' logs-run-detail-row--success') + '"><strong>RapidAPI</strong> ' + esc((m.rapidDecision || '\u2014') + (m.rapidStatus ? ' ' + m.rapidStatus : '') + (m.rapidAdded !== undefined ? ' +' + m.rapidAdded : '')) + '</div>';
     return html;
   }

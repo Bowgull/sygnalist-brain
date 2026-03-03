@@ -705,6 +705,7 @@ function parseReceiptMeta_(detailsStr) {
     { key: "rapidParsedCount", re: /rapidParsed:\s*(\d+)/ },
     { key: "rapidRejectedCount", re: /rapidRejected:\s*(\d+)/ },
     { key: "rapidAdded", re: /rapidAdded:\s*(\d+)/ },
+    { key: "rapidJSearchCount", re: /rapidJS:\s*(\d+)/ },
     { key: "dropTop", re: /dropTop:\s*([^\s)]+)/ }
   ];
   for (var i = 0; i < patterns.length; i++) {

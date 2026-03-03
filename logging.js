@@ -122,6 +122,7 @@ function formatLogDetailsInline_(details) {
     if (meta.rapidAdded !== undefined) extras.push("rapidAdded: " + meta.rapidAdded);
     if (meta.rapidLinkedInCount !== undefined) extras.push("rapidLI: " + meta.rapidLinkedInCount);
     if (meta.rapidATSCount !== undefined) extras.push("rapidATS: " + meta.rapidATSCount);
+    if (meta.rapidJSearchCount !== undefined) extras.push("rapidJS: " + meta.rapidJSearchCount);
     if (meta.httpStatus !== undefined) extras.push("httpStatus: " + meta.httpStatus);
     if (meta.dropTop) extras.push("dropTop: " + meta.dropTop);
 

@@ -21,7 +21,9 @@ const CONFIG = {
   LAST_DITCH_SOURCES: ["remotive", "remoteok"],
   LAST_DITCH_TERMS: ["remote", "software", "customer success"],
 
-  // RapidAPI (secondary fallback only; gate on usable candidates, not raw count)
+  // RapidAPI (JSearch primary, no quota; LinkedIn/ATS secondary)
+  RAPID_ENABLE_JSEARCH: true,
+  RAPID_JSEARCH_MAX: 20,
   RAPID_ENABLE_LINKEDIN: true,
   RAPID_ENABLE_ATS: true,
   RAPID_LINKEDIN_MAX: 20,

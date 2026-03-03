@@ -328,14 +328,16 @@ function fetchForProfileWithEnrichment_(profileId) {
         for (var ei = 0; ei < scoredAll.length; ei++) { if (!scoredAll[ei].excluded) { var s = Number(scoredAll[ei].score || 0); if (s > topScore) topScore = s; } }
       }
 
-      var rapidEnabled = (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_LINKEDIN) || (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_ATS);
+      var rapidEnabled = (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_JSEARCH) || (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_LINKEDIN) || (typeof CONFIG !== "undefined" && CONFIG.RAPID_ENABLE_ATS);
       var gateResult = shouldRunRapidApi_(eligibleAfterHardFilters, candidateCount, topScore, rapidEnabled);
       var rapidDecision = gateResult.run ? "RUN" : "SKIP";
       var rapidReason = gateResult.reason;
       var rapidStatus = gateResult.run ? "" : (rapidEnabled ? "SKIP" : "DISABLED");
+      var rapidJSearchCount = 0;
       var rapidLinkedInCount = 0;
       var rapidATSCount = 0;
       if (typeof resultsBySource === "undefined") resultsBySource = {};
+      resultsBySource.rapidJSearch = 0;
       resultsBySource.rapidLinkedIn = 0;
       resultsBySource.rapidATS = 0;
 
@@ -364,7 +366,7 @@ function fetchForProfileWithEnrichment_(profileId) {
         }
       });
 
-      if (gateResult.run && typeof fetchRapidLinkedInActive7d_ === "function" && typeof fetchRapidATSActive7d_ === "function") {
+      if (gateResult.run && (typeof fetchRapidJSearch_ === "function" || (typeof fetchRapidLinkedInActive7d_ === "function" && typeof fetchRapidATSActive7d_ === "function"))) {
         var rapidCapRemaining = (typeof CONFIG !== "undefined" && typeof CONFIG.RAPID_TOTAL_MAX_PER_SCAN === "number")
           ? CONFIG.RAPID_TOTAL_MAX_PER_SCAN
           : 30;
@@ -408,7 +410,22 @@ function fetchForProfileWithEnrichment_(profileId) {
             }
           });
         } else {
-          if (CONFIG.RAPID_ENABLE_LINKEDIN) {
+          if (CONFIG.RAPID_ENABLE_JSEARCH && typeof fetchRapidJSearch_ === "function") {
+            var rapidOptsJS = { query: (plan && Array.isArray(plan.searchTerms) && plan.searchTerms.length > 0) ? String(plan.searchTerms[0]).trim() : "developer", country: "us" };
+            var resJS = fetchRapidJSearch_(rapidOptsJS);
+            var jsearchJobs = resJS && resJS.jobs ? resJS.jobs : (Array.isArray(resJS) ? resJS : []);
+            if (resJS && resJS.httpStatus) rapidHttpStatus = resJS.httpStatus;
+            rapidRawCount += (resJS && resJS.rawCount != null) ? resJS.rawCount : jsearchJobs.length;
+            rapidParsedCount += (resJS && resJS.parsedCount != null) ? resJS.parsedCount : jsearchJobs.length;
+            rapidRejectedCount += (resJS && resJS.rejectedCount != null) ? resJS.rejectedCount : 0;
+            var takeJSearch = Math.min(jsearchJobs.length, rapidCapRemaining);
+            if (takeJSearch > 0) {
+              rawPoolBeforeDedupe = rawPoolBeforeDedupe.concat(jsearchJobs.slice(0, takeJSearch));
+              rapidJSearchCount = takeJSearch;
+              rapidCapRemaining -= takeJSearch;
+            }
+          }
+          if (CONFIG.RAPID_ENABLE_LINKEDIN && rapidCapRemaining > 0) {
             var rapidOptsLI = { limit: CONFIG.RAPID_LINKEDIN_MAX, offset: rapidOpts.offset };
             if (rapidOpts.title_filter) rapidOptsLI.title_filter = rapidOpts.title_filter;
             if (rapidOpts.location_filter) rapidOptsLI.location_filter = rapidOpts.location_filter;
@@ -444,9 +461,10 @@ function fetchForProfileWithEnrichment_(profileId) {
             }
           }
         }
+        resultsBySource.rapidJSearch = rapidJSearchCount;
         resultsBySource.rapidLinkedIn = rapidLinkedInCount;
         resultsBySource.rapidATS = rapidATSCount;
-        var rapidAdded = rapidLinkedInCount + rapidATSCount;
+        var rapidAdded = rapidJSearchCount + rapidLinkedInCount + rapidATSCount;
         var rapidStatus = rapidQuotaExceeded ? "QUOTA_EXCEEDED" : (rapidHttpStatus != null ? "HTTP_ERROR" : (rapidAdded === 0 ? "SUCCESS_EMPTY" : "SUCCESS"));
 
         if (rapidAdded > 0) {
@@ -485,6 +503,7 @@ function fetchForProfileWithEnrichment_(profileId) {
                 rapidDecision: "RUN",
                 rapidReason: rapidReason,
                 rapidStatus: rapidStatus,
+                rapidJSearchCount: rapidJSearchCount,
                 rapidLinkedInCount: rapidLinkedInCount,
                 rapidATSCount: rapidATSCount,
                 rapidRawCount: rapidRawCount,
@@ -521,6 +540,9 @@ function fetchForProfileWithEnrichment_(profileId) {
                 rapidParsedCount: rapidParsedCount,
                 rapidRejectedCount: rapidRejectedCount,
                 rapidAdded: 0,
+                rapidJSearchCount: rapidJSearchCount,
+                rapidLinkedInCount: rapidLinkedInCount,
+                rapidATSCount: rapidATSCount,
                 httpStatus: rapidHttpStatus != null ? rapidHttpStatus : undefined
               },
               batchId,
@@ -584,6 +606,7 @@ function fetchForProfileWithEnrichment_(profileId) {
             candidatesSelectedForEnrich: candidatesToEnrich.length,
             rapidDecision: rapidDecision,
             rapidReason: rapidReason,
+            rapidJSearchCount: rapidJSearchCount,
             rapidLinkedInCount: rapidLinkedInCount,
             rapidATSCount: rapidATSCount
           },
@@ -657,7 +680,7 @@ function fetchForProfileWithEnrichment_(profileId) {
             batchId: batchId,
             profileId: profile.profileId,
             rawFetchedMain: rawFetched,
-            rawFetchedRapid: rapidLinkedInCount + rapidATSCount,
+            rawFetchedRapid: rapidJSearchCount + rapidLinkedInCount + rapidATSCount,
             afterDedupe: jobs.length,
             eligible: eligibleAfterHardFilters,
             candidates: candidates.length,
@@ -665,6 +688,9 @@ function fetchForProfileWithEnrichment_(profileId) {
             written: written,
             rapidDecision: rapidDecision,
             rapidStatus: rapidStatus,
+            rapidJSearchCount: rapidJSearchCount,
+            rapidLinkedInCount: rapidLinkedInCount,
+            rapidATSCount: rapidATSCount,
             durationMs: runDurationMs,
             dropTop: dropTop || undefined
           },
