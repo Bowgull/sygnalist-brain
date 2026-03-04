@@ -2237,9 +2237,9 @@
   }
   .jobs-intake-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: var(--space-4);
-    max-height: 65vh;
+    max-height: 75vh;
     overflow-y: auto;
   }
   .jobs-intake-dim-overlay {
@@ -2353,10 +2353,91 @@
     border-color: rgba(255, 255, 255, 0.14);
     box-shadow: var(--shadow-md);
   }
+  .jobs-intake-card .jobs-intake-card-summary {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    align-items: flex-start;
+  }
+  .jobs-intake-card .job-header {
+    margin-bottom: 0;
+  }
+  .jobs-intake-card .job-title {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-text-main);
+    margin-bottom: var(--space-1);
+  }
+  .jobs-intake-card .job-company {
+    font-size: 0.875rem;
+    line-height: 1.3;
+    color: var(--color-text-muted);
+  }
+  .jobs-intake-card .job-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    align-items: center;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--color-text-muted);
+  }
+  .jobs-intake-card .job-missing {
+    margin: 0;
+    width: 100%;
+  }
   .jobs-intake-card .job-card-front .job-header .job-title { font-size: var(--card-title-size); margin-bottom: var(--space-1); }
-  .jobs-intake-card .job-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; align-items: center; }
   .jobs-intake-card .chip-missing { color: var(--color-tier-x); background: rgba(220, 38, 38, 0.1); }
   .jobs-intake-card .chip-muted { color: var(--color-text-dim); font-size: 0.8125rem; }
+
+  /* Job intake selection checkbox (on-theme, radar green when checked) */
+  .jobs-intake-check-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-right: var(--space-2);
+    flex-shrink: 0;
+  }
+  .jobs-intake-check-wrap .jobs-intake-check {
+    position: absolute;
+    opacity: 0;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    cursor: pointer;
+  }
+  .jobs-intake-check-wrap .jobs-intake-check:focus-visible + .intake-checkbox-visual {
+    outline: 2px solid var(--color-radar-mid);
+    outline-offset: 2px;
+  }
+  .jobs-intake-check-wrap .intake-checkbox-visual {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--color-border);
+    background: transparent;
+    color: transparent;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .jobs-intake-check-wrap:has(.jobs-intake-check:checked) .intake-checkbox-visual {
+    background: var(--color-radar-mid);
+    border-color: var(--color-radar-mid);
+    color: #fff;
+  }
+  .jobs-intake-check-wrap:has(.jobs-intake-check:checked) .intake-checkbox-visual::after {
+    content: '\2713';
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1;
+  }
 
   .tracker-card:hover {
     border-color: rgba(255, 255, 255, 0.14);

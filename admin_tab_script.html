@@ -1201,20 +1201,30 @@
       return;
     }
     var html = '';
+    var MISSING_FIELD_LABELS = { company: 'Company', location: 'Location', work_mode: 'Work mode', job_family: 'Job family', description_snippet: 'Description snippet' };
+    function missingFieldsToLabels(missingStr) {
+      if (!missingStr || !String(missingStr).trim()) return '';
+      return String(missingStr).split(',').map(function(k) {
+        var key = String(k || '').trim().toLowerCase();
+        if (MISSING_FIELD_LABELS[key]) return MISSING_FIELD_LABELS[key];
+        return key ? (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')) : '';
+      }).filter(Boolean).join(', ');
+    }
     rows.forEach(function(row) {
       var status = String(row.enrichment_status || '').trim() || 'NEW';
       var stageClass = JOBS_INTAKE_STAGE_CLASS[status] || 'stage-prospect';
-      var missing = (row.missing_fields || '').trim();
+      var missingRaw = (row.missing_fields || '').trim();
+      var missingDisplay = missingFieldsToLabels(missingRaw);
       var jid = esc(row.job_id);
       html += '<div class="jobs-intake-card ' + stageClass + '" data-job-id="' + jid + '">';
       html += '<div class="jobs-intake-card-summary">';
-      html += '<label class="jobs-intake-check-wrap"><input type="checkbox" class="jobs-intake-check" data-job-id="' + jid + '" aria-label="Select for commit" /></label>';
+      html += '<label class="jobs-intake-check-wrap"><input type="checkbox" class="jobs-intake-check" data-job-id="' + jid + '" aria-label="Select for commit" /><span class="intake-checkbox-visual" aria-hidden="true"></span></label>';
       html += '<div class="job-header"><div class="job-title">' + esc(row.title) + '</div><div class="job-company">' + esc(row.company || '-') + '</div></div>';
       html += '<div class="job-meta"><span class="chip">' + esc(row.source || '-') + '</span><span class="status-pill ' + stageClass + '">' + esc(status) + '</span>';
-      if (missing) html += '<span class="chip chip-missing">' + esc(missing) + '</span>';
       html += '<span class="chip chip-muted">Ingested: ' + esc(row.created_at_label || row.created_at) + '</span>';
       if (row.email_received_at_label) html += '<span class="chip chip-muted">Email: ' + esc(row.email_received_at_label) + '</span>';
       html += '</div>';
+      if (missingDisplay) html += '<div class="job-missing"><span class="chip chip-missing">Missing: ' + esc(missingDisplay) + '</span></div>';
       html += '<div class="job-actions"><a class="btn btn-ghost btn-card" href="' + esc(row.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">View</a>';
       html += '<button type="button" class="btn btn-primary btn-card btn-edit-job" data-job-id="' + jid + '">Edit</button></div></div>';
       html += '<div class="jobs-intake-card-form" style="display:none;">';

@@ -46,7 +46,12 @@
       .badge-new-lane { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-pill); background: rgba(106, 215, 163, 0.25); color: var(--color-radar-mid); margin-left: 4px; }
       .btn-sm { font-size: 0.75rem; padding: var(--space-1) var(--space-2); }
       .field-missing { color: var(--color-tier-x); font-weight: 600; }
-      .jobs-intake-check-wrap { display: inline-flex; align-items: center; margin-right: var(--space-2); flex-shrink: 0; }
+      .jobs-intake-check-wrap { display: inline-flex; align-items: center; justify-content: center; margin-right: var(--space-2); flex-shrink: 0; cursor: pointer; }
+      .jobs-intake-check-wrap .jobs-intake-check { position: absolute; opacity: 0; width: 24px; height: 24px; margin: 0; cursor: pointer; }
+      .jobs-intake-check-wrap .jobs-intake-check:focus-visible + .intake-checkbox-visual { outline: 2px solid var(--color-radar-mid); outline-offset: 2px; }
+      .jobs-intake-check-wrap .intake-checkbox-visual { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; min-width: 22px; min-height: 22px; border-radius: 6px; border: 2px solid var(--color-border); background: transparent; color: transparent; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+      .jobs-intake-check-wrap:has(.jobs-intake-check:checked) .intake-checkbox-visual { background: var(--color-radar-mid); border-color: var(--color-radar-mid); color: #fff; }
+      .jobs-intake-check-wrap:has(.jobs-intake-check:checked) .intake-checkbox-visual::after { content: '\2713'; font-size: 0.875rem; font-weight: 700; line-height: 1; }
       .jobs-intake-card-form .form-group { margin-bottom: var(--space-3); }
       .jobs-intake-card-form .form-group label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--color-text-muted); margin-bottom: var(--space-1); }
       .jobs-intake-card-form input, .jobs-intake-card-form select, .jobs-intake-card-form textarea { width: 100%; padding: var(--space-2); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-main); }
@@ -1586,18 +1591,28 @@
           return;
         }
         var html = '';
+        var MISSING_FIELD_LABELS = { company: 'Company', location: 'Location', work_mode: 'Work mode', job_family: 'Job family', description_snippet: 'Description snippet' };
+        function missingFieldsToLabels(missingStr) {
+          if (!missingStr || !String(missingStr).trim()) return '';
+          return String(missingStr).split(',').map(function(k) {
+            var key = String(k || '').trim().toLowerCase();
+            if (MISSING_FIELD_LABELS[key]) return MISSING_FIELD_LABELS[key];
+            return key ? (key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')) : '';
+          }).filter(Boolean).join(', ');
+        }
         rows.forEach(function(row) {
           var status = String(row.enrichment_status || '').trim() || 'NEW';
           var stageClass = JOBS_INTAKE_STAGE_CLASS[status] || 'stage-prospect';
-          var missing = (row.missing_fields || '').trim();
+          var missingRaw = (row.missing_fields || '').trim();
+          var missingDisplay = missingFieldsToLabels(missingRaw);
           var jid = esc(row.job_id);
           html += '<div class="jobs-intake-card ' + stageClass + '" data-job-id="' + jid + '">';
           html += '<div class="jobs-intake-card-summary">';
-          html += '<label class="jobs-intake-check-wrap"><input type="checkbox" class="jobs-intake-check" data-job-id="' + jid + '" aria-label="Select for commit" /></label>';
+          html += '<label class="jobs-intake-check-wrap"><input type="checkbox" class="jobs-intake-check" data-job-id="' + jid + '" aria-label="Select for commit" /><span class="intake-checkbox-visual" aria-hidden="true"></span></label>';
           html += '<div class="job-header"><div class="job-title">' + esc(row.title) + '</div><div class="job-company">' + esc(row.company || '—') + '</div></div>';
           html += '<div class="job-meta"><span class="chip">' + esc(row.source || '—') + '</span><span class="status-pill ' + stageClass + '">' + esc(status) + '</span>';
-          if (missing) html += '<span class="chip chip-missing">' + esc(missing) + '</span>';
           html += '<span class="chip chip-muted">' + esc(row.created_at) + '</span></div>';
+          if (missingDisplay) html += '<div class="job-missing"><span class="chip chip-missing">Missing: ' + esc(missingDisplay) + '</span></div>';
           html += '<div class="job-actions"><a class="btn btn-ghost btn-card" href="' + esc(row.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">View</a>';
           html += '<button type="button" class="btn btn-primary btn-card btn-edit-job" data-job-id="' + jid + '">Edit</button></div></div>';
           html += '<div class="jobs-intake-card-form" style="display:none;">';

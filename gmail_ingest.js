@@ -34,7 +34,8 @@ var EXCLUDED_URL_PATTERNS = [
 var OUTLIER_ANCHOR_PATTERNS = [
   /^(view all|manage|similar jobs|unsubscribe|manage\s*(my\s*)?alerts|email preferences)/i,
   /see\s+(all|more)\s+(jobs|positions)/i,
-  /view\s+all\s+similar/i
+  /view\s+all\s+similar/i,
+  /^(apply\s+now|click\s+here|learn\s+more|read\s+more|sign\s+up|get\s+started)$/i
 ];
 
 function ingestJobsFromGmail_() {
@@ -223,7 +224,7 @@ function extractJobLinksFromMessage_(msg) {
     seen[norm] = true;
 
     var title = anchorText || getNearbyText_(combined, match.index) || "Unknown Title";
-    var isOutlier = isOutlierAnchor_(anchorText) || isOutlierUrl_(url);
+    var isOutlier = isOutlierAnchor_(anchorText) || isOutlierUrl_(url) || (title === "Unknown Title");
     jobs.push({
       url: url,
       title: title,
@@ -242,7 +243,7 @@ function extractJobLinksFromMessage_(msg) {
       if (!n || seen[n]) continue;
       seen[n] = true;
       var title = getNearbyText_(combined, uMatch.index) || "Unknown Title";
-      var isOutlier = isOutlierUrl_(u);
+      var isOutlier = isOutlierUrl_(u) || (title === "Unknown Title");
       jobs.push({
         url: u,
         title: title,
@@ -281,6 +282,8 @@ function isOutlierUrl_(url) {
   if (/\/search\b/i.test(u)) return true;
   if (/\/list\b/i.test(u)) return true;
   if (/\/alerts\b/i.test(u)) return true;
+  if (/\/jobs\s*$/i.test(u)) return true;
+  if (/\/positions\s*$/i.test(u)) return true;
   return false;
 }
 
@@ -291,11 +294,16 @@ function getNearbyText_(html, startIndex) {
   var chunk = before + after;
   chunk = chunk.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   var lines = chunk.split(/\s{2,}|\n/);
+  var best = "";
   for (var i = 0; i < lines.length; i++) {
     var line = String(lines[i] || "").trim();
-    if (line.length > 5 && line.length < 150) return line;
+    if (line.length < 10 || line.length > 120) continue;
+    if (/^https?:\/\//i.test(line) || /\b(\.com|\.org|\.net)\b/i.test(line)) continue;
+    if (isOutlierAnchor_(line)) continue;
+    if (/^(apply|view|see|click|learn|read|sign|get)\s+/i.test(line) && line.length < 25) continue;
+    if (!best || line.length > best.length) best = line;
   }
-  return "";
+  return best;
 }
 
 function inferSourceFromDomain_(url) {
