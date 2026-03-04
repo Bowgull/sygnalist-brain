@@ -38,6 +38,19 @@ var OUTLIER_ANCHOR_PATTERNS = [
   /^(apply\s+now|click\s+here|learn\s+more|read\s+more|sign\s+up|get\s+started)$/i
 ];
 
+/** Title text suggesting non-job pages (support, feedback, forms) — route to Outliers. */
+var OUTLIER_TITLE_PATTERNS = [
+  /^unknown\s*title$/i,
+  /report\s+(a\s+)?problem/i,
+  /modify\s+(this\s+)?alert/i,
+  /^(feedback|support|contact\s+us|help|faq)$/i,
+  /^(sign\s+in|log\s+in|create\s+account|register)$/i,
+  /^(privacy|terms\s+of\s+use|cookie\s+policy|manage\s+preferences)$/i,
+  /^(unsubscribe|email\s+preferences|manage\s+your\s+alerts)$/i,
+  /provide\s+feedback/i,
+  /report\s+or\s+provide/i
+];
+
 function ingestJobsFromGmail_() {
   ensureJobsInboxSheet_();
   var existingUrls = getExistingNormalizedUrlsForIngest_();
@@ -198,7 +211,8 @@ function extractJobLinksFromMessage_(msg) {
         var norm = normalizeUrlForJobsInbox_(url);
         if (norm) {
           seen[norm] = true;
-          jobs.push({ url: url, title: title, source: inferSourceFromDomain_(url), isOutlier: false });
+          var isOutlier = isOutlierUrl_(url) || isOutlierTitle_(title);
+          jobs.push({ url: url, title: title, source: inferSourceFromDomain_(url), isOutlier: !!isOutlier });
         }
       }
     }
@@ -224,7 +238,7 @@ function extractJobLinksFromMessage_(msg) {
     seen[norm] = true;
 
     var title = anchorText || getNearbyText_(combined, match.index) || "Unknown Title";
-    var isOutlier = isOutlierAnchor_(anchorText) || isOutlierUrl_(url) || (title === "Unknown Title");
+    var isOutlier = isOutlierAnchor_(anchorText) || isOutlierUrl_(url) || isOutlierTitle_(title);
     jobs.push({
       url: url,
       title: title,
@@ -243,7 +257,7 @@ function extractJobLinksFromMessage_(msg) {
       if (!n || seen[n]) continue;
       seen[n] = true;
       var title = getNearbyText_(combined, uMatch.index) || "Unknown Title";
-      var isOutlier = isOutlierUrl_(u) || (title === "Unknown Title");
+      var isOutlier = isOutlierUrl_(u) || isOutlierTitle_(title);
       jobs.push({
         url: u,
         title: title,
@@ -275,7 +289,19 @@ function isOutlierAnchor_(anchorText) {
   return false;
 }
 
-/** Returns true if URL looks like search/list page — route to Outliers. Conservative. */
+/** Returns true if title suggests non-job page (support, feedback, form) — route to Outliers. */
+function isOutlierTitle_(title) {
+  if (title == null) return true;
+  var t = String(title).trim();
+  if (!t) return true;
+  var lower = t.toLowerCase();
+  for (var i = 0; i < OUTLIER_TITLE_PATTERNS.length; i++) {
+    if (OUTLIER_TITLE_PATTERNS[i].test(lower)) return true;
+  }
+  return false;
+}
+
+/** Returns true if URL looks like search/list/support page — route to Outliers. Conservative. */
 function isOutlierUrl_(url) {
   if (!url || typeof url !== "string") return false;
   var u = String(url || "").toLowerCase();
@@ -284,6 +310,7 @@ function isOutlierUrl_(url) {
   if (/\/alerts\b/i.test(u)) return true;
   if (/\/jobs\s*$/i.test(u)) return true;
   if (/\/positions\s*$/i.test(u)) return true;
+  if (/\/(support|feedback|report|contact|help|faq)(\/|$|\?)/i.test(u)) return true;
   return false;
 }
 
