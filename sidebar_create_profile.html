@@ -200,6 +200,14 @@
         color: var(--text-main);
       }
       .checkbox-label { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 0; font-weight: 400; cursor: pointer; }
+      .profile-check-wrap { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin-right: 16px; }
+      .profile-check-wrap .profile-check { position: absolute; opacity: 0; width: 24px; height: 24px; margin: 0; cursor: pointer; }
+      .profile-check-wrap .profile-check:focus-visible + .intake-checkbox-visual { outline: 2px solid var(--color-radar-mid, #6ad7a3); outline-offset: 2px; }
+      .profile-check-wrap .intake-checkbox-visual { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; min-width: 22px; min-height: 22px; border-radius: 6px; border: 2px solid var(--color-border, var(--border, #333)); background: transparent; color: transparent; transition: background 0.15s ease, border-color 0.15s ease; flex-shrink: 0; }
+      .profile-check-wrap:has(.profile-check:checked) .intake-checkbox-visual { background: var(--color-radar-mid, #6ad7a3); border-color: var(--color-radar-mid, #6ad7a3); color: #fff; }
+      .profile-check-wrap:has(.profile-check:checked) .intake-checkbox-visual::after { content: '\2713'; font-size: 0.875rem; font-weight: 700; line-height: 1; }
+      .work-mode-check-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 8px; }
+      .work-mode-presets .btn-preset.active { border-color: rgba(106, 215, 163, 0.5); background: rgba(106, 215, 163, 0.12); color: var(--color-radar-mid, #6ad7a3); }
     </style>
   </head>
   
@@ -232,16 +240,18 @@
       
       <div class="field">
         <label>Work mode</label>
-        <div class="hint">Check only one for remote-only, hybrid-only, or onsite-only; check all three for open to any.</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
-          <button type="button" class="btn btn-secondary" id="presetRemote" style="width: auto; padding: 6px 10px;">Remote only</button>
-          <button type="button" class="btn btn-secondary" id="presetHybrid" style="width: auto; padding: 6px 10px;">Hybrid only</button>
-          <button type="button" class="btn btn-secondary" id="presetOnsite" style="width: auto; padding: 6px 10px;">On-site only</button>
-          <button type="button" class="btn btn-secondary" id="presetAny" style="width: auto; padding: 6px 10px;">Any</button>
+        <div class="hint">Quick select one preset, or choose combinations below.</div>
+        <div class="work-mode-presets" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+          <button type="button" class="btn btn-secondary btn-preset" id="presetRemote" style="width: auto; padding: 6px 10px;">Remote only</button>
+          <button type="button" class="btn btn-secondary btn-preset" id="presetHybrid" style="width: auto; padding: 6px 10px;">Hybrid only</button>
+          <button type="button" class="btn btn-secondary btn-preset" id="presetOnsite" style="width: auto; padding: 6px 10px;">On-site only</button>
+          <button type="button" class="btn btn-secondary btn-preset" id="presetAny" style="width: auto; padding: 6px 10px;">Any</button>
         </div>
-        <label class="checkbox-label"><input type="checkbox" id="acceptRemote" checked> Accept Remote</label>
-        <label class="checkbox-label"><input type="checkbox" id="acceptHybrid"> Accept Hybrid</label>
-        <label class="checkbox-label"><input type="checkbox" id="acceptOnsite"> Accept On-site</label>
+        <div class="work-mode-check-row">
+          <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="acceptRemote" checked /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept Remote</label>
+          <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="acceptHybrid" /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept Hybrid</label>
+          <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="acceptOnsite" /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept On-site</label>
+        </div>
       </div>
       
       <div class="field">
@@ -254,33 +264,36 @@
       
       <div class="field">
         <label>Preferred countries</label>
-        <label class="checkbox-label"><input type="checkbox" id="preferredCountryUS" checked> United States</label>
-        <label class="checkbox-label"><input type="checkbox" id="preferredCountryCA" checked> Canada</label>
+        <div class="work-mode-check-row">
+          <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="preferredCountryUS" checked /><span class="intake-checkbox-visual" aria-hidden="true"></span> United States</label>
+          <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="preferredCountryCA" checked /><span class="intake-checkbox-visual" aria-hidden="true"></span> Canada</label>
+        </div>
         <p class="hint">Sygnalist serves Canadian and US clients only; preferred countries are limited to US and Canada.</p>
       </div>
       
       <div class="field">
         <label>State / Province</label>
         <select id="stateProvince">
-          <option value="">—</option>
+          <option value="">-</option>
         </select>
       </div>
       
       <div class="field">
         <label>Current city</label>
         <select id="currentCity">
-          <option value="">—</option>
+          <option value="">-</option>
         </select>
       </div>
       
       <div class="field">
-        <label>Preferred cities</label>
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px;">
-          <select id="stateProvincePref" style="min-width: 120px;"><option value="">—</option></select>
-          <select id="cityPref" style="min-width: 120px;"><option value="">—</option></select>
-          <button type="button" class="btn btn-secondary" id="addCityBtn" style="width: auto; padding: 8px 12px;">Add city</button>
-        </div>
-        <div id="preferredCitiesList" class="hint" style="min-height: 22px;"></div>
+        <label>Distance range</label>
+        <select id="distanceRangeKm">
+          <option value="40">25 mi</option>
+          <option value="80">50 mi</option>
+          <option value="161">100 mi</option>
+          <option value="999" selected>Any</option>
+        </select>
+        <div class="hint">Used for scoring hybrid/on-site by distance; no hard filter.</div>
       </div>
       
       <div class="field">
@@ -343,34 +356,27 @@
       
       var createdProfileId = '';
       var createFlowLastParsed = null;
-      window.sidebarPreferredCitiesArr = [];
-
       function fillSidebarStateProvinceDropdowns() {
         var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
         if (!ld) return;
         var us = $('preferredCountryUS') && $('preferredCountryUS').checked;
         var ca = $('preferredCountryCA') && $('preferredCountryCA').checked;
         var sel = $('stateProvince');
-        var selPref = $('stateProvincePref');
-        if (!sel || !selPref) return;
-        sel.innerHTML = '<option value="">—</option>';
-        selPref.innerHTML = '<option value="">—</option>';
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-</option>';
         if (us && ld.usStates) {
           var gUS = document.createElement('optgroup');
           gUS.label = 'United States';
           ld.usStates.forEach(function(s) { var o = document.createElement('option'); o.value = s.code; o.textContent = s.name; gUS.appendChild(o); });
           sel.appendChild(gUS);
-          selPref.appendChild(gUS.cloneNode(true));
         }
         if (ca && ld.caProvinces) {
           var gCA = document.createElement('optgroup');
           gCA.label = 'Canada';
           ld.caProvinces.forEach(function(s) { var o = document.createElement('option'); o.value = s.code; o.textContent = s.name; gCA.appendChild(o); });
           sel.appendChild(gCA);
-          selPref.appendChild(gCA.cloneNode(true));
         }
         fillSidebarCityFromState('currentCity', 'stateProvince');
-        fillSidebarCityFromState('cityPref', 'stateProvincePref');
       }
       function fillSidebarCityFromState(citySelectId, stateSelectId) {
         var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
@@ -379,7 +385,7 @@
         var cityEl = $(citySelectId);
         if (!stateEl || !cityEl) return;
         var code = stateEl.value;
-        cityEl.innerHTML = '<option value="">—</option>';
+        cityEl.innerHTML = '<option value="">-</option>';
         if (code && ld.citiesByStateProvince[code]) {
           ld.citiesByStateProvince[code].forEach(function(c) {
             var o = document.createElement('option'); o.value = c; o.textContent = c; cityEl.appendChild(o);
@@ -406,20 +412,10 @@
       }
       if (typeof window.LOCATION_DATA !== 'undefined') {
         fillSidebarStateProvinceDropdowns();
-        renderSidebarPreferredCitiesList();
       }
       if ($('stateProvince')) $('stateProvince').addEventListener('change', function() { fillSidebarCityFromState('currentCity', 'stateProvince'); });
-      if ($('stateProvincePref')) $('stateProvincePref').addEventListener('change', function() { fillSidebarCityFromState('cityPref', 'stateProvincePref'); });
       if ($('preferredCountryUS')) $('preferredCountryUS').addEventListener('change', fillSidebarStateProvinceDropdowns);
       if ($('preferredCountryCA')) $('preferredCountryCA').addEventListener('change', fillSidebarStateProvinceDropdowns);
-      if ($('addCityBtn')) $('addCityBtn').addEventListener('click', function() {
-        var cityEl = $('cityPref');
-        if (!cityEl || !cityEl.value) return;
-        var city = cityEl.value.trim();
-        if (!city) return;
-        if (window.sidebarPreferredCitiesArr.indexOf(city) === -1) window.sidebarPreferredCitiesArr.push(city);
-        renderSidebarPreferredCitiesList();
-      });
       function setSidebarWorkPreset(remote, hybrid, onsite) {
         var r = $('acceptRemote');
         var h = $('acceptHybrid');
@@ -500,7 +496,8 @@
             acceptOnsite: $('acceptOnsite').checked,
             remoteRegionScope: $('remoteRegionScope').value || 'remote_global',
             preferredCountries: preferredCountries,
-            preferredCities: (window.sidebarPreferredCitiesArr && window.sidebarPreferredCitiesArr.length) ? window.sidebarPreferredCitiesArr.join(', ') : '',
+            preferredCities: '',
+            distanceRangeKm: parseInt(($('distanceRangeKm') && $('distanceRangeKm').value) || '999', 10) || 999,
             currentCity: ($('currentCity') && $('currentCity').value) ? $('currentCity').value.trim() : '',
             salaryMin: parseInt($('salaryMin').value, 10) || 0,
             preferredLocations: preferredCountries.join(', ')

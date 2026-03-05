@@ -46,6 +46,8 @@ function createProfileFromSidebar(data) {
     }
     var preferredCities = String(data.preferredCities || "").trim();
     var currentCity = String(data.currentCity || "").trim();
+    var distanceRangeKm = parseInt(data.distanceRangeKm, 10);
+    if (isNaN(distanceRangeKm) || distanceRangeKm < 0) distanceRangeKm = 999;
     var salaryMin = parseInt(data.salaryMin, 10) || 0;
     var preferredLocations = String(data.preferredLocations || "").trim();
     if (!preferredLocations && preferredCountries.length) preferredLocations = preferredCountries.join(", ");
@@ -114,6 +116,7 @@ function createProfileFromSidebar(data) {
       setByHeader_(headers, row, "preferredCountries", preferredCountries.join(", "));
       setByHeader_(headers, row, "preferredCities", preferredCities);
       setByHeader_(headers, row, "currentCity", currentCity);
+      setByHeader_(headers, row, "distanceRangeKm", distanceRangeKm);
       setByHeader_(headers, row, "remoteRegionScope", remoteRegionScope);
       setByHeader_(headers, row, "roleTracksJSON", "[]");
       setByHeader_(headers, row, "webAppUrl", portalUrl);

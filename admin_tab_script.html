@@ -524,45 +524,43 @@
       var pcArr = Array.isArray(pc) ? pc : (typeof pc === 'string' && pc ? pc.split(',').map(function(s) { return s.trim(); }) : []);
       var hasUS = pcArr.some(function(c) { return /united states|^us$|^usa$/i.test(String(c).trim()); });
       var hasCA = pcArr.some(function(c) { return /canada|^ca$/i.test(String(c).trim()); });
-      var prefCities = profile.preferredCities || [];
-      var prefCitiesArr = Array.isArray(prefCities) ? prefCities : (typeof prefCities === 'string' && prefCities ? prefCities.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : []);
       body.innerHTML = '<input type="hidden" id="editProfileId" value="' + esc(profile.profileId) + '">' +
         '<div class="form-group"><label>Display name</label><input type="text" id="editDisplayName" value="' + esc(profile.displayName) + '"></div>' +
         '<div class="form-group"><label>Email</label><input type="email" id="editEmail" value="' + esc(profile.email) + '"></div>' +
         '<div class="form-group"><label>Status</label><input type="text" value="' + esc(profile.status) + '" disabled></div>' +
         '<div class="form-group"><label>Work mode</label>' +
-        '<p class="form-hint" style="margin-bottom: var(--space-1);">Check only one for remote-only, hybrid-only, or onsite-only; check all three for open to any.</p>' +
-        '<div style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-1);">' +
-        '<button type="button" class="btn btn-ghost btn-sm" id="editPresetRemote">Remote only</button>' +
-        '<button type="button" class="btn btn-ghost btn-sm" id="editPresetHybrid">Hybrid only</button>' +
-        '<button type="button" class="btn btn-ghost btn-sm" id="editPresetOnsite">On-site only</button>' +
-        '<button type="button" class="btn btn-ghost btn-sm" id="editPresetAny">Any</button></div>' +
-        '<label class="checkbox-label"><input type="checkbox" id="editAcceptRemote" ' + (profile.acceptRemote ? 'checked' : '') + '> Accept Remote</label>' +
-        '<label class="checkbox-label"><input type="checkbox" id="editAcceptHybrid" ' + (profile.acceptHybrid ? 'checked' : '') + '> Accept Hybrid</label>' +
-        '<label class="checkbox-label"><input type="checkbox" id="editAcceptOnsite" ' + (profile.acceptOnsite ? 'checked' : '') + '> Accept On-site</label></div>' +
+        '<p class="form-hint" style="margin-bottom: var(--space-1);">Quick select one preset, or choose combinations below.</p>' +
+        '<div class="work-mode-presets" style="margin-bottom: var(--space-2);">' +
+        '<button type="button" class="btn btn-ghost btn-sm btn-preset" id="editPresetRemote">Remote only</button>' +
+        '<button type="button" class="btn btn-ghost btn-sm btn-preset" id="editPresetHybrid">Hybrid only</button>' +
+        '<button type="button" class="btn btn-ghost btn-sm btn-preset" id="editPresetOnsite">On-site only</button>' +
+        '<button type="button" class="btn btn-ghost btn-sm btn-preset" id="editPresetAny">Any</button></div>' +
+        '<div class="work-mode-check-row">' +
+        '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editAcceptRemote" ' + (profile.acceptRemote ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept Remote</label>' +
+        '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editAcceptHybrid" ' + (profile.acceptHybrid ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept Hybrid</label>' +
+        '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editAcceptOnsite" ' + (profile.acceptOnsite ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept On-site</label></div></div>' +
         '<div class="form-group"><label>Remote jobs</label><select id="editRemoteScope">' +
         '<option value="remote_global"' + (profile.remoteRegionScope === 'remote_preferred_countries_only' ? '' : ' selected') + '>Global</option>' +
         '<option value="remote_preferred_countries_only"' + (profile.remoteRegionScope === 'remote_preferred_countries_only' ? ' selected' : '') + '>Only in preferred countries</option></select></div>' +
         '<div class="form-group"><label>Preferred countries</label>' +
-        '<label class="checkbox-label"><input type="checkbox" id="editPreferredCountryUS" ' + (hasUS ? 'checked' : '') + '> United States</label>' +
-        '<label class="checkbox-label"><input type="checkbox" id="editPreferredCountryCA" ' + (hasCA ? 'checked' : '') + '> Canada</label>' +
+        '<div class="work-mode-check-row">' +
+        '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editPreferredCountryUS" ' + (hasUS ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> United States</label>' +
+        '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editPreferredCountryCA" ' + (hasCA ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> Canada</label></div>' +
         '<p class="form-hint" style="margin-top: var(--space-1);">Sygnalist serves Canadian and US clients only.</p></div>' +
-        '<div class="form-group"><label>State / Province</label><select id="editStateProvince"><option value="">—</option></select></div>' +
-        '<div class="form-group"><label>Current city</label><select id="editCurrentCity"><option value="">—</option></select></div>' +
-        '<div class="form-group"><label>Preferred cities</label>' +
-        '<div style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-1);">' +
-        '<select id="editStateProvincePref" style="min-width: 140px;"><option value="">—</option></select>' +
-        '<select id="editCityPref" style="min-width: 140px;"><option value="">—</option></select>' +
-        '<button type="button" class="btn btn-ghost btn-sm" id="editAddCity">Add city</button></div>' +
-        '<div id="editPreferredCitiesList" class="form-hint" style="min-height: 24px;"></div></div>' +
+        '<div class="form-group"><label>State / Province</label><select id="editStateProvince"><option value="">-</option></select></div>' +
+        '<div class="form-group"><label>Current city</label><select id="editCurrentCity"><option value="">-</option></select></div>' +
+        '<div class="form-group"><label>Distance range</label><select id="editDistanceRangeKm">' +
+        '<option value="40"' + ((profile.distanceRangeKm || 999) === 40 ? ' selected' : '') + '>25 mi</option>' +
+        '<option value="80"' + ((profile.distanceRangeKm || 999) === 80 ? ' selected' : '') + '>50 mi</option>' +
+        '<option value="161"' + ((profile.distanceRangeKm || 999) === 161 ? ' selected' : '') + '>100 mi</option>' +
+        '<option value="999"' + ((profile.distanceRangeKm || 999) === 999 ? ' selected' : '') + '>Any</option></select>' +
+        '<p class="form-hint" style="margin-top: var(--space-1);">Used for scoring; no hard filter.</p></div>' +
         '<div class="form-group"><label>Salary min</label><input type="number" id="editSalaryMin" value="' + (profile.salaryMin || 0) + '" min="0"></div>' +
         '<div class="form-group"><label>Skill profile text</label><textarea id="editSkillProfileText" rows="4">' + esc(profile.skillProfileText || '') + '</textarea></div>';
-      window.editPreferredCitiesArr = prefCitiesArr.slice();
       var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
       if (ld) {
         fillEditStateProvinceDropdowns_();
         fillEditCityFromState_('editCurrentCity', 'editStateProvince');
-        fillEditCityFromState_('editCityPref', 'editStateProvincePref');
         var currentCityVal = (profile.currentCity || '').trim();
         if (currentCityVal && ld.citiesByStateProvince) {
           var foundCode = null;
@@ -585,12 +583,9 @@
             }
           }
         }
-        renderEditPreferredCitiesList_();
       }
       var spEl = document.getElementById('editStateProvince');
       if (spEl) spEl.addEventListener('change', function() { fillEditCityFromState_('editCurrentCity', 'editStateProvince'); });
-      var spPrefEl = document.getElementById('editStateProvincePref');
-      if (spPrefEl) spPrefEl.addEventListener('change', function() { fillEditCityFromState_('editCityPref', 'editStateProvincePref'); });
       var editPreferredCountryUS = document.getElementById('editPreferredCountryUS');
       if (editPreferredCountryUS) editPreferredCountryUS.addEventListener('change', fillEditStateProvinceDropdowns_);
       var editPreferredCountryCA = document.getElementById('editPreferredCountryCA');
@@ -603,14 +598,30 @@
         if (h) h.checked = !!hybrid;
         if (o) o.checked = !!onsite;
       }
+      function setEditPresetActive_(presetId) {
+        var container = document.getElementById('editFormBody');
+        if (!container) return;
+        container.querySelectorAll('.btn-preset').forEach(function(btn) { btn.classList.remove('active'); });
+        var el = document.getElementById(presetId);
+        if (el) el.classList.add('active');
+      }
       var epR = document.getElementById('editPresetRemote');
-      if (epR) epR.addEventListener('click', function() { setEditWorkPreset_(true, false, false); });
+      if (epR) epR.addEventListener('click', function() { setEditWorkPreset_(true, false, false); setEditPresetActive_('editPresetRemote'); });
       var epH = document.getElementById('editPresetHybrid');
-      if (epH) epH.addEventListener('click', function() { setEditWorkPreset_(false, true, false); });
+      if (epH) epH.addEventListener('click', function() { setEditWorkPreset_(false, true, false); setEditPresetActive_('editPresetHybrid'); });
       var epO = document.getElementById('editPresetOnsite');
-      if (epO) epO.addEventListener('click', function() { setEditWorkPreset_(false, false, true); });
+      if (epO) epO.addEventListener('click', function() { setEditWorkPreset_(false, false, true); setEditPresetActive_('editPresetOnsite'); });
       var epA = document.getElementById('editPresetAny');
-      if (epA) epA.addEventListener('click', function() { setEditWorkPreset_(true, true, true); });
+      if (epA) epA.addEventListener('click', function() { setEditWorkPreset_(true, true, true); setEditPresetActive_('editPresetAny'); });
+      var r = document.getElementById('editAcceptRemote');
+      var h = document.getElementById('editAcceptHybrid');
+      var o = document.getElementById('editAcceptOnsite');
+      if (r && h && o) {
+        if (r.checked && !h.checked && !o.checked) setEditPresetActive_('editPresetRemote');
+        else if (!r.checked && h.checked && !o.checked) setEditPresetActive_('editPresetHybrid');
+        else if (!r.checked && !h.checked && o.checked) setEditPresetActive_('editPresetOnsite');
+        else if (r.checked && h.checked && o.checked) setEditPresetActive_('editPresetAny');
+      }
       var modalEdit = document.getElementById('modalEdit');
       if (modalEdit) modalEdit.classList.add('visible');
     }).withFailureHandler(function(err) { hideAdminLoad(); showToast(adminErrorMessage(err, 'Error'), true); }).adminGetProfileForEdit(profileId);
@@ -622,25 +633,20 @@
     var ca = document.getElementById('editPreferredCountryCA') && document.getElementById('editPreferredCountryCA').checked;
     if (!us && !ca) { us = true; ca = true; }
     var sel = document.getElementById('editStateProvince');
-    var selPref = document.getElementById('editStateProvincePref');
-    if (!sel || !selPref) return;
-    sel.innerHTML = '<option value="">—</option>';
-    selPref.innerHTML = '<option value="">—</option>';
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-</option>';
     if (us && ld.usStates) {
       var gUS = document.createElement('optgroup');
       gUS.label = 'United States';
       ld.usStates.forEach(function(s) { var o = document.createElement('option'); o.value = s.code; o.textContent = s.name; gUS.appendChild(o); });
       sel.appendChild(gUS);
-      selPref.appendChild(gUS.cloneNode(true));
     }
     if (ca && ld.caProvinces) {
       var gCA = document.createElement('optgroup');
       gCA.label = 'Canada';
       ld.caProvinces.forEach(function(s) { var o = document.createElement('option'); o.value = s.code; o.textContent = s.name; gCA.appendChild(o); });
       sel.appendChild(gCA);
-      selPref.appendChild(gCA.cloneNode(true));
     }
-    fillEditCityFromState_('editCityPref', 'editStateProvincePref');
   }
   function fillEditCityFromState_(citySelectId, stateSelectId) {
     var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
@@ -650,7 +656,7 @@
     if (!stateEl || !cityEl) return;
     var code = stateEl.value;
     var prevVal = citySelectId === 'editCurrentCity' ? cityEl.value : '';
-    cityEl.innerHTML = '<option value="">—</option>';
+    cityEl.innerHTML = '<option value="">-</option>';
     if (code && ld.citiesByStateProvince[code]) {
       ld.citiesByStateProvince[code].forEach(function(c) {
         var o = document.createElement('option');
@@ -681,18 +687,6 @@
       list.appendChild(span);
     });
   }
-  document.addEventListener('click', function(e) {
-    if (e.target && e.target.id === 'editAddCity') {
-      var cityEl = document.getElementById('editCityPref');
-      if (!cityEl || !cityEl.value) return;
-      var city = cityEl.value.trim();
-      if (!city) return;
-      window.editPreferredCitiesArr = window.editPreferredCitiesArr || [];
-      if (window.editPreferredCitiesArr.indexOf(city) === -1) window.editPreferredCitiesArr.push(city);
-      renderEditPreferredCitiesList_();
-    }
-  });
-
   var editSave = document.getElementById('editSave');
   if (editSave) editSave.addEventListener('click', function() {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
@@ -716,8 +710,9 @@
       acceptOnsite: document.getElementById('editAcceptOnsite') && document.getElementById('editAcceptOnsite').checked,
       remoteRegionScope: (document.getElementById('editRemoteScope') && document.getElementById('editRemoteScope').value) || 'remote_global',
       preferredCountries: preferredCountries.join(', '),
-      preferredCities: (window.editPreferredCitiesArr && window.editPreferredCitiesArr.length) ? window.editPreferredCitiesArr.join(', ') : '',
+      preferredCities: '',
       currentCity: document.getElementById('editCurrentCity') ? (document.getElementById('editCurrentCity').value || '').trim() : '',
+      distanceRangeKm: parseInt((document.getElementById('editDistanceRangeKm') && document.getElementById('editDistanceRangeKm').value) || '999', 10) || 999,
       preferredLocations: preferredCountries.join(', ')
     };
     google.script.run.withSuccessHandler(function(r) {
@@ -770,8 +765,8 @@
     var sel = document.getElementById('createStateProvince');
     var selPref = document.getElementById('createStateProvincePref');
     if (!sel || !selPref) return;
-    sel.innerHTML = '<option value="">—</option>';
-    selPref.innerHTML = '<option value="">—</option>';
+    sel.innerHTML = '<option value="">-</option>';
+    selPref.innerHTML = '<option value="">-</option>';
     if (us && ld.usStates) {
       var gUS = document.createElement('optgroup');
       gUS.label = 'United States';
@@ -796,7 +791,7 @@
     var cityEl = document.getElementById(citySelectId);
     if (!stateEl || !cityEl) return;
     var code = stateEl.value;
-    cityEl.innerHTML = '<option value="">—</option>';
+    cityEl.innerHTML = '<option value="">-</option>';
     if (code && ld.citiesByStateProvince[code]) {
       ld.citiesByStateProvince[code].forEach(function(c) {
         var o = document.createElement('option');
@@ -852,10 +847,17 @@
     if (h) h.checked = !!hybrid;
     if (o) o.checked = !!onsite;
   }
-  if (document.getElementById('createPresetRemote')) document.getElementById('createPresetRemote').addEventListener('click', function() { setCreateWorkPreset_(true, false, false); });
-  if (document.getElementById('createPresetHybrid')) document.getElementById('createPresetHybrid').addEventListener('click', function() { setCreateWorkPreset_(false, true, false); });
-  if (document.getElementById('createPresetOnsite')) document.getElementById('createPresetOnsite').addEventListener('click', function() { setCreateWorkPreset_(false, false, true); });
-  if (document.getElementById('createPresetAny')) document.getElementById('createPresetAny').addEventListener('click', function() { setCreateWorkPreset_(true, true, true); });
+  function setCreatePresetActive_(presetId) {
+    var container = document.getElementById('createStep1');
+    if (!container) return;
+    container.querySelectorAll('.btn-preset').forEach(function(btn) { btn.classList.remove('active'); });
+    var el = document.getElementById(presetId);
+    if (el) el.classList.add('active');
+  }
+  if (document.getElementById('createPresetRemote')) document.getElementById('createPresetRemote').addEventListener('click', function() { setCreateWorkPreset_(true, false, false); setCreatePresetActive_('createPresetRemote'); });
+  if (document.getElementById('createPresetHybrid')) document.getElementById('createPresetHybrid').addEventListener('click', function() { setCreateWorkPreset_(false, true, false); setCreatePresetActive_('createPresetHybrid'); });
+  if (document.getElementById('createPresetOnsite')) document.getElementById('createPresetOnsite').addEventListener('click', function() { setCreateWorkPreset_(false, false, true); setCreatePresetActive_('createPresetOnsite'); });
+  if (document.getElementById('createPresetAny')) document.getElementById('createPresetAny').addEventListener('click', function() { setCreateWorkPreset_(true, true, true); setCreatePresetActive_('createPresetAny'); });
   var createSubmit = document.getElementById('createSubmit');
   if (createSubmit) createSubmit.addEventListener('click', function() {
     if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
@@ -876,8 +878,9 @@
       acceptOnsite: acceptOnsite,
       remoteRegionScope: (document.getElementById('createRemoteScope') && document.getElementById('createRemoteScope').value) || 'remote_global',
       preferredCountries: preferredCountries,
-      preferredCities: (window.createPreferredCitiesArr && window.createPreferredCitiesArr.length) ? window.createPreferredCitiesArr.join(', ') : '',
+      preferredCities: '',
       currentCity: document.getElementById('createCurrentCity') ? (document.getElementById('createCurrentCity').value || '').trim() : '',
+      distanceRangeKm: parseInt((document.getElementById('createDistanceRangeKm') && document.getElementById('createDistanceRangeKm').value) || '999', 10) || 999,
       salaryMin: parseInt(document.getElementById('createSalaryMin').value, 10) || 0,
       preferredLocations: (document.getElementById('createPreferredLocations') ? document.getElementById('createPreferredLocations').value.trim() : '') || preferredCountries.join(', ')
     };

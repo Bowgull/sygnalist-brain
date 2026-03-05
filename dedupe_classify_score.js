@@ -192,13 +192,20 @@ function scoreJobsForProfile_(jobs, profile) {
     else if (jobWorkType === "hybrid" && (looksRemote || loc.includes("hybrid"))) score += 8;
     else if (jobWorkType === "onsite") score += 5;
 
-    // Location match bonus when region lock passed and job location matches profile preferences
+    // Location: country match bonus; then current-city distance bonus (hybrid lower weight, onsite heavier)
     const preferredCountries = (profile.preferredCountries || []).map(function (c) { return String(c || "").toLowerCase().trim(); }).filter(Boolean);
-    const preferredCities = (profile.preferredCities || []).map(function (c) { return String(c || "").toLowerCase().trim(); }).filter(Boolean);
     const jobCountry = (job.country && String(job.country).trim()) ? String(job.country).trim().toLowerCase() : null;
     const jobCity = (job.city && String(job.city).trim()) ? String(job.city).trim().toLowerCase() : null;
+    const profileCurrentCity = (profile.currentCity && String(profile.currentCity).trim()) ? String(profile.currentCity).trim().toLowerCase() : "";
     if (preferredCountries.length > 0 && jobCountry && preferredCountries.indexOf(jobCountry) !== -1) score += 10;
-    if (preferredCities.length > 0 && jobCity && preferredCities.some(function (c) { return jobCity.indexOf(c) !== -1 || c.indexOf(jobCity) !== -1; })) score += 5;
+    if (profileCurrentCity && jobCity) {
+      const sameCity = jobCity === profileCurrentCity || jobCity.indexOf(profileCurrentCity) !== -1 || profileCurrentCity.indexOf(jobCity) !== -1;
+      if (sameCity) {
+        if (jobWorkType === "onsite") score += 12;
+        else if (jobWorkType === "hybrid") score += 6;
+        else score += 2;
+      }
+    }
 
     // Each skillKeywordsPlus hit = +2–6; minus hits are penalties :contentReference[oaicite:8]{index=8}
     // keep your v1 weights but slightly more blueprint-like
@@ -381,17 +388,14 @@ function jobWorkTypeAccepted_(jobWorkType, profile) {
 
 /**
  * Region lock: return exclusion reason string or null if pass.
- * Rules: remote → global or preferred countries; hybrid → country + wider city; onsite → country + strict city.
+ * Rules: remote → global or preferred countries; hybrid/onsite → country only (no city gate; distance in scoring).
  */
 function applyRegionLock_(job, profile, normalized) {
   const workType = getJobWorkType_(job);
   const countries = (profile.preferredCountries || []).map(function (c) { return String(c || "").trim().toLowerCase(); }).filter(Boolean);
-  const cities = (profile.preferredCities || []).map(function (c) { return String(c || "").trim().toLowerCase(); }).filter(Boolean);
-  const currentCity = (profile.currentCity && String(profile.currentCity).trim()) ? String(profile.currentCity).trim().toLowerCase() : "";
   const scope = String(profile.remoteRegionScope || "remote_global").trim();
 
   const jobCountry = (normalized && normalized.country) ? String(normalized.country).trim().toLowerCase() : (job.country ? String(job.country).trim().toLowerCase() : null);
-  const jobCity = (normalized && normalized.city) ? String(normalized.city).trim().toLowerCase() : (job.city ? String(job.city).trim().toLowerCase() : null);
   const rawLoc = String(job.location || "").trim().toLowerCase();
 
   if (workType === "remote") {
@@ -409,23 +413,6 @@ function applyRegionLock_(job, profile, normalized) {
       const rawMatchesCountry = rawLoc && countries.some(function (c) { return rawLoc.indexOf(c) !== -1; });
       const jobInCountries = jobCountry && countries.indexOf(jobCountry) !== -1;
       if (!jobInCountries && !rawMatchesCountry) return "regionLock:job_country_not_in_preferred";
-    }
-    if (workType === "onsite") {
-      const cityList = currentCity ? [currentCity].concat(cities) : cities;
-      if (cityList.length > 0 && (jobCity || rawLoc)) {
-        const matchesCity = jobCity && cityList.some(function (c) { return c === jobCity || jobCity.indexOf(c) !== -1 || c.indexOf(jobCity) !== -1; });
-        const rawMatchesCity = rawLoc && cityList.some(function (c) { return rawLoc.indexOf(c) !== -1; });
-        if (!matchesCity && !rawMatchesCity) return "regionLock:onsite_city_mismatch";
-      }
-    } else {
-      if (cities.length > 0 || currentCity) {
-        const cityList = currentCity ? [currentCity].concat(cities) : cities;
-        if (jobCity || rawLoc) {
-          const matchesCity = jobCity && cityList.some(function (c) { return c === jobCity || jobCity.indexOf(c) !== -1 || c.indexOf(jobCity) !== -1; });
-          const rawMatchesCity = rawLoc && cityList.some(function (c) { return rawLoc.indexOf(c) !== -1; });
-          if (!matchesCity && !rawMatchesCity) return "regionLock:hybrid_city_not_in_preferred";
-        }
-      }
     }
   }
 

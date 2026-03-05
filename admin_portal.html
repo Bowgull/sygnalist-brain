@@ -82,8 +82,16 @@
       .lane-toggle-wrap.on .lane-svg-off { display: none !important; }
       .lane-toggle-wrap:not(.on) .lane-svg-on { display: none !important; }
       .work-type-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-1); }
-      .work-type-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; background: var(--color-bg-elevated, #111); color: var(--color-text-muted); pointer-events: none; }
-      .work-type-pill.on { background: rgba(106, 215, 163, 0.2); color: var(--color-radar-mid); }
+      .work-type-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; background: var(--color-bg-elevated, #111); color: var(--color-text-muted); pointer-events: none; border: 1px solid var(--color-border); }
+      .work-type-pill.on { background: rgba(106, 215, 163, 0.2); color: var(--color-radar-mid); border-color: rgba(106, 215, 163, 0.4); }
+      .profile-check-wrap { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; margin-right: var(--space-3); }
+      .profile-check-wrap .profile-check { position: absolute; opacity: 0; width: 24px; height: 24px; margin: 0; cursor: pointer; }
+      .profile-check-wrap .profile-check:focus-visible + .intake-checkbox-visual { outline: 2px solid var(--color-radar-mid); outline-offset: 2px; }
+      .profile-check-wrap .intake-checkbox-visual { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; min-width: 22px; min-height: 22px; border-radius: 6px; border: 2px solid var(--color-border); background: transparent; color: transparent; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease; flex-shrink: 0; }
+      .profile-check-wrap:has(.profile-check:checked) .intake-checkbox-visual { background: var(--color-radar-mid); border-color: var(--color-radar-mid); color: #fff; }
+      .profile-check-wrap:has(.profile-check:checked) .intake-checkbox-visual::after { content: '\2713'; font-size: 0.875rem; font-weight: 700; line-height: 1; }
+      .work-mode-presets .btn-preset.active { border-color: rgba(106, 215, 163, 0.5); background: rgba(106, 215, 163, 0.12); color: var(--color-radar-mid); }
+      .work-mode-check-row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-top: var(--space-2); }
       .lane-remove-x { background: transparent; border: none; color: var(--color-text-muted); cursor: pointer; padding: 2px 6px; font-size: 1rem; line-height: 1; border-radius: var(--radius-sm); }
       .lane-remove-x:hover { color: var(--color-tier-x, #f87171); }
       .job-lanes-list-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
@@ -342,7 +350,7 @@
           <input type="hidden" id="enrichJobId" />
           <div class="form-group"><label>Company *</label><input type="text" id="enrichCompany" /></div>
           <div class="form-group"><label>Location *</label><input type="text" id="enrichLocation" /></div>
-          <div class="form-group"><label>Work mode *</label><select id="enrichWorkMode"><option value="">—</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></div>
+          <div class="form-group"><label>Work mode *</label><select id="enrichWorkMode"><option value="">-</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">On-site</option></select></div>
           <div class="form-group"><label>Job family *</label><input type="text" id="enrichJobFamily" list="enrichJobFamilyList" placeholder="Pick from lanes or type" /><datalist id="enrichJobFamilyList"></datalist></div>
           <div class="form-group"><label>Role (optional)</label><input type="text" id="enrichRole" list="enrichRoleList" placeholder="Pick from bank" /><datalist id="enrichRoleList"></datalist><input type="hidden" id="enrichRoleBankId" /></div>
           <div class="form-group"><button type="button" class="btn btn-ghost btn-sm" id="btnCreatePendingRoleFromJob">Create pending role from this job</button></div>
@@ -419,16 +427,18 @@
           <div class="form-group"><label>Email</label><input type="email" id="createEmail" placeholder="email@example.com" /></div>
           <div class="form-group">
             <label>Work mode</label>
-            <div class="form-hint">Check only one for remote-only, hybrid-only, or onsite-only; check all three for open to any.</div>
-            <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-1);">
-              <button type="button" class="btn btn-ghost btn-sm" id="createPresetRemote">Remote only</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="createPresetHybrid">Hybrid only</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="createPresetOnsite">On-site only</button>
-              <button type="button" class="btn btn-ghost btn-sm" id="createPresetAny">Any</button>
+            <div class="form-hint">Quick select one preset, or choose combinations below.</div>
+            <div class="work-mode-presets" style="margin-bottom: var(--space-2);">
+              <button type="button" class="btn btn-ghost btn-sm btn-preset" id="createPresetRemote">Remote only</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-preset" id="createPresetHybrid">Hybrid only</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-preset" id="createPresetOnsite">On-site only</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-preset" id="createPresetAny">Any</button>
             </div>
-            <label class="checkbox-label"><input type="checkbox" id="createAcceptRemote" checked> Accept Remote</label>
-            <label class="checkbox-label"><input type="checkbox" id="createAcceptHybrid"> Accept Hybrid</label>
-            <label class="checkbox-label"><input type="checkbox" id="createAcceptOnsite"> Accept On-site</label>
+            <div class="work-mode-check-row">
+              <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="createAcceptRemote" checked /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept Remote</label>
+              <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="createAcceptHybrid" /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept Hybrid</label>
+              <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="createAcceptOnsite" /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept On-site</label>
+            </div>
           </div>
           <div class="form-group">
             <label>Remote jobs</label>
@@ -439,26 +449,29 @@
           </div>
           <div class="form-group">
             <label>Preferred countries</label>
-            <label class="checkbox-label"><input type="checkbox" id="createPreferredCountryUS" checked> United States</label>
-            <label class="checkbox-label"><input type="checkbox" id="createPreferredCountryCA" checked> Canada</label>
+            <div class="work-mode-check-row">
+              <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="createPreferredCountryUS" checked /><span class="intake-checkbox-visual" aria-hidden="true"></span> United States</label>
+              <label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="createPreferredCountryCA" checked /><span class="intake-checkbox-visual" aria-hidden="true"></span> Canada</label>
+            </div>
             <p class="form-hint" style="margin-top: var(--space-1);">Sygnalist serves Canadian and US clients only; preferred countries are limited to US and Canada.</p>
           </div>
           <div class="form-group">
             <label>State / Province</label>
-            <select id="createStateProvince"><option value="">—</option></select>
+            <select id="createStateProvince"><option value="">-</option></select>
           </div>
           <div class="form-group">
             <label>Current city</label>
-            <select id="createCurrentCity"><option value="">—</option></select>
+            <select id="createCurrentCity"><option value="">-</option></select>
           </div>
           <div class="form-group">
-            <label>Preferred cities</label>
-            <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-1);">
-              <select id="createStateProvincePref" style="min-width: 140px;"><option value="">—</option></select>
-              <select id="createCityPref" style="min-width: 140px;"><option value="">—</option></select>
-              <button type="button" class="btn btn-ghost btn-sm" id="createAddCity">Add city</button>
-            </div>
-            <div id="createPreferredCitiesList" class="form-hint" style="min-height: 24px;"></div>
+            <label>Distance range</label>
+            <select id="createDistanceRangeKm">
+              <option value="40">25 mi</option>
+              <option value="80">50 mi</option>
+              <option value="161">100 mi</option>
+              <option value="999" selected>Any</option>
+            </select>
+            <p class="form-hint" style="margin-top: var(--space-1);">Used for scoring hybrid/on-site jobs by distance from current city; no hard filter.</p>
           </div>
           <div class="form-group"><label>Salary min (0 = any)</label><input type="number" id="createSalaryMin" value="0" min="0" /></div>
           <div class="form-group"><label>Preferred locations (legacy, for fetch)</label><input type="text" id="createPreferredLocations" placeholder="United States, Canada" /></div>
@@ -988,45 +1001,43 @@
           var pcArr = Array.isArray(pc) ? pc : (typeof pc === 'string' && pc ? pc.split(',').map(function(s) { return s.trim(); }) : []);
           var hasUS = pcArr.some(function(c) { return /united states|^us$|^usa$/i.test(String(c).trim()); });
           var hasCA = pcArr.some(function(c) { return /canada|^ca$/i.test(String(c).trim()); });
-          var prefCities = profile.preferredCities || [];
-          var prefCitiesArr = Array.isArray(prefCities) ? prefCities : (typeof prefCities === 'string' && prefCities ? prefCities.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : []);
           body.innerHTML = '<input type="hidden" id="editProfileId" value="' + esc(profile.profileId) + '">' +
             '<div class="form-group"><label>Display name</label><input type="text" id="editDisplayName" value="' + esc(profile.displayName) + '"></div>' +
             '<div class="form-group"><label>Email</label><input type="email" id="editEmail" value="' + esc(profile.email) + '"></div>' +
             '<div class="form-group"><label>Status</label><input type="text" value="' + esc(profile.status) + '" disabled></div>' +
             '<div class="form-group"><label>Work mode</label>' +
-            '<p class="form-hint" style="margin-bottom: var(--space-1);">Check only one for remote-only, hybrid-only, or onsite-only; check all three for open to any.</p>' +
-            '<div style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-1);">' +
-            '<button type="button" class="btn btn-ghost btn-sm" id="editPresetRemote">Remote only</button>' +
-            '<button type="button" class="btn btn-ghost btn-sm" id="editPresetHybrid">Hybrid only</button>' +
-            '<button type="button" class="btn btn-ghost btn-sm" id="editPresetOnsite">On-site only</button>' +
-            '<button type="button" class="btn btn-ghost btn-sm" id="editPresetAny">Any</button></div>' +
-            '<label class="checkbox-label"><input type="checkbox" id="editAcceptRemote" ' + (profile.acceptRemote ? 'checked' : '') + '> Accept Remote</label>' +
-            '<label class="checkbox-label"><input type="checkbox" id="editAcceptHybrid" ' + (profile.acceptHybrid ? 'checked' : '') + '> Accept Hybrid</label>' +
-            '<label class="checkbox-label"><input type="checkbox" id="editAcceptOnsite" ' + (profile.acceptOnsite ? 'checked' : '') + '> Accept On-site</label></div>' +
+            '<p class="form-hint" style="margin-bottom: var(--space-1);">Quick select one preset, or choose combinations below.</p>' +
+            '<div class="work-mode-presets" style="margin-bottom: var(--space-2);">' +
+            '<button type="button" class="btn btn-ghost btn-sm btn-preset" id="editPresetRemote">Remote only</button>' +
+            '<button type="button" class="btn btn-ghost btn-sm btn-preset" id="editPresetHybrid">Hybrid only</button>' +
+            '<button type="button" class="btn btn-ghost btn-sm btn-preset" id="editPresetOnsite">On-site only</button>' +
+            '<button type="button" class="btn btn-ghost btn-sm btn-preset" id="editPresetAny">Any</button></div>' +
+            '<div class="work-mode-check-row">' +
+            '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editAcceptRemote" ' + (profile.acceptRemote ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept Remote</label>' +
+            '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editAcceptHybrid" ' + (profile.acceptHybrid ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept Hybrid</label>' +
+            '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editAcceptOnsite" ' + (profile.acceptOnsite ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> Accept On-site</label></div></div>' +
             '<div class="form-group"><label>Remote jobs</label><select id="editRemoteScope">' +
             '<option value="remote_global"' + (profile.remoteRegionScope === 'remote_preferred_countries_only' ? '' : ' selected') + '>Global</option>' +
             '<option value="remote_preferred_countries_only"' + (profile.remoteRegionScope === 'remote_preferred_countries_only' ? ' selected' : '') + '>Only in preferred countries</option></select></div>' +
             '<div class="form-group"><label>Preferred countries</label>' +
-            '<label class="checkbox-label"><input type="checkbox" id="editPreferredCountryUS" ' + (hasUS ? 'checked' : '') + '> United States</label>' +
-            '<label class="checkbox-label"><input type="checkbox" id="editPreferredCountryCA" ' + (hasCA ? 'checked' : '') + '> Canada</label>' +
+            '<div class="work-mode-check-row">' +
+            '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editPreferredCountryUS" ' + (hasUS ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> United States</label>' +
+            '<label class="profile-check-wrap"><input type="checkbox" class="profile-check" id="editPreferredCountryCA" ' + (hasCA ? 'checked' : '') + ' /><span class="intake-checkbox-visual" aria-hidden="true"></span> Canada</label></div>' +
             '<p class="form-hint" style="margin-top: var(--space-1);">Sygnalist serves Canadian and US clients only.</p></div>' +
-            '<div class="form-group"><label>State / Province</label><select id="editStateProvince"><option value="">—</option></select></div>' +
-            '<div class="form-group"><label>Current city</label><select id="editCurrentCity"><option value="">—</option></select></div>' +
-            '<div class="form-group"><label>Preferred cities</label>' +
-            '<div style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-1);">' +
-            '<select id="editStateProvincePref" style="min-width: 140px;"><option value="">—</option></select>' +
-            '<select id="editCityPref" style="min-width: 140px;"><option value="">—</option></select>' +
-            '<button type="button" class="btn btn-ghost btn-sm" id="editAddCity">Add city</button></div>' +
-            '<div id="editPreferredCitiesList" class="form-hint" style="min-height: 24px;"></div></div>' +
+            '<div class="form-group"><label>State / Province</label><select id="editStateProvince"><option value="">-</option></select></div>' +
+            '<div class="form-group"><label>Current city</label><select id="editCurrentCity"><option value="">-</option></select></div>' +
+            '<div class="form-group"><label>Distance range</label><select id="editDistanceRangeKm">' +
+            '<option value="40"' + ((profile.distanceRangeKm || 999) === 40 ? ' selected' : '') + '>25 mi</option>' +
+            '<option value="80"' + ((profile.distanceRangeKm || 999) === 80 ? ' selected' : '') + '>50 mi</option>' +
+            '<option value="161"' + ((profile.distanceRangeKm || 999) === 161 ? ' selected' : '') + '>100 mi</option>' +
+            '<option value="999"' + ((profile.distanceRangeKm || 999) === 999 ? ' selected' : '') + '>Any</option></select>' +
+            '<p class="form-hint" style="margin-top: var(--space-1);">Used for scoring; no hard filter.</p></div>' +
             '<div class="form-group"><label>Salary min</label><input type="number" id="editSalaryMin" value="' + (profile.salaryMin || 0) + '" min="0"></div>' +
             '<div class="form-group"><label>Skill profile text</label><textarea id="editSkillProfileText" rows="4">' + esc(profile.skillProfileText || '') + '</textarea></div>';
-          window.editPreferredCitiesArr = prefCitiesArr.slice();
           var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
           if (ld) {
             fillEditStateProvinceDropdownsPortal_();
             fillEditCityFromStatePortal_('editCurrentCity', 'editStateProvince');
-            fillEditCityFromStatePortal_('editCityPref', 'editStateProvincePref');
             var currentCityVal = (profile.currentCity || '').trim();
             if (currentCityVal && ld.citiesByStateProvince) {
               var foundCode = null;
@@ -1049,12 +1060,9 @@
                 }
               }
             }
-            renderEditPreferredCitiesListPortal_();
-          }
+            }
           var spEl = document.getElementById('editStateProvince');
           if (spEl) spEl.addEventListener('change', function() { fillEditCityFromStatePortal_('editCurrentCity', 'editStateProvince'); });
-          var spPrefEl = document.getElementById('editStateProvincePref');
-          if (spPrefEl) spPrefEl.addEventListener('change', function() { fillEditCityFromStatePortal_('editCityPref', 'editStateProvincePref'); });
           var editPreferredCountryUS = document.getElementById('editPreferredCountryUS');
           if (editPreferredCountryUS) editPreferredCountryUS.addEventListener('change', fillEditStateProvinceDropdownsPortal_);
           var editPreferredCountryCA = document.getElementById('editPreferredCountryCA');
@@ -1067,14 +1075,30 @@
             if (h) h.checked = !!hybrid;
             if (o) o.checked = !!onsite;
           }
+          function setEditPresetActivePortal_(presetId) {
+            var container = document.getElementById('editFormBody');
+            if (!container) return;
+            container.querySelectorAll('.btn-preset').forEach(function(btn) { btn.classList.remove('active'); });
+            var el = document.getElementById(presetId);
+            if (el) el.classList.add('active');
+          }
           var epR = document.getElementById('editPresetRemote');
-          if (epR) epR.addEventListener('click', function() { setEditWorkPresetPortal_(true, false, false); });
+          if (epR) epR.addEventListener('click', function() { setEditWorkPresetPortal_(true, false, false); setEditPresetActivePortal_('editPresetRemote'); });
           var epH = document.getElementById('editPresetHybrid');
-          if (epH) epH.addEventListener('click', function() { setEditWorkPresetPortal_(false, true, false); });
+          if (epH) epH.addEventListener('click', function() { setEditWorkPresetPortal_(false, true, false); setEditPresetActivePortal_('editPresetHybrid'); });
           var epO = document.getElementById('editPresetOnsite');
-          if (epO) epO.addEventListener('click', function() { setEditWorkPresetPortal_(false, false, true); });
+          if (epO) epO.addEventListener('click', function() { setEditWorkPresetPortal_(false, false, true); setEditPresetActivePortal_('editPresetOnsite'); });
           var epA = document.getElementById('editPresetAny');
-          if (epA) epA.addEventListener('click', function() { setEditWorkPresetPortal_(true, true, true); });
+          if (epA) epA.addEventListener('click', function() { setEditWorkPresetPortal_(true, true, true); setEditPresetActivePortal_('editPresetAny'); });
+          var r = document.getElementById('editAcceptRemote');
+          var h = document.getElementById('editAcceptHybrid');
+          var o = document.getElementById('editAcceptOnsite');
+          if (r && h && o) {
+            if (r.checked && !h.checked && !o.checked) setEditPresetActivePortal_('editPresetRemote');
+            else if (!r.checked && h.checked && !o.checked) setEditPresetActivePortal_('editPresetHybrid');
+            else if (!r.checked && !h.checked && o.checked) setEditPresetActivePortal_('editPresetOnsite');
+            else if (r.checked && h.checked && o.checked) setEditPresetActivePortal_('editPresetAny');
+          }
           var mEdit = document.getElementById('modalEdit');
           if (mEdit) mEdit.classList.add('visible');
         }).withFailureHandler(function(err) { showToast(adminErrorMessage(err, 'Error'), true); }).adminGetProfileForEdit(profileId);
@@ -1086,25 +1110,20 @@
         var ca = document.getElementById('editPreferredCountryCA') && document.getElementById('editPreferredCountryCA').checked;
         if (!us && !ca) { us = true; ca = true; }
         var sel = document.getElementById('editStateProvince');
-        var selPref = document.getElementById('editStateProvincePref');
-        if (!sel || !selPref) return;
-        sel.innerHTML = '<option value="">—</option>';
-        selPref.innerHTML = '<option value="">—</option>';
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-</option>';
         if (us && ld.usStates) {
           var gUS = document.createElement('optgroup');
           gUS.label = 'United States';
           ld.usStates.forEach(function(s) { var o = document.createElement('option'); o.value = s.code; o.textContent = s.name; gUS.appendChild(o); });
           sel.appendChild(gUS);
-          selPref.appendChild(gUS.cloneNode(true));
         }
         if (ca && ld.caProvinces) {
           var gCA = document.createElement('optgroup');
           gCA.label = 'Canada';
           ld.caProvinces.forEach(function(s) { var o = document.createElement('option'); o.value = s.code; o.textContent = s.name; gCA.appendChild(o); });
           sel.appendChild(gCA);
-          selPref.appendChild(gCA.cloneNode(true));
         }
-        fillEditCityFromStatePortal_('editCityPref', 'editStateProvincePref');
       }
       function fillEditCityFromStatePortal_(citySelectId, stateSelectId) {
         var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
@@ -1114,7 +1133,7 @@
         if (!stateEl || !cityEl) return;
         var code = stateEl.value;
         var prevVal = citySelectId === 'editCurrentCity' ? cityEl.value : '';
-        cityEl.innerHTML = '<option value="">—</option>';
+        cityEl.innerHTML = '<option value="">-</option>';
         if (code && ld.citiesByStateProvince[code]) {
           ld.citiesByStateProvince[code].forEach(function(c) {
             var o = document.createElement('option'); o.value = c; o.textContent = c;
@@ -1141,18 +1160,6 @@
           list.appendChild(span);
         });
       }
-      document.addEventListener('click', function(e) {
-        if (e.target && e.target.id === 'editAddCity') {
-          var cityEl = document.getElementById('editCityPref');
-          if (!cityEl || !cityEl.value) return;
-          var city = cityEl.value.trim();
-          if (!city) return;
-          window.editPreferredCitiesArr = window.editPreferredCitiesArr || [];
-          if (window.editPreferredCitiesArr.indexOf(city) === -1) window.editPreferredCitiesArr.push(city);
-          renderEditPreferredCitiesListPortal_();
-        }
-      });
-
       var editSave = document.getElementById('editSave');
       if (editSave) editSave.addEventListener('click', function() {
         if (!canCallServer()) { showToast('Open this page from the deployed app link.', true); return; }
@@ -1171,8 +1178,9 @@
           acceptOnsite: document.getElementById('editAcceptOnsite') && document.getElementById('editAcceptOnsite').checked,
           remoteRegionScope: (document.getElementById('editRemoteScope') && document.getElementById('editRemoteScope').value) || 'remote_global',
           preferredCountries: preferredCountries.join(', '),
-          preferredCities: (window.editPreferredCitiesArr && window.editPreferredCitiesArr.length) ? window.editPreferredCitiesArr.join(', ') : '',
+          preferredCities: '',
           currentCity: document.getElementById('editCurrentCity') ? (document.getElementById('editCurrentCity').value || '').trim() : '',
+          distanceRangeKm: parseInt((document.getElementById('editDistanceRangeKm') && document.getElementById('editDistanceRangeKm').value) || '999', 10) || 999,
           preferredLocations: preferredCountries.join(', ')
         };
         google.script.run.withSuccessHandler(function(r) {
@@ -1199,13 +1207,10 @@
         window.createWizardDisplayName = '';
         window.createWizardParsed = null;
         window.createWizardStagingRows = 0;
-        window.createPreferredCitiesArr = [];
         var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
         if (ld) {
           fillCreateStateProvinceDropdownsPortal_();
           fillCreateCityFromStatePortal_('createCurrentCity', 'createStateProvince');
-          fillCreateCityFromStatePortal_('createCityPref', 'createStateProvincePref');
-          renderCreatePreferredCitiesListPortal_();
         }
       });
       function fillCreateStateProvinceDropdownsPortal_() {
@@ -1214,10 +1219,8 @@
         var us = document.getElementById('createPreferredCountryUS') && document.getElementById('createPreferredCountryUS').checked;
         var ca = document.getElementById('createPreferredCountryCA') && document.getElementById('createPreferredCountryCA').checked;
         var sel = document.getElementById('createStateProvince');
-        var selPref = document.getElementById('createStateProvincePref');
-        if (!sel || !selPref) return;
-        sel.innerHTML = '<option value="">—</option>';
-        selPref.innerHTML = '<option value="">—</option>';
+        if (!sel) return;
+        sel.innerHTML = '<option value="">-</option>';
         if (us && ld.usStates) {
           var gUS = document.createElement('optgroup');
           gUS.label = 'United States';
@@ -1230,10 +1233,8 @@
           gCA.label = 'Canada';
           ld.caProvinces.forEach(function(s) { var o = document.createElement('option'); o.value = s.code; o.textContent = s.name; gCA.appendChild(o); });
           sel.appendChild(gCA);
-          selPref.appendChild(gCA.cloneNode(true));
         }
         fillCreateCityFromStatePortal_('createCurrentCity', 'createStateProvince');
-        fillCreateCityFromStatePortal_('createCityPref', 'createStateProvincePref');
       }
       function fillCreateCityFromStatePortal_(citySelectId, stateSelectId) {
         var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
@@ -1242,7 +1243,7 @@
         var cityEl = document.getElementById(citySelectId);
         if (!stateEl || !cityEl) return;
         var code = stateEl.value;
-        cityEl.innerHTML = '<option value="">—</option>';
+        cityEl.innerHTML = '<option value="">-</option>';
         if (code && ld.citiesByStateProvince[code]) {
           ld.citiesByStateProvince[code].forEach(function(c) {
             var o = document.createElement('option'); o.value = c; o.textContent = c; cityEl.appendChild(o);
@@ -1269,22 +1270,10 @@
       }
       var createStateProvinceP = document.getElementById('createStateProvince');
       if (createStateProvinceP) createStateProvinceP.addEventListener('change', function() { fillCreateCityFromStatePortal_('createCurrentCity', 'createStateProvince'); });
-      var createStateProvincePrefP = document.getElementById('createStateProvincePref');
-      if (createStateProvincePrefP) createStateProvincePrefP.addEventListener('change', function() { fillCreateCityFromStatePortal_('createCityPref', 'createStateProvincePref'); });
       var createPreferredCountryUSP = document.getElementById('createPreferredCountryUS');
       if (createPreferredCountryUSP) createPreferredCountryUSP.addEventListener('change', fillCreateStateProvinceDropdownsPortal_);
       var createPreferredCountryCAP = document.getElementById('createPreferredCountryCA');
       if (createPreferredCountryCAP) createPreferredCountryCAP.addEventListener('change', fillCreateStateProvinceDropdownsPortal_);
-      var createAddCityP = document.getElementById('createAddCity');
-      if (createAddCityP) createAddCityP.addEventListener('click', function() {
-        var cityEl = document.getElementById('createCityPref');
-        if (!cityEl || !cityEl.value) return;
-        var city = cityEl.value.trim();
-        if (!city) return;
-        window.createPreferredCitiesArr = window.createPreferredCitiesArr || [];
-        if (window.createPreferredCitiesArr.indexOf(city) === -1) window.createPreferredCitiesArr.push(city);
-        renderCreatePreferredCitiesListPortal_();
-      });
       function setCreateWorkPresetPortal_(remote, hybrid, onsite) {
         var r = document.getElementById('createAcceptRemote');
         var h = document.getElementById('createAcceptHybrid');
@@ -1293,10 +1282,17 @@
         if (h) h.checked = !!hybrid;
         if (o) o.checked = !!onsite;
       }
-      if (document.getElementById('createPresetRemote')) document.getElementById('createPresetRemote').addEventListener('click', function() { setCreateWorkPresetPortal_(true, false, false); });
-      if (document.getElementById('createPresetHybrid')) document.getElementById('createPresetHybrid').addEventListener('click', function() { setCreateWorkPresetPortal_(false, true, false); });
-      if (document.getElementById('createPresetOnsite')) document.getElementById('createPresetOnsite').addEventListener('click', function() { setCreateWorkPresetPortal_(false, false, true); });
-      if (document.getElementById('createPresetAny')) document.getElementById('createPresetAny').addEventListener('click', function() { setCreateWorkPresetPortal_(true, true, true); });
+      function setCreatePresetActivePortal_(presetId) {
+        var container = document.getElementById('createStep1');
+        if (!container) return;
+        container.querySelectorAll('.btn-preset').forEach(function(btn) { btn.classList.remove('active'); });
+        var el = document.getElementById(presetId);
+        if (el) el.classList.add('active');
+      }
+      if (document.getElementById('createPresetRemote')) document.getElementById('createPresetRemote').addEventListener('click', function() { setCreateWorkPresetPortal_(true, false, false); setCreatePresetActivePortal_('createPresetRemote'); });
+      if (document.getElementById('createPresetHybrid')) document.getElementById('createPresetHybrid').addEventListener('click', function() { setCreateWorkPresetPortal_(false, true, false); setCreatePresetActivePortal_('createPresetHybrid'); });
+      if (document.getElementById('createPresetOnsite')) document.getElementById('createPresetOnsite').addEventListener('click', function() { setCreateWorkPresetPortal_(false, false, true); setCreatePresetActivePortal_('createPresetOnsite'); });
+      if (document.getElementById('createPresetAny')) document.getElementById('createPresetAny').addEventListener('click', function() { setCreateWorkPresetPortal_(true, true, true); setCreatePresetActivePortal_('createPresetAny'); });
       var createSubmit = document.getElementById('createSubmit');
       if (createSubmit) createSubmit.addEventListener('click', function() {
         var acceptRemote = document.getElementById('createAcceptRemote') && document.getElementById('createAcceptRemote').checked;
@@ -1322,8 +1318,9 @@
           acceptOnsite: acceptOnsite,
           remoteRegionScope: (document.getElementById('createRemoteScope') && document.getElementById('createRemoteScope').value) || 'remote_global',
           preferredCountries: preferredCountries,
-          preferredCities: (window.createPreferredCitiesArr && window.createPreferredCitiesArr.length) ? window.createPreferredCitiesArr.join(', ') : '',
+          preferredCities: '',
           currentCity: document.getElementById('createCurrentCity') ? (document.getElementById('createCurrentCity').value || '').trim() : '',
+          distanceRangeKm: parseInt((document.getElementById('createDistanceRangeKm') && document.getElementById('createDistanceRangeKm').value) || '999', 10) || 999,
           salaryMin: parseInt(document.getElementById('createSalaryMin').value, 10) || 0,
           preferredLocations: (document.getElementById('createPreferredLocations') ? document.getElementById('createPreferredLocations').value.trim() : '') || preferredCountries.join(', ')
         };
@@ -1931,7 +1928,7 @@
           html += '<div class="form-group"><label>URL</label><div class="jobs-intake-url-readonly">' + (row.url ? '<a href="' + esc(row.url) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + esc(String(row.url).length > 50 ? String(row.url).slice(0, 50) + '\u2026' : row.url) + '</a>' : '—') + '</div></div>';
           html += '<div class="form-group"><label>Source</label><input type="text" class="jobs-intake-field" data-field="source" value="' + esc(row.source || '') + '" /></div>';
           html += '<div class="form-group"><label class="' + (!(row.location || '').trim() ? 'field-missing' : '') + '">Location *</label><input type="text" class="jobs-intake-field" data-field="location" value="' + esc(row.location || '') + '" /></div>';
-          html += '<div class="form-group"><label class="' + (!(row.work_mode || '').trim() ? 'field-missing' : '') + '">Work mode *</label><select class="jobs-intake-field" data-field="work_mode"><option value="">—</option><option value="remote"' + (row.work_mode === 'remote' ? ' selected' : '') + '>Remote</option><option value="hybrid"' + (row.work_mode === 'hybrid' ? ' selected' : '') + '>Hybrid</option><option value="onsite"' + (row.work_mode === 'onsite' ? ' selected' : '') + '>On-site</option></select></div>';
+          html += '<div class="form-group"><label class="' + (!(row.work_mode || '').trim() ? 'field-missing' : '') + '">Work mode *</label><select class="jobs-intake-field" data-field="work_mode"><option value="">-</option><option value="remote"' + (row.work_mode === 'remote' ? ' selected' : '') + '>Remote</option><option value="hybrid"' + (row.work_mode === 'hybrid' ? ' selected' : '') + '>Hybrid</option><option value="onsite"' + (row.work_mode === 'onsite' ? ' selected' : '') + '>On-site</option></select></div>';
           html += '<div class="form-group"><label class="' + (!(row.job_family || '').trim() ? 'field-missing' : '') + '">Job family *</label><input type="text" class="jobs-intake-field" data-field="job_family" value="' + esc(row.job_family || '') + '" /></div>';
           html += '<div class="form-group"><label class="' + (!(row.description_snippet || '').trim() ? 'field-missing' : '') + '">Description snippet *</label><textarea class="jobs-intake-field" data-field="description_snippet" rows="2">' + esc(row.description_snippet || '') + '</textarea></div>';
           html += '<div class="form-group"><label>Job summary</label><textarea class="jobs-intake-field" data-field="job_summary" rows="2">' + esc(row.job_summary || '') + '</textarea></div>';

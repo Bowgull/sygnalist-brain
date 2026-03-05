@@ -141,6 +141,14 @@ function rowToProfile_(headers, row) {
     if (v != null && String(v).trim() !== "") return String(v).trim();
     return "";
   })();
+  const distanceRangeKm = (function () {
+    const v = get("distanceRangeKm");
+    if (v != null && String(v).trim() !== "") {
+      const n = parseInt(v, 10);
+      if (!isNaN(n) && n >= 0) return n;
+    }
+    return 999;
+  })();
   const remoteRegionScope = (function () {
     const v = get("remoteRegionScope");
     if (v != null && String(v).trim() !== "") return String(v).trim();
@@ -166,6 +174,7 @@ function rowToProfile_(headers, row) {
     preferredCountries: splitLoc.preferredCountries,
     preferredCities: splitLoc.preferredCities,
     currentCity: currentCity,
+    distanceRangeKm: distanceRangeKm,
     remoteRegionScope: remoteRegionScope,
 
     bannedKeywords: csvToArray_(get("bannedKeywords")),
