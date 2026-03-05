@@ -17,7 +17,7 @@ Use this as a quick reference when editing the Sygnalist Google Sheets cockpit. 
 
 | | |
 |--|--|
-| **What Josh edits here (safe controls)** | displayName, email, status (active / inactive_soft_locked), statusReason, isAdmin (TRUE/FALSE), and preference/skill columns (e.g. salaryMin, preferredLocations, skillProfileText, topSkills, signatureStories). **Lanes are changed only via Resume_Staging + "Apply Approved Lanes."** |
+| **What Josh edits here (safe controls)** | displayName, email, status (active / inactive_soft_locked), statusReason, isAdmin (TRUE/FALSE), and preference/skill columns (e.g. salaryMin, preferredLocations, skillProfileText, topSkills, signatureStories). **Lanes are changed only via Resume_Staging + "Apply Approved Lanes."** **Preferred countries:** Sygnalist serves Canadian and US clients only; preferred countries should be "United States" and/or "Canada". The admin and sidebar Create/Edit UI restrict to these two; other values may be supported by the engine but the UI only allows US and Canada. |
 | **What Josh must NOT touch (system / brittle)** | profileId (breaks lookups). roleTracksJSON, laneControlsJSON (JSON must stay valid; edit lanes via Resume_Staging only). portalSpreadsheetId, webAppUrl, last_fetch_at (system-managed). |
 
 ---

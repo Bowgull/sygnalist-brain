@@ -1,3 +1,4 @@
+<script><?!= HtmlService.createHtmlOutputFromFile('location_data').getContent() ?></script>
 <style>
   #adminTabContent .admin-page { max-width: 960px; margin: 0 auto; padding: var(--space-6); }
   #adminTabContent .admin-heading { font-size: 1.5rem; font-weight: 700; margin-bottom: var(--space-2); }
@@ -85,6 +86,9 @@
   #adminTabContent .lane-toggle-wrap .lane-svg-on { width: 64px; height: 32px; flex-shrink: 0; display: block; }
   #adminTabContent .lane-toggle-wrap.on .lane-svg-off { display: none !important; }
   #adminTabContent .lane-toggle-wrap:not(.on) .lane-svg-on { display: none !important; }
+  #adminTabContent .work-type-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-1); }
+  #adminTabContent .work-type-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; background: var(--color-bg-elevated, #111); color: var(--color-text-muted); pointer-events: none; }
+  #adminTabContent .work-type-pill.on { background: rgba(106, 215, 163, 0.2); color: var(--color-radar-mid); }
   #adminTabContent .lane-remove-x { background: transparent; border: none; color: var(--color-text-muted); cursor: pointer; padding: 2px 6px; font-size: 1rem; line-height: 1; border-radius: var(--radius-sm); }
   #adminTabContent .lane-remove-x:hover { color: var(--color-tier-x, #f87171); }
   #adminTabContent .job-lanes-list-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
@@ -363,7 +367,13 @@
         <div class="form-group"><label>Email</label><input type="email" id="createEmail" placeholder="email@example.com" /></div>
         <div class="form-group">
           <label>Work mode</label>
-          <div class="form-hint">Select all that apply.</div>
+          <div class="form-hint">Check only one for remote-only, hybrid-only, or onsite-only; check all three for open to any.</div>
+          <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-1);">
+            <button type="button" class="btn btn-ghost btn-sm" id="createPresetRemote">Remote only</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="createPresetHybrid">Hybrid only</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="createPresetOnsite">On-site only</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="createPresetAny">Any</button>
+          </div>
           <label class="checkbox-label"><input type="checkbox" id="createAcceptRemote" checked> Accept Remote</label>
           <label class="checkbox-label"><input type="checkbox" id="createAcceptHybrid"> Accept Hybrid</label>
           <label class="checkbox-label"><input type="checkbox" id="createAcceptOnsite"> Accept On-site</label>
@@ -375,10 +385,35 @@
             <option value="remote_preferred_countries_only">Only in preferred countries</option>
           </select>
         </div>
-        <div class="form-group"><label>Preferred countries (comma-separated)</label><input type="text" id="createPreferredCountries" placeholder="United States, Canada" /></div>
-        <div class="form-group"><label>Preferred cities (comma-separated)</label><input type="text" id="createPreferredCities" placeholder="e.g. New York, Boston" /></div>
-        <div class="form-group"><label>Current city</label><input type="text" id="createCurrentCity" placeholder="For strict on-site lock" /></div>
+        <div class="form-group">
+          <label>Preferred countries</label>
+          <label class="checkbox-label"><input type="checkbox" id="createPreferredCountryUS" checked> United States</label>
+          <label class="checkbox-label"><input type="checkbox" id="createPreferredCountryCA" checked> Canada</label>
+          <p class="form-hint" style="margin-top: var(--space-1);">Sygnalist serves Canadian and US clients only; preferred countries are limited to US and Canada.</p>
+        </div>
+        <div class="form-group">
+          <label>State / Province</label>
+          <select id="createStateProvince">
+            <option value="">—</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Current city</label>
+          <select id="createCurrentCity">
+            <option value="">—</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Preferred cities</label>
+          <div style="display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-1);">
+            <select id="createStateProvincePref" style="min-width: 140px;"><option value="">—</option></select>
+            <select id="createCityPref" style="min-width: 140px;"><option value="">—</option></select>
+            <button type="button" class="btn btn-ghost btn-sm" id="createAddCity">Add city</button>
+          </div>
+          <div id="createPreferredCitiesList" class="form-hint" style="min-height: 24px;"></div>
+        </div>
         <div class="form-group"><label>Salary min (0 = any)</label><input type="number" id="createSalaryMin" value="0" min="0" /></div>
+        <div class="form-group"><label>Preferred locations (legacy, for fetch)</label><input type="text" id="createPreferredLocations" placeholder="United States, Canada" /></div>
         <div class="form-group"><label>Preferred locations (legacy, for fetch)</label><input type="text" id="createPreferredLocations" placeholder="United States, Canada" /></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="createCancel">Cancel</button>

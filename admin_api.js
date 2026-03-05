@@ -37,7 +37,10 @@ function adminGetProfiles() {
         status: p.status || "active",
         email: p.email || "",
         last_fetch_at: p.last_fetch_at || null,
-        webAppUrl: p.webAppUrl || ""
+        webAppUrl: p.webAppUrl || "",
+        acceptRemote: !!p.acceptRemote,
+        acceptHybrid: !!p.acceptHybrid,
+        acceptOnsite: !!p.acceptOnsite
       };
     });
     logAdmin_("ok", "Get profiles completed", { count: (list && list.length) || 0 });

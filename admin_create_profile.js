@@ -39,12 +39,16 @@ function createProfileFromSidebar(data) {
     }
     var remoteRegionScope = String(data.remoteRegionScope || "remote_global").trim();
     if (remoteRegionScope !== "remote_preferred_countries_only") remoteRegionScope = "remote_global";
-    var preferredCountries = String(data.preferredCountries || "").trim();
+    var preferredCountriesRaw = data.preferredCountries;
+    var preferredCountries = normalizePreferredCountries_(preferredCountriesRaw);
+    if (preferredCountries.length === 0) {
+      return { ok: false, error: "At least one preferred country (United States or Canada) is required." };
+    }
     var preferredCities = String(data.preferredCities || "").trim();
     var currentCity = String(data.currentCity || "").trim();
     var salaryMin = parseInt(data.salaryMin, 10) || 0;
     var preferredLocations = String(data.preferredLocations || "").trim();
-    if (!preferredLocations && preferredCountries) preferredLocations = preferredCountries;
+    if (!preferredLocations && preferredCountries.length) preferredLocations = preferredCountries.join(", ");
 
     if (!profileId || profileId.length < 2) {
       return { ok: false, error: "Profile ID must be at least 2 characters." };
@@ -107,7 +111,7 @@ function createProfileFromSidebar(data) {
       setByHeader_(headers, row, "acceptRemote", acceptRemote ? "TRUE" : "FALSE");
       setByHeader_(headers, row, "acceptHybrid", acceptHybrid ? "TRUE" : "FALSE");
       setByHeader_(headers, row, "acceptOnsite", acceptOnsite ? "TRUE" : "FALSE");
-      setByHeader_(headers, row, "preferredCountries", preferredCountries);
+      setByHeader_(headers, row, "preferredCountries", preferredCountries.join(", "));
       setByHeader_(headers, row, "preferredCities", preferredCities);
       setByHeader_(headers, row, "currentCity", currentCity);
       setByHeader_(headers, row, "remoteRegionScope", remoteRegionScope);
@@ -145,3 +149,27 @@ function createProfileFromSidebar(data) {
 }
 
 // setByHeader_ is in core_utils.js (shared)
+
+/**
+ * Normalize preferred countries to only "United States" and/or "Canada".
+ * @param {string|string[]} raw - Comma-separated string or array from client
+ * @return {string[]} Array of "United States" and/or "Canada" (may be empty)
+ */
+function normalizePreferredCountries_(raw) {
+  var list = [];
+  if (Array.isArray(raw)) {
+    list = raw.map(function (c) { return String(c || "").trim(); }).filter(Boolean);
+  } else if (typeof raw === "string" && raw.trim()) {
+    list = raw.split(",").map(function (c) { return c.trim(); }).filter(Boolean);
+  }
+  var out = [];
+  for (var i = 0; i < list.length; i++) {
+    var v = list[i].toLowerCase();
+    if (v === "united states" || v === "us" || v === "usa") {
+      if (out.indexOf("United States") === -1) out.push("United States");
+    } else if (v === "canada" || v === "ca") {
+      if (out.indexOf("Canada") === -1) out.push("Canada");
+    }
+  }
+  return out;
+}

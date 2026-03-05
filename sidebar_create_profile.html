@@ -232,7 +232,13 @@
       
       <div class="field">
         <label>Work mode</label>
-        <div class="hint">Select all that apply.</div>
+        <div class="hint">Check only one for remote-only, hybrid-only, or onsite-only; check all three for open to any.</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+          <button type="button" class="btn btn-secondary" id="presetRemote" style="width: auto; padding: 6px 10px;">Remote only</button>
+          <button type="button" class="btn btn-secondary" id="presetHybrid" style="width: auto; padding: 6px 10px;">Hybrid only</button>
+          <button type="button" class="btn btn-secondary" id="presetOnsite" style="width: auto; padding: 6px 10px;">On-site only</button>
+          <button type="button" class="btn btn-secondary" id="presetAny" style="width: auto; padding: 6px 10px;">Any</button>
+        </div>
         <label class="checkbox-label"><input type="checkbox" id="acceptRemote" checked> Accept Remote</label>
         <label class="checkbox-label"><input type="checkbox" id="acceptHybrid"> Accept Hybrid</label>
         <label class="checkbox-label"><input type="checkbox" id="acceptOnsite"> Accept On-site</label>
@@ -247,18 +253,34 @@
       </div>
       
       <div class="field">
-        <label>Preferred countries (comma-separated)</label>
-        <input type="text" id="preferredCountries" placeholder="e.g. United States, Canada">
+        <label>Preferred countries</label>
+        <label class="checkbox-label"><input type="checkbox" id="preferredCountryUS" checked> United States</label>
+        <label class="checkbox-label"><input type="checkbox" id="preferredCountryCA" checked> Canada</label>
+        <p class="hint">Sygnalist serves Canadian and US clients only; preferred countries are limited to US and Canada.</p>
       </div>
       
       <div class="field">
-        <label>Preferred cities (comma-separated)</label>
-        <input type="text" id="preferredCities" placeholder="e.g. New York, Boston">
+        <label>State / Province</label>
+        <select id="stateProvince">
+          <option value="">—</option>
+        </select>
       </div>
       
       <div class="field">
         <label>Current city</label>
-        <input type="text" id="currentCity" placeholder="For strict on-site lock">
+        <select id="currentCity">
+          <option value="">—</option>
+        </select>
+      </div>
+      
+      <div class="field">
+        <label>Preferred cities</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px;">
+          <select id="stateProvincePref" style="min-width: 120px;"><option value="">—</option></select>
+          <select id="cityPref" style="min-width: 120px;"><option value="">—</option></select>
+          <button type="button" class="btn btn-secondary" id="addCityBtn" style="width: auto; padding: 8px 12px;">Add city</button>
+        </div>
+        <div id="preferredCitiesList" class="hint" style="min-height: 22px;"></div>
       </div>
       
       <div class="field">
@@ -315,11 +337,101 @@
       </div>
     </div>
     
+    <script><?!= HtmlService.createHtmlOutputFromFile('location_data').getContent() ?></script>
     <script>
       function $(id) { return document.getElementById(id); }
       
       var createdProfileId = '';
       var createFlowLastParsed = null;
+      window.sidebarPreferredCitiesArr = [];
+
+      function fillSidebarStateProvinceDropdowns() {
+        var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
+        if (!ld) return;
+        var us = $('preferredCountryUS') && $('preferredCountryUS').checked;
+        var ca = $('preferredCountryCA') && $('preferredCountryCA').checked;
+        var sel = $('stateProvince');
+        var selPref = $('stateProvincePref');
+        if (!sel || !selPref) return;
+        sel.innerHTML = '<option value="">—</option>';
+        selPref.innerHTML = '<option value="">—</option>';
+        if (us && ld.usStates) {
+          var gUS = document.createElement('optgroup');
+          gUS.label = 'United States';
+          ld.usStates.forEach(function(s) { var o = document.createElement('option'); o.value = s.code; o.textContent = s.name; gUS.appendChild(o); });
+          sel.appendChild(gUS);
+          selPref.appendChild(gUS.cloneNode(true));
+        }
+        if (ca && ld.caProvinces) {
+          var gCA = document.createElement('optgroup');
+          gCA.label = 'Canada';
+          ld.caProvinces.forEach(function(s) { var o = document.createElement('option'); o.value = s.code; o.textContent = s.name; gCA.appendChild(o); });
+          sel.appendChild(gCA);
+          selPref.appendChild(gCA.cloneNode(true));
+        }
+        fillSidebarCityFromState('currentCity', 'stateProvince');
+        fillSidebarCityFromState('cityPref', 'stateProvincePref');
+      }
+      function fillSidebarCityFromState(citySelectId, stateSelectId) {
+        var ld = typeof window.LOCATION_DATA !== 'undefined' ? window.LOCATION_DATA : null;
+        if (!ld || !ld.citiesByStateProvince) return;
+        var stateEl = $(stateSelectId);
+        var cityEl = $(citySelectId);
+        if (!stateEl || !cityEl) return;
+        var code = stateEl.value;
+        cityEl.innerHTML = '<option value="">—</option>';
+        if (code && ld.citiesByStateProvince[code]) {
+          ld.citiesByStateProvince[code].forEach(function(c) {
+            var o = document.createElement('option'); o.value = c; o.textContent = c; cityEl.appendChild(o);
+          });
+        }
+      }
+      function renderSidebarPreferredCitiesList() {
+        var list = $('preferredCitiesList');
+        if (!list) return;
+        var arr = window.sidebarPreferredCitiesArr || [];
+        if (arr.length === 0) { list.innerHTML = ''; list.textContent = ''; return; }
+        list.innerHTML = '';
+        arr.forEach(function(city, i) {
+          var span = document.createElement('span');
+          span.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; margin: 2px 4px 2px 0; background: var(--bg-elevated); border-radius: 6px; font-size: 12px;';
+          span.textContent = city;
+          var btn = document.createElement('button');
+          btn.type = 'button'; btn.textContent = '×'; btn.setAttribute('aria-label', 'Remove');
+          btn.style.cssText = 'background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 2px; font-size: 1rem; line-height: 1;';
+          btn.addEventListener('click', function() { window.sidebarPreferredCitiesArr.splice(i, 1); renderSidebarPreferredCitiesList(); });
+          span.appendChild(btn);
+          list.appendChild(span);
+        });
+      }
+      if (typeof window.LOCATION_DATA !== 'undefined') {
+        fillSidebarStateProvinceDropdowns();
+        renderSidebarPreferredCitiesList();
+      }
+      if ($('stateProvince')) $('stateProvince').addEventListener('change', function() { fillSidebarCityFromState('currentCity', 'stateProvince'); });
+      if ($('stateProvincePref')) $('stateProvincePref').addEventListener('change', function() { fillSidebarCityFromState('cityPref', 'stateProvincePref'); });
+      if ($('preferredCountryUS')) $('preferredCountryUS').addEventListener('change', fillSidebarStateProvinceDropdowns);
+      if ($('preferredCountryCA')) $('preferredCountryCA').addEventListener('change', fillSidebarStateProvinceDropdowns);
+      if ($('addCityBtn')) $('addCityBtn').addEventListener('click', function() {
+        var cityEl = $('cityPref');
+        if (!cityEl || !cityEl.value) return;
+        var city = cityEl.value.trim();
+        if (!city) return;
+        if (window.sidebarPreferredCitiesArr.indexOf(city) === -1) window.sidebarPreferredCitiesArr.push(city);
+        renderSidebarPreferredCitiesList();
+      });
+      function setSidebarWorkPreset(remote, hybrid, onsite) {
+        var r = $('acceptRemote');
+        var h = $('acceptHybrid');
+        var o = $('acceptOnsite');
+        if (r) r.checked = !!remote;
+        if (h) h.checked = !!hybrid;
+        if (o) o.checked = !!onsite;
+      }
+      if ($('presetRemote')) $('presetRemote').addEventListener('click', function() { setSidebarWorkPreset(true, false, false); });
+      if ($('presetHybrid')) $('presetHybrid').addEventListener('click', function() { setSidebarWorkPreset(false, true, false); });
+      if ($('presetOnsite')) $('presetOnsite').addEventListener('click', function() { setSidebarWorkPreset(false, false, true); });
+      if ($('presetAny')) $('presetAny').addEventListener('click', function() { setSidebarWorkPreset(true, true, true); });
 
       function showStatus(msg, type) {
         var el = $('status');
@@ -347,6 +459,12 @@
         }
         if (!$('acceptRemote').checked && !$('acceptHybrid').checked && !$('acceptOnsite').checked) {
           return showStatus('Select at least one work mode (Remote, Hybrid, or On-site).', 'error');
+        }
+        var preferredCountries = [];
+        if ($('preferredCountryUS') && $('preferredCountryUS').checked) preferredCountries.push('United States');
+        if ($('preferredCountryCA') && $('preferredCountryCA').checked) preferredCountries.push('Canada');
+        if (preferredCountries.length === 0) {
+          return showStatus('Select at least one preferred country (United States or Canada).', 'error');
         }
         
         $('createBtn').disabled = true;
@@ -381,11 +499,11 @@
             acceptHybrid: $('acceptHybrid').checked,
             acceptOnsite: $('acceptOnsite').checked,
             remoteRegionScope: $('remoteRegionScope').value || 'remote_global',
-            preferredCountries: $('preferredCountries').value.trim(),
-            preferredCities: $('preferredCities').value.trim(),
-            currentCity: $('currentCity').value.trim(),
+            preferredCountries: preferredCountries,
+            preferredCities: (window.sidebarPreferredCitiesArr && window.sidebarPreferredCitiesArr.length) ? window.sidebarPreferredCitiesArr.join(', ') : '',
+            currentCity: ($('currentCity') && $('currentCity').value) ? $('currentCity').value.trim() : '',
             salaryMin: parseInt($('salaryMin').value, 10) || 0,
-            preferredLocations: $('preferredLocations').value.trim()
+            preferredLocations: preferredCountries.join(', ')
           });
       }
 
