@@ -149,7 +149,7 @@ function adminUpdateProfile(profileId, patch) {
       else setByHeader_(headers, row, key, sheetVal);
     }
     var rowNum = rowIndex + 1;
-    sh.getRange(rowNum, 1, rowNum, row.length).setValues([row]);
+    sh.getRange(rowNum, 1, 1, row.length).setValues([row]);
 
     if (typeof logEvent_ === "function") {
       logEvent_({
