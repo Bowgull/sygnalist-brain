@@ -106,6 +106,59 @@ function truncateStr_(str, maxLen) {
 }
 
 /**
+ * Admin_Profiles: canonical key -> allowed header names (for read/write resilience).
+ * Enables "Preferred Countries" / "preferredCountries" etc. to work.
+ */
+var ADMIN_PROFILE_HEADER_ALIASES_ = {
+  preferredCountries: ["preferredCountries", "Preferred Countries", "preferred countries"],
+  preferredLocations: ["preferredLocations", "Preferred Locations", "preferred locations"],
+  preferredCities: ["preferredCities", "Preferred Cities", "preferred cities"],
+  currentCity: ["currentCity", "Current City", "Current city"],
+  distanceRangeKm: ["distanceRangeKm", "Distance Range Km", "distance range km"],
+  remoteRegionScope: ["remoteRegionScope", "Remote Region Scope", "remote region scope"],
+  acceptRemote: ["acceptRemote", "Accept Remote", "accept remote"],
+  acceptHybrid: ["acceptHybrid", "Accept Hybrid", "accept hybrid"],
+  acceptOnsite: ["acceptOnsite", "Accept Onsite", "accept onsite"],
+  displayName: ["displayName", "Display Name", "display name"],
+  email: ["email", "Email"],
+  salaryMin: ["salaryMin", "Salary Min", "salary min"],
+  skillProfileText: ["skillProfileText", "Skill Profile Text", "skill profile text"]
+};
+
+/**
+ * Resolve column index for Admin_Profiles by canonical key or alias.
+ * @param {string[]} headers - Row of header names (trimmed)
+ * @param {string} canonicalKey - e.g. "preferredCountries"
+ * @return {number} Index or -1
+ */
+function getHeaderIndex_(headers, canonicalKey) {
+  if (!headers || !canonicalKey) return -1;
+  var aliases = ADMIN_PROFILE_HEADER_ALIASES_ && ADMIN_PROFILE_HEADER_ALIASES_[canonicalKey];
+  if (aliases && aliases.length > 0) {
+    for (var i = 0; i < headers.length; i++) {
+      var h = String(headers[i] || "").trim();
+      for (var j = 0; j < aliases.length; j++) {
+        if (h.toLowerCase() === String(aliases[j] || "").trim().toLowerCase()) return i;
+      }
+    }
+    return -1;
+  }
+  return headers.indexOf(canonicalKey);
+}
+
+/**
+ * Set a row cell by header name (alias-aware). Uses getHeaderIndex_ so alternate headers work.
+ * @param {string[]} headers - Row of header names
+ * @param {Array} row - Mutable row array
+ * @param {string} key - Canonical header name
+ * @param {*} value - Value to set
+ */
+function setByHeaderWithAliases_(headers, row, key, value) {
+  var idx = getHeaderIndex_(headers, key);
+  if (idx !== -1) row[idx] = value;
+}
+
+/**
  * Set a row cell by header name. Shared by admin_create_profile and admin_debug.
  * @param {string[]} headers - Row of header names
  * @param {Array} row - Mutable row array

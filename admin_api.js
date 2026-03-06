@@ -109,7 +109,25 @@ function adminUpdateProfile(profileId, patch) {
 
     var forbidden = ["profileId", "status", "statusReason", "isAdmin"];
     var row = values[rowIndex].slice();
+    var keysToEnsure = [];
+    var aliasMap = typeof ADMIN_PROFILE_HEADER_ALIASES_ !== "undefined" ? ADMIN_PROFILE_HEADER_ALIASES_ : null;
     for (var key in patch) {
+      if (!Object.prototype.hasOwnProperty.call(patch, key)) continue;
+      if (forbidden.indexOf(key) !== -1) continue;
+      if (typeof getHeaderIndex_ === "function" && getHeaderIndex_(headers, key) === -1 && aliasMap && Object.prototype.hasOwnProperty.call(aliasMap, key)) keysToEnsure.push(key);
+    }
+    for (var k = 0; k < keysToEnsure.length; k++) {
+      var col = sh.getLastColumn() + 1;
+      sh.getRange(1, col).setValue(keysToEnsure[k]);
+      for (var r = 2; r <= lastRow; r++) sh.getRange(r, col).setValue("");
+    }
+    if (keysToEnsure.length > 0) {
+      lastCol = sh.getLastColumn();
+      values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+      headers = values[0].map(function (h) { return String(h || "").trim(); });
+      row = values[rowIndex].slice();
+    }
+    for (key in patch) {
       if (!Object.prototype.hasOwnProperty.call(patch, key)) continue;
       if (forbidden.indexOf(key) !== -1) continue;
       var val = patch[key];
@@ -127,7 +145,8 @@ function adminUpdateProfile(profileId, patch) {
       } else if (typeof val === "boolean") {
         sheetVal = val ? "TRUE" : "FALSE";
       }
-      setByHeader_(headers, row, key, sheetVal);
+      if (typeof setByHeaderWithAliases_ === "function") setByHeaderWithAliases_(headers, row, key, sheetVal);
+      else setByHeader_(headers, row, key, sheetVal);
     }
     var rowNum = rowIndex + 1;
     for (var c = 0; c < row.length; c++) {

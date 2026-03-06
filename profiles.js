@@ -102,8 +102,9 @@ function splitPreferredLocationsToCountriesAndCities_(arr) {
 
 function rowToProfile_(headers, row) {
   const get = (key) => {
-    const idx = headers.indexOf(key);
-    return idx === -1 ? null : row[idx];
+    const idx = (typeof getHeaderIndex_ === "function" ? getHeaderIndex_(headers, key) : headers.indexOf(key));
+    if (idx === -1) return null;
+    return row[idx];
   };
 
   const preferredLocations = csvToArray_(get("preferredLocations"));
