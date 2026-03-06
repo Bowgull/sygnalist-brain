@@ -388,6 +388,8 @@
   if (modalResumeParseClose) modalResumeParseClose.addEventListener('click', closeResumeParseModal);
   var resumeParseCancel = document.getElementById('resumeParseCancel');
   if (resumeParseCancel) resumeParseCancel.addEventListener('click', closeResumeParseModal);
+  var modalResumeParseOverlay = document.getElementById('modalResumeParse');
+  if (modalResumeParseOverlay) modalResumeParseOverlay.addEventListener('click', function(e) { if (e.target !== modalResumeParseOverlay) return; closeResumeParseModal(); });
   var resumeParseOk = document.getElementById('resumeParseOk');
   if (resumeParseOk) resumeParseOk.addEventListener('click', function() {
     var sel = document.getElementById('resumeParseProfileSelect');
@@ -562,17 +564,23 @@
         fillEditStateProvinceDropdowns_();
         fillEditCityFromState_('editCurrentCity', 'editStateProvince');
         var currentCityVal = (profile.currentCity || '').trim();
-        if (currentCityVal && ld.citiesByStateProvince) {
+        var currentCityValNorm = currentCityVal ? currentCityVal.split(',')[0].trim().toLowerCase() : '';
+        if (currentCityValNorm && ld.citiesByStateProvince) {
           var foundCode = null;
+          var foundCity = null;
           for (var code in ld.citiesByStateProvince) {
-            if (ld.citiesByStateProvince[code].indexOf(currentCityVal) !== -1) { foundCode = code; break; }
+            var cities = ld.citiesByStateProvince[code];
+            for (var i = 0; i < cities.length; i++) {
+              if (String(cities[i]).trim().toLowerCase() === currentCityValNorm) { foundCode = code; foundCity = cities[i]; break; }
+            }
+            if (foundCode) break;
           }
-          if (foundCode) {
+          if (foundCode && foundCity) {
             var spEl = document.getElementById('editStateProvince');
             if (spEl) { spEl.value = foundCode; fillEditCityFromState_('editCurrentCity', 'editStateProvince'); }
             var cityEl = document.getElementById('editCurrentCity');
-            if (cityEl) cityEl.value = currentCityVal;
-          } else {
+            if (cityEl) cityEl.value = foundCity;
+          } else if (currentCityVal) {
             var citySel = document.getElementById('editCurrentCity');
             if (citySel) {
               var opt = document.createElement('option');
@@ -732,6 +740,10 @@
   if (editCancel) editCancel.addEventListener('click', function() { var m = document.getElementById('modalEdit'); if (m) m.classList.remove('visible'); });
   var modalEditClose = document.getElementById('modalEditClose');
   if (modalEditClose) modalEditClose.addEventListener('click', function() { var m = document.getElementById('modalEdit'); if (m) m.classList.remove('visible'); });
+  var modalEditOverlay = document.getElementById('modalEdit');
+  if (modalEditOverlay) modalEditOverlay.addEventListener('click', function(e) { if (e.target !== modalEditOverlay) return; modalEditOverlay.classList.remove('visible'); });
+  var modalConfirmOverlay = document.getElementById('modalConfirm');
+  if (modalConfirmOverlay) modalConfirmOverlay.addEventListener('click', function(e) { if (e.target !== modalConfirmOverlay) return; modalConfirmOverlay.classList.remove('visible'); });
 
   var btnAddProfile = document.getElementById('btnAddProfile');
   if (btnAddProfile) btnAddProfile.addEventListener('click', function() {
@@ -1047,6 +1059,8 @@
   if (createCancel) createCancel.addEventListener('click', function() { var m = document.getElementById('modalCreate'); if (m) m.classList.remove('visible'); });
   var modalCreateClose = document.getElementById('modalCreateClose');
   if (modalCreateClose) modalCreateClose.addEventListener('click', function() { var m = document.getElementById('modalCreate'); if (m) m.classList.remove('visible'); });
+  var modalCreateOverlay = document.getElementById('modalCreate');
+  if (modalCreateOverlay) modalCreateOverlay.addEventListener('click', function(e) { if (e.target !== modalCreateOverlay) return; modalCreateOverlay.classList.remove('visible'); });
 
   var laneControlsState = {};
   var removedLaneKeys = [];
@@ -1535,7 +1549,12 @@
     var spotlightOverlay = document.getElementById('jobsIntakeSpotlightOverlay');
     if (spotlightOverlay && !spotlightOverlay._spotlightBound) {
       spotlightOverlay._spotlightBound = true;
-      spotlightOverlay.addEventListener('click', closeJobIntakeSpotlight);
+      spotlightOverlay.addEventListener('click', function(e) { if (e.target !== spotlightOverlay) return; closeJobIntakeSpotlight(); });
+    }
+    var spotlightSlot = document.getElementById('jobsIntakeSpotlightSlot');
+    if (spotlightSlot && !spotlightSlot._spotlightBound) {
+      spotlightSlot._spotlightBound = true;
+      spotlightSlot.addEventListener('click', function(e) { if (e.target !== spotlightSlot) return; closeJobIntakeSpotlight(); });
     }
     if (!window._adminJobIntakeEscapeBound) {
       window._adminJobIntakeEscapeBound = true;

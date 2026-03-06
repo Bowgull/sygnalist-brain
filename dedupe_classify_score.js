@@ -304,6 +304,26 @@ var LOCATION_COUNTRY_ALIASES_ = {
   "worldwide": null, "global": null, "remote": null, "anywhere": null
 };
 
+// Two-letter state/province codes -> country (for "City, ST" parsing). US + Canada only.
+var LOCATION_STATE_PROVINCE_TO_COUNTRY_ = {
+  "al": "United States", "ak": "United States", "az": "United States", "ar": "United States",
+  "ca": "United States", "co": "United States", "ct": "United States", "de": "United States",
+  "dc": "United States", "fl": "United States", "ga": "United States", "hi": "United States",
+  "id": "United States", "il": "United States", "in": "United States", "ia": "United States",
+  "ks": "United States", "ky": "United States", "la": "United States", "me": "United States",
+  "md": "United States", "ma": "United States", "mi": "United States", "mn": "United States",
+  "ms": "United States", "mo": "United States", "mt": "United States", "ne": "United States",
+  "nv": "United States", "nh": "United States", "nj": "United States", "nm": "United States",
+  "ny": "United States", "nc": "United States", "nd": "United States", "oh": "United States",
+  "ok": "United States", "or": "United States", "pa": "United States", "ri": "United States",
+  "sc": "United States", "sd": "United States", "tn": "United States", "tx": "United States",
+  "ut": "United States", "vt": "United States", "va": "United States", "wa": "United States",
+  "wv": "United States", "wi": "United States", "wy": "United States",
+  "ab": "Canada", "bc": "Canada", "mb": "Canada", "nb": "Canada", "nl": "Canada",
+  "ns": "Canada", "nt": "Canada", "nu": "Canada", "on": "Canada", "pe": "Canada",
+  "qc": "Canada", "sk": "Canada", "yt": "Canada"
+};
+
 /**
  * Normalize job.location (and optional job.country, job.city) into { country?, city?, raw }.
  * Used by region lock. Mutates job to set job._normalizedLocation and optionally job.country, job.city.
@@ -332,6 +352,9 @@ function normalizeJobLocation_(job) {
   if (parts.length >= 2) {
     const last = parts[parts.length - 1].toLowerCase().trim();
     const twoLetter = last.length === 2 && /^[a-z]{2}$/.test(last);
+    if (twoLetter && LOCATION_STATE_PROVINCE_TO_COUNTRY_[last]) {
+      country = country || LOCATION_STATE_PROVINCE_TO_COUNTRY_[last];
+    }
     const normalizedCountry = LOCATION_COUNTRY_ALIASES_[last] !== undefined
       ? (LOCATION_COUNTRY_ALIASES_[last] || last)
       : (twoLetter ? null : last);

@@ -1471,6 +1471,8 @@
     if ($('manualLocation')) $('manualLocation').value = '';
     if ($('manualNotes')) $('manualNotes').value = '';
   }
+  var manualAddModalEl = document.getElementById('manualAddModal');
+  if (manualAddModalEl) manualAddModalEl.addEventListener('click', function(e) { if (e.target !== manualAddModalEl) return; hideManualAdd(); });
   
   async function submitManualAdd() {
     var url = ($('manualUrl') && $('manualUrl').value) ? $('manualUrl').value.trim() : '';
