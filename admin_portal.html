@@ -121,8 +121,7 @@
       .logs-run-details-inner .logs-run-detail-heading { color: var(--color-radar-mid); border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-1); }
       .logs-pipeline-stages { font-size: 0.8125rem; color: var(--color-text-muted); }
       .logs-pipeline-stages strong { color: var(--color-text-main); }
-      .logs-run-detail-row--success { color: var(--color-radar-mid); }
-      .logs-receipt-duration { color: var(--color-radar-mid); font-weight: 600; }
+      .logs-receipt-expanded { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
       .dark .logs-receipt-duration { color: var(--color-radar-mid); }
       .logs-run-time { font-size: 1rem; font-weight: 600; color: var(--color-radar-mid); margin-bottom: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-border); }
       .dark .logs-run-time { color: var(--color-radar-mid); }
@@ -130,6 +129,22 @@
       .dark .logs-receipt-meta-pre { background: rgba(106, 215, 163, 0.12); border-left-color: rgba(106, 215, 163, 0.5); }
       .logs-run-detail-row { padding-left: var(--space-2); border-left: 2px solid transparent; margin-left: 0; }
       .logs-run-detail-row:not(:last-child) { border-left-color: var(--color-border); }
+      .logs-run-detail-row--success { color: var(--color-radar-mid); }
+      .logs-run-detail-row--error { color: #dc2626; border-left-color: #dc2626; }
+      .dark .logs-run-detail-row--error { color: #fca5a5; }
+      .logs-run-detail-row--quota-exceeded { color: #b45309; border-left-color: #d97706; }
+      .dark .logs-run-detail-row--quota-exceeded { color: #fcd34d; }
+      .logs-receipt-tile--error { background: #f8d7da; color: #721c24; }
+      .dark .logs-receipt-tile--error { background: rgba(220, 38, 38, 0.2); color: #fca5a5; }
+      .logs-receipt-tile--quota { background: #fef3c7; color: #92400e; }
+      .dark .logs-receipt-tile--quota { background: rgba(217, 119, 6, 0.2); color: #fcd34d; }
+      .logs-receipt-tile--zero { background: #e2e8f0; color: #475569; }
+      .dark .logs-receipt-tile--zero { background: rgba(71, 85, 105, 0.3); color: #94a3b8; }
+      .logs-receipt-tile--success { background: #d4edda; color: #155724; }
+      .dark .logs-receipt-tile--success { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+      .logs-receipt-tile--empty { background: #e9ecef; color: #495057; }
+      .dark .logs-receipt-tile--empty { background: rgba(156, 163, 175, 0.2); color: var(--color-text-muted); }
+      .logs-receipt-duration { color: var(--color-radar-mid); font-weight: 600; }
       .logs-timeline-list { list-style: none; padding: 0; margin: 0; font-size: 0.8125rem; }
       .logs-timeline-item { margin-bottom: var(--space-2); word-break: break-word; padding-left: var(--space-2); border-left: 2px solid transparent; }
       .logs-timeline-item--error { border-left-color: #dc2626; background: rgba(220, 38, 38, 0.08); padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
@@ -139,6 +154,10 @@
       .logs-timeline-item--info { border-left-color: var(--color-border); }
       .logs-timeline-item--quota-exceeded { border-left-width: 3px; border-left-color: #d97706; background: rgba(217, 119, 6, 0.12); padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
       .dark .logs-timeline-item--quota-exceeded { background: rgba(217, 119, 6, 0.2); }
+      .logs-timeline-error-details { margin-top: var(--space-1); }
+      .logs-error-expanded { margin-top: var(--space-2); padding: var(--space-2); background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 0.875rem; }
+      .logs-error-code, .logs-error-msg { margin-bottom: var(--space-1); }
+      .logs-error-msg { word-break: break-word; }
       .logs-timeline-source { display: inline-block; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-sm); background: rgba(106, 215, 163, 0.15); color: var(--color-radar-dark); margin-right: var(--space-2); }
       .dark .logs-timeline-source { background: rgba(106, 215, 163, 0.2); color: var(--color-radar-mid); }
       .logs-timeline-source--planner { background: rgba(59, 130, 246, 0.2); color: var(--color-tier-b, #2563eb); }
@@ -2319,7 +2338,8 @@
         var candidates = m.candidates !== undefined ? m.candidates : '\u2014';
         var enriched = m.enriched !== undefined ? m.enriched : '\u2014';
         var written = m.written !== undefined ? m.written : '\u2014';
-        var rapidErr = m.rapidStatus === 'HTTP_ERROR' || m.rapidStatus === 'QUOTA_EXCEEDED';
+        var rapidErr = m.rapidStatus === 'HTTP_ERROR';
+        var rapidQuota = m.rapidStatus === 'QUOTA_EXCEEDED';
         var rowClass = 'logs-run-detail-row';
         html += '<div class="' + rowClass + '"><strong>Main Fetch</strong> ' + main + '</div>';
         html += '<div class="' + rowClass + '"><strong>Merge & Dedupe</strong> ' + main + ' -> ' + dedupe + '</div>';
@@ -2330,15 +2350,21 @@
         if (m.rapidJSearchCount !== undefined) {
           html += '<div class="' + rowClass + '"><strong>JSearch</strong> ' + m.rapidJSearchCount + '</div>';
         }
-        html += '<div class="' + rowClass + (rapidErr ? ' logs-run-detail-row--error' : ' logs-run-detail-row--success') + '"><strong>RapidAPI</strong> ' + esc((m.rapidDecision || '\u2014') + (m.rapidStatus ? ' ' + m.rapidStatus : '') + (m.rapidAdded !== undefined ? ' +' + m.rapidAdded : '')) + '</div>';
+        var rapidRowClass = rapidErr ? ' logs-run-detail-row--error' : (rapidQuota ? ' logs-run-detail-row--quota-exceeded' : ' logs-run-detail-row--success');
+        html += '<div class="' + rowClass + rapidRowClass + '"><strong>RapidAPI</strong> ' + esc((m.rapidDecision || '\u2014') + (m.rapidStatus ? ' ' + m.rapidStatus : '') + (m.rapidAdded !== undefined ? ' +' + m.rapidAdded : '')) + '</div>';
         return html;
       }
       function appendReceiptCard(container, rec) {
         if (!container) return;
         var meta = rec.meta || {};
         var written = meta.written !== undefined ? meta.written : 0;
-        var status = rec.error ? 'Error' : (written > 0 ? 'Success' : 'Empty');
-        var statusClass = written > 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : (rec.error ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200');
+        var tiles = [];
+        if (rec.error) tiles.push({ label: 'Error', className: 'logs-receipt-tile--error' });
+        if (rec.quotaExceeded) tiles.push({ label: 'Quota exceeded', className: 'logs-receipt-tile--quota' });
+        if (written === 0) tiles.push({ label: 'Zero jobs', className: 'logs-receipt-tile--zero' });
+        if (written > 0 && !rec.error) tiles.push({ label: 'Success', className: 'logs-receipt-tile--success' });
+        if (tiles.length === 0) tiles.push({ label: '—', className: 'logs-receipt-tile--empty' });
+        var statusTilesHtml = tiles.map(function(t) { return '<span class="text-xs font-medium px-2 py-0.5 rounded ' + t.className + '">' + esc(t.label) + '</span>'; }).join('');
         var pipeline = [meta.rawFetchedMain, meta.afterDedupe, meta.eligible, meta.candidates, meta.enriched, written].map(function(n) { return n !== undefined ? n : '\u2014'; }).join(' -> ');
         var rapidLine = (meta.rapidDecision || '\u2014') + (meta.rapidStatus ? ' ' + meta.rapidStatus : '') + (meta.rapidAdded !== undefined ? ' +' + meta.rapidAdded : '');
         var dropChips = '';
@@ -2359,7 +2385,7 @@
         card.innerHTML = '<div class="flex flex-wrap items-center gap-2 mb-2">' +
           '<span class="font-mono text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">' + esc(rec.batchId || '\u2014') + '</span>' +
           '<span class="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">' + esc(rec.profileId || '\u2014') + '</span>' +
-          '<span class="text-xs font-medium px-2 py-0.5 rounded ' + statusClass + '">' + status + '</span>' +
+          statusTilesHtml +
           (durationDisplay ? '<span class="logs-receipt-duration text-sm font-medium">Run time: ' + esc(durationDisplay) + '</span>' : '') +
           '</div>' +
           '<div class="text-xs text-gray-600 dark:text-gray-400 mb-1">' + esc(rec.time) + '</div>' +
@@ -2387,6 +2413,9 @@
             runTimeLine +
             '<div class="admin-heading logs-run-detail-heading">Pipeline stages</div>' +
             '<div class="logs-pipeline-stages">' + buildPipelineStagesFromMeta(rec.meta) + '</div>' +
+            '<div class="logs-errors-in-run mb-3" style="display:none;">' +
+            '<div class="admin-heading logs-run-detail-heading">Errors in this run</div>' +
+            '<div class="logs-errors-in-run-items"></div></div>' +
             '<div class="admin-heading logs-run-detail-heading">Stage timeline</div>' +
             '<ul class="logs-timeline-list space-y-1 mb-3"></ul>' +
             '<details class="logs-run-details-meta"><summary class="logs-run-detail-summary">Receipt meta (JSON)</summary><pre class="logs-receipt-meta-pre mt-1"></pre></details></div>';
@@ -2403,6 +2432,25 @@
                 if (!showDebug && String(row.source || '').toLowerCase() === 'debug') return false;
                 return true;
               });
+              var errorRows = list.filter(function(row) {
+                var l = String(row.level || '').toUpperCase();
+                return (l === 'ERROR' || l === 'WARN') && (row.errorDetailCode || row.errorMessage);
+              });
+              var errorsContainer = expandedBlock.querySelector('.logs-errors-in-run');
+              if (errorsContainer && errorRows.length > 0) {
+                errorsContainer.style.display = 'block';
+                var itemsEl = errorsContainer.querySelector('.logs-errors-in-run-items');
+                if (itemsEl) itemsEl.innerHTML = errorRows.map(function(row) {
+                  var code = row.errorDetailCode || row.detailCode || '';
+                  var errMsg = row.errorMessage || '';
+                  return '<div class="logs-errors-in-run-item p-2 border border-gray-200 dark:border-gray-600 rounded mb-2">' +
+                    '<div class="text-xs text-gray-500 dark:text-gray-400">' + esc(row.time || '') + ' · ' + esc(row.source || '') + '</div>' +
+                    '<div class="font-mono text-sm mt-1"><strong>Code:</strong> ' + esc(code) + '</div>' +
+                    (errMsg ? '<div class="text-sm mt-1 word-break-break-word"><strong>Message:</strong> ' + esc(errMsg) + '</div>' : '') + '</div>';
+                }).join('');
+              } else if (errorsContainer) {
+                errorsContainer.style.display = 'none';
+              }
               list.forEach(function(row) {
                 var li = document.createElement('li');
                 var level = String(row.level || '').toUpperCase();
@@ -2419,6 +2467,23 @@
                 li.innerHTML = '<span class="logs-timeline-time">' + esc(row.time || '') + '</span> ' +
                   '<span class="logs-timeline-source logs-timeline-source--' + sourceSlug + '">' + esc(row.source || '') + '</span> ' +
                   (metaPart ? '<span class="logs-timeline-msg">' + esc(msgPart) + '</span> <span class="logs-timeline-meta">' + esc(metaPart) + '</span>' : '<span class="logs-timeline-msg">' + esc(msgPart) + '</span>');
+                if ((level === 'ERROR' || level === 'WARN') && (row.errorDetailCode || row.errorMessage)) {
+                  var code = row.errorDetailCode || row.detailCode || '';
+                  var errMsg = row.errorMessage || '';
+                  var errBlock = document.createElement('div');
+                  errBlock.className = 'logs-timeline-error-details';
+                  errBlock.innerHTML = '<button type="button" class="btn btn-ghost btn-sm logs-view-error-btn">View error details</button>' +
+                    '<div class="logs-error-expanded" style="display:none;"><div class="logs-error-code"><strong>Code:</strong> ' + esc(code) + '</div>' +
+                    (errMsg ? '<div class="logs-error-msg"><strong>Message:</strong> ' + esc(errMsg) + '</div>' : '') + '</div>';
+                  li.appendChild(errBlock);
+                  var btn = errBlock.querySelector('.logs-view-error-btn');
+                  var expanded = errBlock.querySelector('.logs-error-expanded');
+                  if (btn && expanded) btn.addEventListener('click', function() {
+                    var show = expanded.style.display !== 'block';
+                    expanded.style.display = show ? 'block' : 'none';
+                    btn.textContent = show ? 'Hide error details' : 'View error details';
+                  });
+                }
                 timelineList.appendChild(li);
               });
             }).withFailureHandler(function() {}).adminGetLogsByBatchId(batchId);

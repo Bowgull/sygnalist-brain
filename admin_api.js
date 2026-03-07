@@ -703,6 +703,28 @@ function parseReceiptBatchId_(detailsStr) {
 }
 
 /**
+ * Parse detailCode, errorDetailCode, errorMessage from log Details string (for drill-down).
+ * Returns { detailCode, errorDetailCode, errorMessage } with undefined for missing keys.
+ */
+function parseLogDetailError_(detailsStr) {
+  var out = { detailCode: undefined, errorDetailCode: undefined, errorMessage: undefined };
+  if (!detailsStr || typeof detailsStr !== "string") return out;
+  var dc = detailsStr.match(/detailCode:\s*([A-Z0-9_]+)/);
+  if (dc) out.detailCode = dc[1];
+  var edc = detailsStr.match(/errorDetailCode:\s*([A-Z0-9_]+)/);
+  if (edc) out.errorDetailCode = edc[1];
+  var idx = detailsStr.indexOf("error: ");
+  if (idx !== -1) {
+    var rest = detailsStr.slice(idx + 7);
+    var end = rest.indexOf(")");
+    if (end !== -1) rest = rest.slice(0, end);
+    var parts = rest.split(/,\s*(?=[a-zA-Z_]+:)/);
+    out.errorMessage = (parts[0] || "").trim();
+  }
+  return out;
+}
+
+/**
  * Parse receipt meta from details string for BATCH RECEIPT rows.
  * Returns object with numeric/string fields used by receipt cards.
  */
@@ -790,7 +812,9 @@ function adminGetReceipts(limit, profileIdFilter, batchIdFilter, afterTimestamp)
       var detailsStr = String(row[detailsCol] || "");
       var batchId = parseReceiptBatchId_(detailsStr);
       var meta = parseReceiptMeta_(detailsStr);
-      var isRapidError = meta.rapidStatus === "HTTP_ERROR" || meta.rapidStatus === "QUOTA_EXCEEDED";
+      // error = real Rapid API failures only; quotaExceeded = quota hit (card shows separate gold tile)
+      var isHttpError = meta.rapidStatus === "HTTP_ERROR";
+      var isQuotaExceeded = meta.rapidStatus === "QUOTA_EXCEEDED";
       return {
         batchId: batchId,
         profileId: row[2],
@@ -801,7 +825,8 @@ function adminGetReceipts(limit, profileIdFilter, batchIdFilter, afterTimestamp)
         details: detailsStr,
         level: row[6],
         meta: meta,
-        error: !!isRapidError
+        error: !!isHttpError,
+        quotaExceeded: !!isQuotaExceeded
       };
     });
     logAdmin_("ok", "Get receipts completed", { count: receipts.length, hasMore: hasMore });
@@ -832,14 +857,19 @@ function adminGetLogsByBatchId(batchId) {
     for (var i = 0; i < data.length; i++) {
       var row = data[i];
       if (String(row[detailsCol] || "").indexOf(batchStr) === -1) continue;
+      var detailsStr = String(row[detailsCol] || "");
+      var parsed = parseLogDetailError_(detailsStr);
       rows.push({
         time: formatLogTimestamp_(row[1]),
         timeMs: row[1] instanceof Date ? row[1].getTime() : new Date(row[1]).getTime(),
         profileId: row[2],
         action: row[3],
         source: row[4],
-        details: row[5],
-        level: row[6]
+        details: detailsStr,
+        level: row[6],
+        detailCode: parsed.detailCode,
+        errorDetailCode: parsed.errorDetailCode,
+        errorMessage: parsed.errorMessage
       });
     }
     rows.sort(function (a, b) { return a.timeMs - b.timeMs; });
@@ -847,6 +877,27 @@ function adminGetLogsByBatchId(batchId) {
     return { ok: true, rows: rows };
   } catch (e) {
     logAdmin_("error", "Get logs by batchId failed", { error: (e && e.message) ? e.message : String(e) });
+    return { ok: false, error: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+/**
+ * Return only ERROR/WARN log rows for the given batchId (for error drill-down).
+ */
+function adminGetLogErrorDetails(batchId) {
+  logAdmin_("start", "Get log error details started", { batchId: batchId });
+  try {
+    var result = adminGetLogsByBatchId(batchId);
+    if (!result.ok || !result.rows) return { ok: true, rows: [] };
+    var levelFilter = function (row) {
+      var l = String(row.level || "").toUpperCase();
+      return l === "ERROR" || l === "WARN";
+    };
+    var rows = result.rows.filter(levelFilter);
+    logAdmin_("ok", "Get log error details completed", { count: rows.length });
+    return { ok: true, rows: rows };
+  } catch (e) {
+    logAdmin_("error", "Get log error details failed", { error: (e && e.message) ? e.message : String(e) });
     return { ok: false, error: (e && e.message) ? e.message : String(e) };
   }
 }
