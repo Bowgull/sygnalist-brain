@@ -7,8 +7,11 @@ const tabs = [
   { label: "Health", href: "/admin" },
   { label: "Clients", href: "/admin/clients" },
   { label: "Analytics", href: "/admin/analytics" },
-  { label: "Logs", href: "/admin/logs" },
   { label: "Messages", href: "/admin/messages" },
+  { label: "Job Bank", href: "/admin/job-bank" },
+  { label: "Lanes", href: "/admin/lanes" },
+  { label: "Ingest", href: "/admin/ingest" },
+  { label: "Logs", href: "/admin/logs" },
 ];
 
 export default function AdminNav({ displayName }: { displayName?: string }) {
