@@ -33,7 +33,7 @@ export default function AdminAnalyticsPage() {
   const pipelineTotal = Object.values(pipeline).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="stagger-children space-y-4">
       <h1 className="text-lg font-semibold">Analytics Overview</h1>
 
       {/* Key metrics row */}
@@ -45,7 +45,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Pipeline breakdown */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
+      <div className="glass-card p-4">
         <h2 className="mb-4 text-sm font-semibold">Pipeline Distribution</h2>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
           {Object.entries(pipeline).map(([stage, count]) => (
@@ -58,7 +58,7 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Conversion funnel */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
+      <div className="glass-card p-4">
         <h2 className="mb-4 text-sm font-semibold">Funnel</h2>
         {["Prospect", "Applied", "Interview 1", "Interview 2", "Final", "Offer"].map((stage) => {
           const count = pipeline[stage] ?? 0;
@@ -87,7 +87,7 @@ export default function AdminAnalyticsPage() {
 
 function MetricCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 text-center">
+    <div className="glass-card p-4 text-center">
       <p className="text-3xl font-bold" style={{ color }}>
         {value}
       </p>

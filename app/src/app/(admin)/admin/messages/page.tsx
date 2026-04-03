@@ -188,7 +188,7 @@ export default function AdminMessagesPage() {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => setView("compose")}
-              className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-5 text-left transition hover:bg-[#222D3D]"
+              className="glass-card p-5 text-left transition"
             >
               <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#6AD7A3]/10">
                 <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -202,7 +202,7 @@ export default function AdminMessagesPage() {
 
             <button
               onClick={() => setView("sent")}
-              className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-5 text-left transition hover:bg-[#222D3D]"
+              className="glass-card p-5 text-left transition"
             >
               <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#38BDF8]/10">
                 <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#38BDF8]" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -216,7 +216,7 @@ export default function AdminMessagesPage() {
           </div>
 
           {/* Templates preview */}
-          <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
+          <div className="glass-card p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Templates</h2>
               <button
@@ -269,7 +269,7 @@ export default function AdminMessagesPage() {
                   <button
                     key={c.id}
                     onClick={() => setSelectedClient(c)}
-                    className="flex w-full items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+                    className="flex w-full items-center gap-3 glass-card-flat p-3 text-left transition hover:bg-[#222D3D]"
                   >
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6AD7A3]/10 text-sm font-semibold text-[#6AD7A3]">
                       {c.display_name[0]?.toUpperCase()}
@@ -299,7 +299,7 @@ export default function AdminMessagesPage() {
                   setBody("");
                   setSelectedTemplate({ id: "blank", name: "Blank", subject: "", body: "", ai_prompt_hint: null, trigger_event: null, is_system: false });
                 }}
-                className="flex w-full items-center gap-3 rounded-xl border border-dashed border-[rgba(255,255,255,0.2)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+                className="flex w-full items-center gap-3 glass-card-flat border-dashed p-3 text-left transition"
               >
                 <span className="text-sm text-[#B8BFC8]">Start blank</span>
               </button>
@@ -308,7 +308,7 @@ export default function AdminMessagesPage() {
                 <button
                   key={t.id}
                   onClick={() => handlePickTemplate(t)}
-                  className="flex w-full items-center justify-between rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+                  className="flex w-full items-center justify-between glass-card-flat p-3 text-left transition hover:bg-[#222D3D]"
                 >
                   <div>
                     <div className="text-sm font-medium">{t.name}</div>
@@ -407,7 +407,7 @@ export default function AdminMessagesPage() {
                 return (
                   <div
                     key={msg.id}
-                    className="rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-3"
+                    className="glass-card-flat p-3"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{client?.display_name ?? "Unknown"}</span>
@@ -445,7 +445,7 @@ export default function AdminMessagesPage() {
             {templates.map((t) => (
               <div
                 key={t.id}
-                className="rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4"
+                className="glass-card p-4"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold">{t.name}</span>

@@ -130,7 +130,7 @@ export default function TrackerPage() {
         onTouchEnd={handleTouchEnd}
         className="min-h-[60vh]"
       >
-        <div className="space-y-3 px-4 py-3">
+        <div className="stagger-children mx-auto max-w-2xl space-y-3 px-4 py-3 lg:px-0">
           {loading ? (
             <>
               <SkeletonCard />
@@ -173,7 +173,7 @@ export default function TrackerPage() {
       <button
         type="button"
         onClick={() => setShowManualAdd(true)}
-        className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] shadow-lg shadow-[#6AD7A3]/20 transition-all hover:scale-105 active:scale-95"
+        className="btn-press animate-pulse-glow fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] shadow-lg shadow-[#6AD7A3]/20 transition-all hover:scale-105 active:scale-95 lg:bottom-8 lg:right-8"
       >
         <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#0C1016]" fill="none" stroke="currentColor" strokeWidth={2.5}>
           <line x1="12" y1="5" x2="12" y2="19" />
@@ -219,7 +219,7 @@ function ManualAddSheet({
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[rgba(5,6,10,0.9)]" onClick={onClose}>
       <div
-        className="w-full max-w-lg animate-slide-up rounded-t-[20px] border-t border-[rgba(255,255,255,0.12)] bg-[#171F28] p-6"
+        className="glass-card w-full max-w-lg animate-slide-up rounded-b-none rounded-t-[20px] p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

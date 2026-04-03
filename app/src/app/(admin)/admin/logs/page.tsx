@@ -96,7 +96,7 @@ function LogRow({
             : "text-[#9CA3AF]";
 
     return (
-      <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3">
+      <div className="glass-card-flat p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ function LogRow({
 
   if (logType === "fetches") {
     return (
-      <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3">
+      <div className="glass-card-flat p-3">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-[13px] font-medium text-white">{log.source_name}</span>
@@ -154,7 +154,7 @@ function LogRow({
 
   // User events
   return (
-    <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3">
+    <div className="glass-card-flat p-3">
       <div className="flex items-center justify-between">
         <span className="rounded-full bg-[#6AD7A3]/10 px-2 py-0.5 text-[11px] font-medium text-[#6AD7A3]">
           {log.event_type}

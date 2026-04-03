@@ -51,12 +51,12 @@ export default function AdminHealthPage() {
   const pipelineTotal = Object.values(analytics?.pipeline ?? {}).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="stagger-children space-y-4">
       {/* System Health */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
+      <div className="glass-card p-4">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <span
-            className={`h-2.5 w-2.5 rounded-full ${health?.status === "healthy" ? "bg-[#6AD7A3]" : "bg-[#DC2626]"}`}
+            className={`h-2.5 w-2.5 rounded-full ${health?.status === "healthy" ? "animate-pulse bg-[#6AD7A3]" : "bg-[#DC2626]"}`}
           />
           System Health
         </h2>
@@ -85,7 +85,7 @@ export default function AdminHealthPage() {
       </div>
 
       {/* Profile Overview */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
+      <div className="glass-card p-4">
         <h2 className="mb-3 text-sm font-semibold">Profiles</h2>
         <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
           <StatBox label="Total" value={String(analytics?.profiles.total ?? 0)} color="default" />
@@ -96,7 +96,7 @@ export default function AdminHealthPage() {
       </div>
 
       {/* Pipeline */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
+      <div className="glass-card p-4">
         <h2 className="mb-3 text-sm font-semibold">Pipeline ({pipelineTotal} total)</h2>
         <div className="space-y-2">
           {pipelineStages.map((stage) => {
@@ -119,7 +119,7 @@ export default function AdminHealthPage() {
       </div>
 
       {/* Fetch Activity */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
+      <div className="glass-card p-4">
         <h2 className="mb-3 text-sm font-semibold">Fetch Activity</h2>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <StatBox label="This Week" value={String(analytics?.fetches.week ?? 0)} color="default" />

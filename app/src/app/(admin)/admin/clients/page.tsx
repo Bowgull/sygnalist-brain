@@ -73,7 +73,7 @@ export default function AdminClientsPage() {
       {profiles.map((p) => (
         <div
           key={p.id}
-          className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4"
+          className="glass-card p-4"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -308,7 +308,7 @@ function OnboardSheet({
   }
 
   return (
-    <div className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4">
+    <div className="glass-card glow-green-soft p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
