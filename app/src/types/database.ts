@@ -10,8 +10,8 @@ export interface Database {
           profile_id: string;
           display_name: string;
           email: string | null;
-          role: "admin" | "coach" | "client";
-          status: "active" | "inactive_soft_locked";
+          role: string;
+          status: string;
           status_reason: string;
           accept_remote: boolean;
           accept_hybrid: boolean;
@@ -42,18 +42,86 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["profiles"]["Row"]> & {
+        Insert: {
+          id?: string;
+          auth_user_id?: string | null;
           profile_id: string;
           display_name: string;
+          email?: string | null;
+          role?: string;
+          status?: string;
+          status_reason?: string;
+          accept_remote?: boolean;
+          accept_hybrid?: boolean;
+          accept_onsite?: boolean;
+          remote_region_scope?: string;
+          preferred_countries?: string[];
+          preferred_cities?: string[];
+          preferred_locations?: string[];
+          current_city?: string;
+          distance_range_km?: number;
+          salary_min?: number;
+          banned_keywords?: string[];
+          disqualifying_seniority?: string[];
+          allow_sales_heavy?: boolean;
+          allow_phone_heavy?: boolean;
+          allow_weekend_work?: boolean;
+          allow_shift_work?: boolean;
+          location_blacklist?: string[];
+          skill_keywords_plus?: string[];
+          skill_keywords_minus?: string[];
+          skill_profile_text?: string;
+          top_skills?: string[];
+          signature_stories?: string[];
+          role_tracks?: Json;
+          lane_controls?: Json;
+          search_terms_override?: Json | null;
+          last_fetch_at?: string | null;
         };
-        Update: Partial<Database["public"]["Tables"]["profiles"]["Row"]>;
+        Update: {
+          id?: string;
+          auth_user_id?: string | null;
+          profile_id?: string;
+          display_name?: string;
+          email?: string | null;
+          role?: string;
+          status?: string;
+          status_reason?: string;
+          accept_remote?: boolean;
+          accept_hybrid?: boolean;
+          accept_onsite?: boolean;
+          remote_region_scope?: string;
+          preferred_countries?: string[];
+          preferred_cities?: string[];
+          preferred_locations?: string[];
+          current_city?: string;
+          distance_range_km?: number;
+          salary_min?: number;
+          banned_keywords?: string[];
+          disqualifying_seniority?: string[];
+          allow_sales_heavy?: boolean;
+          allow_phone_heavy?: boolean;
+          allow_weekend_work?: boolean;
+          allow_shift_work?: boolean;
+          location_blacklist?: string[];
+          skill_keywords_plus?: string[];
+          skill_keywords_minus?: string[];
+          skill_profile_text?: string;
+          top_skills?: string[];
+          signature_stories?: string[];
+          role_tracks?: Json;
+          lane_controls?: Json;
+          search_terms_override?: Json | null;
+          last_fetch_at?: string | null;
+        };
+        Relationships: [];
       };
       inbox_jobs: {
         Row: {
           id: string;
           profile_id: string;
           score: number;
-          tier: "S" | "A" | "B" | "C" | "F" | "X";
+          tier: string;
           company: string;
           title: string;
           url: string | null;
@@ -70,12 +138,47 @@ export interface Database {
           match_hits: number;
           added_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["inbox_jobs"]["Row"]> & {
+        Insert: {
+          id?: string;
           profile_id: string;
+          score?: number;
+          tier?: string;
           company: string;
           title: string;
+          url?: string | null;
+          source?: string | null;
+          location?: string | null;
+          role_type?: string | null;
+          lane_label?: string | null;
+          category?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+          salary?: string | null;
+          salary_source?: string | null;
+          salary_below_min?: boolean;
+          match_hits?: number;
         };
-        Update: Partial<Database["public"]["Tables"]["inbox_jobs"]["Row"]>;
+        Update: {
+          id?: string;
+          profile_id?: string;
+          score?: number;
+          tier?: string;
+          company?: string;
+          title?: string;
+          url?: string | null;
+          source?: string | null;
+          location?: string | null;
+          role_type?: string | null;
+          lane_label?: string | null;
+          category?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+          salary?: string | null;
+          salary_source?: string | null;
+          salary_below_min?: boolean;
+          match_hits?: number;
+        };
+        Relationships: [];
       };
       tracker_entries: {
         Row: {
@@ -101,12 +204,47 @@ export interface Database {
           added_at: string;
           updated_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["tracker_entries"]["Row"]> & {
+        Insert: {
+          id?: string;
           profile_id: string;
           company: string;
           title: string;
+          url?: string | null;
+          source?: string | null;
+          location?: string | null;
+          role_type?: string | null;
+          lane_label?: string | null;
+          category?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+          salary?: string | null;
+          good_fit?: string;
+          notes?: string;
+          status?: string;
+          date_applied?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["tracker_entries"]["Row"]>;
+        Update: {
+          id?: string;
+          profile_id?: string;
+          company?: string;
+          title?: string;
+          url?: string | null;
+          source?: string | null;
+          location?: string | null;
+          role_type?: string | null;
+          lane_label?: string | null;
+          category?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+          salary?: string | null;
+          good_fit?: string;
+          good_fit_updated_at?: string | null;
+          notes?: string;
+          status?: string;
+          stage_changed_at?: string;
+          date_applied?: string;
+        };
+        Relationships: [];
       };
       dismissed_jobs: {
         Row: {
@@ -117,10 +255,21 @@ export interface Database {
           title: string | null;
           dismissed_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["dismissed_jobs"]["Row"]> & {
+        Insert: {
+          id?: string;
           profile_id: string;
+          url?: string | null;
+          company?: string | null;
+          title?: string | null;
         };
-        Update: Partial<Database["public"]["Tables"]["dismissed_jobs"]["Row"]>;
+        Update: {
+          id?: string;
+          profile_id?: string;
+          url?: string | null;
+          company?: string | null;
+          title?: string | null;
+        };
+        Relationships: [];
       };
       global_job_bank: {
         Row: {
@@ -138,8 +287,212 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["global_job_bank"]["Row"]>;
-        Update: Partial<Database["public"]["Tables"]["global_job_bank"]["Row"]>;
+        Insert: {
+          id?: string;
+          url?: string | null;
+          company?: string | null;
+          title?: string | null;
+          source?: string | null;
+          location?: string | null;
+          work_mode?: string | null;
+          job_family?: string | null;
+          description_snippet?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+        };
+        Update: {
+          id?: string;
+          url?: string | null;
+          company?: string | null;
+          title?: string | null;
+          source?: string | null;
+          location?: string | null;
+          work_mode?: string | null;
+          job_family?: string | null;
+          description_snippet?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+        };
+        Relationships: [];
+      };
+      role_bank: {
+        Row: {
+          id: string;
+          profile_id: string;
+          url: string | null;
+          company: string | null;
+          title: string | null;
+          source: string | null;
+          location: string | null;
+          work_mode: string | null;
+          job_family: string | null;
+          description_snippet: string | null;
+          job_summary: string | null;
+          why_fit: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          url?: string | null;
+          company?: string | null;
+          title?: string | null;
+          source?: string | null;
+          location?: string | null;
+          work_mode?: string | null;
+          job_family?: string | null;
+          description_snippet?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          url?: string | null;
+          company?: string | null;
+          title?: string | null;
+          source?: string | null;
+          location?: string | null;
+          work_mode?: string | null;
+          job_family?: string | null;
+          description_snippet?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+        };
+        Relationships: [];
+      };
+      jobs_inbox: {
+        Row: {
+          id: string;
+          job_id: string | null;
+          email_received_at: string | null;
+          title: string | null;
+          company: string | null;
+          url: string | null;
+          source: string | null;
+          location: string | null;
+          work_mode: string | null;
+          job_family: string | null;
+          description_snippet: string | null;
+          job_summary: string | null;
+          why_fit: string | null;
+          enrichment_status: string;
+          missing_fields: string | null;
+          role_id: string | null;
+          promoted_at: string | null;
+          notes: string | null;
+          role_bank_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          job_id?: string | null;
+          email_received_at?: string | null;
+          title?: string | null;
+          company?: string | null;
+          url?: string | null;
+          source?: string | null;
+          location?: string | null;
+          work_mode?: string | null;
+          job_family?: string | null;
+          description_snippet?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+          enrichment_status?: string;
+          missing_fields?: string | null;
+          role_id?: string | null;
+          promoted_at?: string | null;
+          notes?: string | null;
+          role_bank_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          job_id?: string | null;
+          email_received_at?: string | null;
+          title?: string | null;
+          company?: string | null;
+          url?: string | null;
+          source?: string | null;
+          location?: string | null;
+          work_mode?: string | null;
+          job_family?: string | null;
+          description_snippet?: string | null;
+          job_summary?: string | null;
+          why_fit?: string | null;
+          enrichment_status?: string;
+          missing_fields?: string | null;
+          role_id?: string | null;
+          promoted_at?: string | null;
+          notes?: string | null;
+          role_bank_id?: string | null;
+        };
+        Relationships: [];
+      };
+      lane_role_bank: {
+        Row: {
+          id: string;
+          lane_key: string;
+          role_name: string;
+          aliases: string[];
+          is_active: boolean;
+          status: string;
+          role_slug: string | null;
+          source: string;
+          merged_into_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lane_key: string;
+          role_name: string;
+          aliases?: string[];
+          is_active?: boolean;
+          status?: string;
+          role_slug?: string | null;
+          source?: string;
+          merged_into_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          lane_key?: string;
+          role_name?: string;
+          aliases?: string[];
+          is_active?: boolean;
+          status?: string;
+          role_slug?: string | null;
+          source?: string;
+          merged_into_id?: string | null;
+        };
+        Relationships: [];
+      };
+      enrichment_cache: {
+        Row: {
+          id: string;
+          url: string;
+          job_summary: string | null;
+          raw_response: Json | null;
+          model: string | null;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          url: string;
+          job_summary?: string | null;
+          raw_response?: Json | null;
+          model?: string | null;
+          expires_at?: string;
+        };
+        Update: {
+          id?: string;
+          url?: string;
+          job_summary?: string | null;
+          raw_response?: Json | null;
+          model?: string | null;
+          expires_at?: string;
+        };
+        Relationships: [];
       };
       message_templates: {
         Row: {
@@ -153,12 +506,25 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["message_templates"]["Row"]> & {
+        Insert: {
+          id?: string;
           name: string;
           subject: string;
           body: string;
+          ai_prompt_hint?: string | null;
+          trigger_event?: string | null;
+          is_system?: boolean;
         };
-        Update: Partial<Database["public"]["Tables"]["message_templates"]["Row"]>;
+        Update: {
+          id?: string;
+          name?: string;
+          subject?: string;
+          body?: string;
+          ai_prompt_hint?: string | null;
+          trigger_event?: string | null;
+          is_system?: boolean;
+        };
+        Relationships: [];
       };
       sent_messages: {
         Row: {
@@ -172,13 +538,27 @@ export interface Database {
           tracker_entry_id: string | null;
           sent_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["sent_messages"]["Row"]> & {
+        Insert: {
+          id?: string;
           coach_id: string;
           client_id: string;
+          template_id?: string | null;
           subject: string;
           body: string;
+          trigger_event?: string | null;
+          tracker_entry_id?: string | null;
         };
-        Update: Partial<Database["public"]["Tables"]["sent_messages"]["Row"]>;
+        Update: {
+          id?: string;
+          coach_id?: string;
+          client_id?: string;
+          template_id?: string | null;
+          subject?: string;
+          body?: string;
+          trigger_event?: string | null;
+          tracker_entry_id?: string | null;
+        };
+        Relationships: [];
       };
       user_events: {
         Row: {
@@ -188,31 +568,19 @@ export interface Database {
           metadata: Json;
           created_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["user_events"]["Row"]> & {
+        Insert: {
+          id?: string;
+          user_id?: string | null;
           event_type: string;
+          metadata?: Json;
         };
-        Update: Partial<Database["public"]["Tables"]["user_events"]["Row"]>;
-      };
-      error_logs: {
-        Row: {
-          id: string;
-          severity: "info" | "warning" | "error" | "critical";
-          source_system: string;
-          message: string;
-          stack_trace: string | null;
-          user_id: string | null;
-          request_id: string | null;
-          metadata: Json;
-          resolved: boolean;
-          resolved_at: string | null;
-          resolved_by: string | null;
-          created_at: string;
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          event_type?: string;
+          metadata?: Json;
         };
-        Insert: Partial<Database["public"]["Tables"]["error_logs"]["Row"]> & {
-          source_system: string;
-          message: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["error_logs"]["Row"]>;
+        Relationships: [];
       };
       job_fetch_logs: {
         Row: {
@@ -231,10 +599,80 @@ export interface Database {
           request_id: string | null;
           created_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["job_fetch_logs"]["Row"]> & {
+        Insert: {
+          id?: string;
+          profile_id?: string | null;
+          batch_id?: string | null;
           source_name: string;
+          search_term?: string | null;
+          jobs_returned?: number;
+          jobs_after_dedupe?: number | null;
+          jobs_scored?: number | null;
+          jobs_enriched?: number | null;
+          success?: boolean;
+          error_message?: string | null;
+          duration_ms?: number | null;
+          request_id?: string | null;
         };
-        Update: Partial<Database["public"]["Tables"]["job_fetch_logs"]["Row"]>;
+        Update: {
+          id?: string;
+          profile_id?: string | null;
+          batch_id?: string | null;
+          source_name?: string;
+          search_term?: string | null;
+          jobs_returned?: number;
+          jobs_after_dedupe?: number | null;
+          jobs_scored?: number | null;
+          jobs_enriched?: number | null;
+          success?: boolean;
+          error_message?: string | null;
+          duration_ms?: number | null;
+          request_id?: string | null;
+        };
+        Relationships: [];
+      };
+      error_logs: {
+        Row: {
+          id: string;
+          severity: string;
+          source_system: string;
+          message: string;
+          stack_trace: string | null;
+          user_id: string | null;
+          request_id: string | null;
+          metadata: Json;
+          resolved: boolean;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          severity?: string;
+          source_system: string;
+          message: string;
+          stack_trace?: string | null;
+          user_id?: string | null;
+          request_id?: string | null;
+          metadata?: Json;
+          resolved?: boolean;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          severity?: string;
+          source_system?: string;
+          message?: string;
+          stack_trace?: string | null;
+          user_id?: string | null;
+          request_id?: string | null;
+          metadata?: Json;
+          resolved?: boolean;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Relationships: [];
       };
       email_logs: {
         Row: {
@@ -248,11 +686,27 @@ export interface Database {
           template_id: string | null;
           created_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["email_logs"]["Row"]> & {
+        Insert: {
+          id?: string;
           recipient_email: string;
+          recipient_id?: string | null;
           email_type: string;
+          subject?: string | null;
+          success?: boolean;
+          error_message?: string | null;
+          template_id?: string | null;
         };
-        Update: Partial<Database["public"]["Tables"]["email_logs"]["Row"]>;
+        Update: {
+          id?: string;
+          recipient_email?: string;
+          recipient_id?: string | null;
+          email_type?: string;
+          subject?: string | null;
+          success?: boolean;
+          error_message?: string | null;
+          template_id?: string | null;
+        };
+        Relationships: [];
       };
       resume_parse_logs: {
         Row: {
@@ -266,10 +720,27 @@ export interface Database {
           model: string | null;
           created_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["resume_parse_logs"]["Row"]> & {
+        Insert: {
+          id?: string;
           user_id: string;
+          file_name?: string | null;
+          file_size?: number | null;
+          success?: boolean;
+          error_message?: string | null;
+          openai_response_time_ms?: number | null;
+          model?: string | null;
         };
-        Update: Partial<Database["public"]["Tables"]["resume_parse_logs"]["Row"]>;
+        Update: {
+          id?: string;
+          user_id?: string;
+          file_name?: string | null;
+          file_size?: number | null;
+          success?: boolean;
+          error_message?: string | null;
+          openai_response_time_ms?: number | null;
+          model?: string | null;
+        };
+        Relationships: [];
       };
       system_health_snapshots: {
         Row: {
@@ -277,94 +748,18 @@ export interface Database {
           statuses: Json;
           created_at: string;
         };
-        Insert: Partial<Database["public"]["Tables"]["system_health_snapshots"]["Row"]> & {
+        Insert: {
+          id?: string;
           statuses: Json;
         };
-        Update: Partial<Database["public"]["Tables"]["system_health_snapshots"]["Row"]>;
-      };
-      enrichment_cache: {
-        Row: {
-          id: string;
-          url: string;
-          job_summary: string | null;
-          raw_response: Json | null;
-          model: string | null;
-          created_at: string;
-          expires_at: string;
+        Update: {
+          id?: string;
+          statuses?: Json;
         };
-        Insert: Partial<Database["public"]["Tables"]["enrichment_cache"]["Row"]> & {
-          url: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["enrichment_cache"]["Row"]>;
-      };
-      lane_role_bank: {
-        Row: {
-          id: string;
-          lane_key: string;
-          role_name: string;
-          aliases: string[];
-          is_active: boolean;
-          status: "active" | "pending" | "merged" | "hidden";
-          role_slug: string | null;
-          source: string;
-          merged_into_id: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["lane_role_bank"]["Row"]> & {
-          lane_key: string;
-          role_name: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["lane_role_bank"]["Row"]>;
-      };
-      role_bank: {
-        Row: {
-          id: string;
-          profile_id: string;
-          url: string | null;
-          company: string | null;
-          title: string | null;
-          source: string | null;
-          location: string | null;
-          work_mode: string | null;
-          job_family: string | null;
-          description_snippet: string | null;
-          job_summary: string | null;
-          why_fit: string | null;
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["role_bank"]["Row"]> & {
-          profile_id: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["role_bank"]["Row"]>;
-      };
-      jobs_inbox: {
-        Row: {
-          id: string;
-          job_id: string | null;
-          email_received_at: string | null;
-          title: string | null;
-          company: string | null;
-          url: string | null;
-          source: string | null;
-          location: string | null;
-          work_mode: string | null;
-          job_family: string | null;
-          description_snippet: string | null;
-          job_summary: string | null;
-          why_fit: string | null;
-          enrichment_status: "NEW" | "OUTLIER" | "ENRICHED" | "IN_GLOBAL";
-          missing_fields: string | null;
-          role_id: string | null;
-          promoted_at: string | null;
-          notes: string | null;
-          role_bank_id: string | null;
-          created_at: string;
-        };
-        Insert: Partial<Database["public"]["Tables"]["jobs_inbox"]["Row"]>;
-        Update: Partial<Database["public"]["Tables"]["jobs_inbox"]["Row"]>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
     Functions: {
       get_my_profile_id: {
         Args: Record<string, never>;
@@ -375,5 +770,7 @@ export interface Database {
         Returns: boolean;
       };
     };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
