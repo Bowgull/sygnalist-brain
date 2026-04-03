@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { sendEmail } from "@/lib/email";
 
 /**
  * GET /api/admin/messages — List sent messages with optional client filter
@@ -53,10 +54,10 @@ export async function POST(request: Request) {
     return error("Client not found or has no email");
   }
 
-  // Send email via SMTP
-  const emailSent = await sendEmail(client.email, subject, emailBody);
+  // Send via Gmail SMTP
+  const result = await sendEmail(client.email, subject, emailBody);
 
-  // Log to sent_messages
+  // Always save the message (even if email delivery failed)
   const { data: msg, error: insertErr } = await service
     .from("sent_messages")
     .insert({
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
       template_id: template_id || null,
       subject,
       body: emailBody,
+      trigger_event: tracker_entry_id ? "manual_with_tracker" : "manual",
       tracker_entry_id: tracker_entry_id || null,
     })
     .select()
@@ -78,46 +80,16 @@ export async function POST(request: Request) {
     recipient_id: client_id,
     email_type: template_id ? "template" : "manual",
     subject,
-    success: emailSent,
+    success: result.success,
+    error_message: result.error || null,
     template_id: template_id || null,
   });
 
-  return json({ sent: emailSent, message: msg });
-}
-
-/** Send email via SMTP (nodemailer-compatible) */
-async function sendEmail(to: string, subject: string, htmlBody: string): Promise<boolean> {
-  const SMTP_HOST = process.env.SMTP_HOST;
-  const SMTP_PORT = process.env.SMTP_PORT;
-  const SMTP_USER = process.env.SMTP_USER;
-  const SMTP_PASS = process.env.SMTP_PASS;
-  const SMTP_FROM = process.env.SMTP_FROM || "sygnalist.app@gmail.com";
-
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    console.warn("SMTP not configured — email not sent");
-    return false;
-  }
-
-  try {
-    // Use nodemailer dynamically (avoids build error if not installed)
-    const nodemailer = await import("nodemailer");
-    const transport = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: parseInt(SMTP_PORT || "587", 10),
-      secure: (SMTP_PORT || "587") === "465",
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    });
-
-    await transport.sendMail({
-      from: SMTP_FROM,
-      to,
-      subject,
-      html: htmlBody,
-    });
-
-    return true;
-  } catch (err) {
-    console.error("Email send failed:", err);
-    return false;
-  }
+  return json({
+    sent: result.success,
+    saved: true,
+    error: result.error || null,
+    message_id: result.messageId || null,
+    message: msg,
+  });
 }

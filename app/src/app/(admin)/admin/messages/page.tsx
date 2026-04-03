@@ -138,17 +138,24 @@ export default function AdminMessagesPage() {
     });
 
     if (res.ok) {
-      showToast("Email sent!");
+      const result = await res.json();
+      if (result.sent) {
+        showToast("Email sent successfully!");
+      } else if (result.saved) {
+        showToast(result.error ? `Saved but not sent: ${result.error}` : "Message saved (email not configured)");
+      } else {
+        showToast("Failed to send");
+      }
       setSelectedClient(null);
       setSelectedTemplate(null);
       setSubject("");
       setBody("");
       setView("hub");
-      // Refresh sent messages
       const sRes = await fetch("/api/admin/messages");
       if (sRes.ok) setSentMessages(await sRes.json());
     } else {
-      showToast("Failed to send email");
+      const err = await res.json();
+      showToast(err.error || "Failed to send email");
     }
     setSending(false);
   }
@@ -396,31 +403,76 @@ export default function AdminMessagesPage() {
             <h1 className="text-lg font-semibold">Sent Messages</h1>
           </div>
 
+          {/* Stats */}
+          <div className="flex gap-3">
+            <div className="flex-1 rounded-xl bg-[#171F28] p-3 text-center">
+              <p className="text-lg font-bold text-[#6AD7A3]">{sentMessages.length}</p>
+              <p className="text-[10px] text-[#6B7280]">Total Sent</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-[#171F28] p-3 text-center">
+              <p className="text-lg font-bold text-[#38BDF8]">
+                {new Set(sentMessages.map((m) => m.client_id)).size}
+              </p>
+              <p className="text-[10px] text-[#6B7280]">Clients Reached</p>
+            </div>
+            <div className="flex-1 rounded-xl bg-[#171F28] p-3 text-center">
+              <p className="text-lg font-bold text-[#FAD76A]">
+                {sentMessages.filter((m) => {
+                  const d = new Date(m.sent_at);
+                  const week = new Date(Date.now() - 7 * 86400000);
+                  return d > week;
+                }).length}
+              </p>
+              <p className="text-[10px] text-[#6B7280]">This Week</p>
+            </div>
+          </div>
+
           {sentMessages.length === 0 ? (
-            <div className="rounded-2xl bg-[#171F28] p-8 text-center text-sm text-[#9CA3AF]">
-              No messages sent yet
+            <div className="flex flex-col items-center rounded-2xl bg-[#171F28] p-12 text-center">
+              <svg viewBox="0 0 24 24" className="mb-3 h-10 w-10 text-[#2A3544]" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+              <p className="text-sm font-medium text-[#B8BFC8]">No messages sent yet</p>
+              <p className="mt-1 text-[11px] text-[#6B7280]">Compose a message to get started</p>
             </div>
           ) : (
             <div className="space-y-2">
               {sentMessages.map((msg) => {
                 const client = clients.find((c) => c.id === msg.client_id);
+                const sentDate = new Date(msg.sent_at);
+                const timeAgo = formatTimeAgo(sentDate);
                 return (
                   <div
                     key={msg.id}
-                    className="rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-3"
+                    className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{client?.display_name ?? "Unknown"}</span>
-                      <span className="text-[11px] text-[#9CA3AF]">
-                        {new Date(msg.sent_at).toLocaleDateString()}
-                      </span>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6AD7A3]/10 text-xs font-bold text-[#6AD7A3]">
+                          {(client?.display_name ?? "?")[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{client?.display_name ?? "Unknown"}</p>
+                          <p className="text-[11px] text-[#6B7280]">{client?.email}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[11px] text-[#9CA3AF]">{timeAgo}</p>
+                        <p className="text-[10px] text-[#4B5563]">
+                          {sentDate.toLocaleDateString()} {sentDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
                     </div>
-                    <div className="mt-1 text-[13px] text-[#B8BFC8]">{msg.subject}</div>
-                    {msg.trigger_event && (
-                      <span className="mt-1 inline-block rounded-full bg-[#FAD76A]/10 px-2 py-0.5 text-[10px] text-[#FAD76A]">
-                        {msg.trigger_event}
-                      </span>
-                    )}
+                    <div className="mt-2 text-[13px] font-medium text-white">{msg.subject}</div>
+                    <p className="mt-1 text-[12px] text-[#9CA3AF] line-clamp-2">{msg.body.slice(0, 150)}...</p>
+                    <div className="mt-2 flex gap-1.5">
+                      {msg.trigger_event && (
+                        <span className="rounded-full bg-[#FAD76A]/10 px-2 py-0.5 text-[10px] font-medium text-[#FAD76A]">
+                          {msg.trigger_event}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -470,4 +522,17 @@ export default function AdminMessagesPage() {
       )}
     </div>
   );
+}
+
+function formatTimeAgo(date: Date): string {
+  const now = Date.now();
+  const diff = now - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return `${Math.floor(days / 7)}w ago`;
 }
