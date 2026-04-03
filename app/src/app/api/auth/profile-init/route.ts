@@ -3,8 +3,8 @@ import { createServerSupabase, createServiceClient } from "@/lib/supabase/server
 
 /**
  * POST /api/auth/profile-init
- * Called after login/signup to ensure a profile row exists.
- * If the user has an auth account but no profile, create one.
+ * Links an auth user to their pre-existing profile (created by admin).
+ * Does NOT create profiles — admin must add the user first.
  */
 export async function POST() {
   const supabase = await createServerSupabase();
@@ -16,38 +16,37 @@ export async function POST() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Check if profile already exists
-  const { data: existing } = await supabase
+  // Check if already linked
+  const { data: linked } = await supabase
     .from("profiles")
     .select("id")
     .eq("auth_user_id", user.id)
     .single();
 
-  if (existing) {
-    return NextResponse.json({ ok: true, created: false });
+  if (linked) {
+    return NextResponse.json({ ok: true, linked: true });
   }
 
-  // Create profile using service client (bypasses RLS)
-  const service = createServiceClient();
-  const displayName =
-    user.user_metadata?.full_name ||
-    user.user_metadata?.name ||
-    user.email?.split("@")[0] ||
-    "New User";
+  // Find profile by email and link it
+  if (user.email) {
+    const service = createServiceClient();
+    const { data: profile } = await service
+      .from("profiles")
+      .select("id")
+      .ilike("email", user.email)
+      .is("auth_user_id", null)
+      .limit(1)
+      .single();
 
-  const profileId = `user-${user.id.slice(0, 8)}`;
+    if (profile) {
+      await service
+        .from("profiles")
+        .update({ auth_user_id: user.id })
+        .eq("id", profile.id);
 
-  const { error: insertErr } = await service.from("profiles").insert({
-    auth_user_id: user.id,
-    profile_id: profileId,
-    display_name: displayName,
-    email: user.email || null,
-    role: "client",
-  });
-
-  if (insertErr) {
-    return NextResponse.json({ error: insertErr.message }, { status: 500 });
+      return NextResponse.json({ ok: true, linked: true });
+    }
   }
 
-  return NextResponse.json({ ok: true, created: true });
+  return NextResponse.json({ ok: false, linked: false, reason: "no_profile" });
 }

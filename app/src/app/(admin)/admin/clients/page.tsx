@@ -9,6 +9,7 @@ export default function AdminClientsPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showOnboard, setShowOnboard] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -46,7 +47,28 @@ export default function AdminClientsPage() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Clients ({profiles.length})</h1>
+        <button
+          type="button"
+          onClick={() => setShowOnboard(true)}
+          className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-3 py-1.5 text-[12px] font-semibold text-[#0C1016]"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Onboard Client
+        </button>
       </div>
+
+      {showOnboard && (
+        <OnboardSheet
+          onClose={() => setShowOnboard(false)}
+          onCreated={(p) => {
+            setProfiles((prev) => [...prev, p]);
+            setShowOnboard(false);
+          }}
+        />
+      )}
 
       {profiles.map((p) => (
         <div
@@ -237,6 +259,129 @@ function ProfileEditor({
       >
         Save Changes
       </button>
+    </div>
+  );
+}
+
+function OnboardSheet({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (profile: Profile) => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [city, setCity] = useState("");
+  const [salary, setSalary] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+
+    const profileId = `client-${email.split("@")[0]}-${Date.now().toString(36)}`;
+
+    const res = await fetch("/api/admin/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        profile_id: profileId,
+        display_name: name,
+        email: email.trim().toLowerCase(),
+        current_city: city || undefined,
+        salary_min: parseInt(salary) || 0,
+        role: "client",
+      }),
+    });
+
+    if (res.ok) {
+      const profile = await res.json();
+      onCreated(profile);
+    } else {
+      const data = await res.json();
+      setError(data.error || "Failed to create profile");
+    }
+    setSubmitting(false);
+  }
+
+  return (
+    <div className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="8.5" cy="7" r="4" />
+            <line x1="20" y1="8" x2="20" y2="14" />
+            <line x1="17" y1="11" x2="23" y2="11" />
+          </svg>
+          Onboard New Client
+        </h2>
+        <button type="button" onClick={onClose} className="text-[#9CA3AF] hover:text-white">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <p className="mb-3 text-[12px] text-[#9CA3AF]">
+        Add the client&apos;s email below. They&apos;ll be able to log in once saved.
+      </p>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            placeholder="Full Name *"
+            className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white placeholder-[#9CA3AF] outline-none focus:border-[#6AD7A3]"
+          />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            placeholder="Email *"
+            className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white placeholder-[#9CA3AF] outline-none focus:border-[#6AD7A3]"
+          />
+          <input
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="City (optional)"
+            className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white placeholder-[#9CA3AF] outline-none focus:border-[#6AD7A3]"
+          />
+          <input
+            type="number"
+            value={salary}
+            onChange={(e) => setSalary(e.target.value)}
+            placeholder="Min Salary (optional)"
+            className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white placeholder-[#9CA3AF] outline-none focus:border-[#6AD7A3]"
+          />
+        </div>
+
+        {error && <p className="text-xs text-[#DC2626]">{error}</p>}
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-full border border-[#2A3544] py-2 text-sm font-medium text-[#9CA3AF]"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="flex-1 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] py-2 text-sm font-semibold text-[#0C1016] disabled:opacity-50"
+          >
+            {submitting ? "Creating..." : "Grant Access"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
