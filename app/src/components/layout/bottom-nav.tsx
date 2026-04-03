@@ -61,7 +61,7 @@ export default function BottomNav({ isAdmin = false }: { isAdmin?: boolean }) {
     : navItems;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#2A3544] bg-[#0C1016]/95 backdrop-blur-md">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[#2A3544] bg-[#0C1016]/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-lg items-center justify-around py-2">
         {items.map((item) => {
           const isActive = pathname.startsWith(item.href);

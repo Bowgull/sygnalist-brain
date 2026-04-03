@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 import JobCard from "@/components/inbox/job-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import type { Database } from "@/types/database";
@@ -14,7 +13,6 @@ export default function InboxPage() {
   const [activeLane, setActiveLane] = useState("All");
   const [lanes, setLanes] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
-  const supabase = createClient();
 
   const fetchJobs = useCallback(
     async (lane: string) => {
@@ -28,7 +26,6 @@ export default function InboxPage() {
         setJobs(data.jobs ?? []);
         setTotal(data.total ?? 0);
 
-        // Extract unique lanes from jobs
         if (lane === "All" && data.jobs) {
           const uniqueLanes = [
             ...new Set(
@@ -50,33 +47,21 @@ export default function InboxPage() {
   }, [activeLane, fetchJobs]);
 
   async function handlePromote(id: string) {
-    const res = await fetch(`/api/inbox/${id}/promote`, { method: "POST" });
-    if (res.ok) {
-      // Optimistic: keep card visible but show "In Tracker" state
-    }
+    await fetch(`/api/inbox/${id}/promote`, { method: "POST" });
   }
 
   async function handleDismiss(id: string) {
-    // Optimistic remove
     setJobs((prev) => prev.filter((j) => j.id !== id));
     setTotal((prev) => prev - 1);
-
     await fetch(`/api/inbox/${id}/dismiss`, { method: "POST" });
   }
 
-  async function handleFetch() {
-    setLoading(true);
-    await fetch("/api/fetch", { method: "POST" });
-    // Refresh inbox after fetch
-    await fetchJobs(activeLane);
-  }
-
   return (
-    <div className="relative">
-      {/* Stat bar */}
-      <div className="border-b border-[#2A3544] px-4 py-2">
+    <div>
+      {/* Filter row */}
+      <div className="sticky top-0 z-10 border-b border-[#2A3544] bg-[#151C24] px-4 md:px-6 py-2.5">
         <div className="flex items-center gap-4 overflow-x-auto text-xs">
-          <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <div className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
             <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
               <circle cx="12" cy="12" r="9" />
               <circle cx="12" cy="12" r="4" opacity={0.4} />
@@ -85,31 +70,31 @@ export default function InboxPage() {
             <span className="text-[#9CA3AF]">Open Sygnals</span>
             <span className="font-semibold text-white">{total}</span>
           </div>
+
+          {/* Lane filter pills */}
+          {lanes.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+              {["All", ...lanes].map((lane) => (
+                <button
+                  key={lane}
+                  type="button"
+                  onClick={() => setActiveLane(lane)}
+                  className={`whitespace-nowrap rounded-full px-3 py-1 text-[0.6875rem] font-medium transition-colors ${
+                    activeLane === lane
+                      ? "bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30"
+                      : "bg-[#171F28] text-[#9CA3AF] ring-1 ring-[#2A3544] hover:text-[#B8BFC8]"
+                  }`}
+                >
+                  {lane}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Lane filters */}
-      {lanes.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto px-4 py-2.5 scrollbar-none">
-          {["All", ...lanes].map((lane) => (
-            <button
-              key={lane}
-              type="button"
-              onClick={() => setActiveLane(lane)}
-              className={`whitespace-nowrap rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-                activeLane === lane
-                  ? "bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30"
-                  : "bg-[#151C24] text-[#9CA3AF] ring-1 ring-[#2A3544] hover:text-[#B8BFC8]"
-              }`}
-            >
-              {lane}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Job list */}
-      <div className="space-y-3 px-4 py-3">
+      <div className="space-y-3 md:space-y-4 p-3 md:p-6">
         {loading ? (
           <>
             <SkeletonCard />
@@ -125,7 +110,7 @@ export default function InboxPage() {
             </svg>
             <p className="text-sm font-medium text-[#B8BFC8]">No fresh sygnals yet</p>
             <p className="mt-1 text-xs text-[#9CA3AF]">
-              Run Scan or check back after the next run.
+              Check back after the next run.
             </p>
           </div>
         ) : (
@@ -139,21 +124,6 @@ export default function InboxPage() {
           ))
         )}
       </div>
-
-      {/* Floating Action Button — Fetch */}
-      <button
-        type="button"
-        onClick={handleFetch}
-        disabled={loading}
-        className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] shadow-lg shadow-[#6AD7A3]/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-      >
-        <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#0C1016]" fill="none" stroke="currentColor" strokeWidth={2}>
-          <circle cx="12" cy="12" r="9" />
-          <circle cx="12" cy="12" r="4" opacity={0.4} />
-          <path d="M12 12L18 8" strokeLinecap="round" />
-          <circle cx="18" cy="8" r="1.5" fill="currentColor" stroke="none" />
-        </svg>
-      </button>
     </div>
   );
 }

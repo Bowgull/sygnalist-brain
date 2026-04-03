@@ -100,18 +100,22 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 px-4 py-6">
-        <div className="h-32 animate-pulse rounded-2xl bg-[#171F28]" />
-        <div className="h-48 animate-pulse rounded-2xl bg-[#171F28]" />
+      <div className="space-y-3 md:space-y-4 p-3 md:p-6">
+        <div className="h-24 animate-pulse rounded-[var(--radius-lg)]" />
+        <div className="h-40 animate-pulse rounded-[var(--radius-lg)]" />
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="flex flex-col items-center py-20 text-center">
-        <p className="text-sm text-[#B8BFC8]">Profile not found</p>
-        <button onClick={handleSignOut} className="mt-4 text-sm text-[#DC2626]">
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <p className="text-[0.9375rem] text-[#B8BFC8]">Profile not found</p>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="mt-4 inline-flex h-[34px] items-center rounded-full border border-[#2A3544] px-4 text-[0.8125rem] text-[#9CA3AF]"
+        >
           Sign Out
         </button>
       </div>
@@ -124,55 +128,62 @@ export default function ProfilePage() {
     ? formatTimeAgo(new Date(profile.last_fetch_at))
     : "Never";
 
+  const inputClass = "w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2.5 text-[0.8125rem] text-white outline-none transition-colors focus:border-[#6AD7A3]";
+
   return (
-    <div className="space-y-4 px-4 py-4">
+    <div className="space-y-3 md:space-y-4 p-3 md:p-6">
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-sm font-medium text-[#0C1016] shadow-lg">
+        <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-[0.8125rem] font-semibold text-[#0C1016] shadow-lg animate-slide-up">
           {toast}
         </div>
       )}
 
-      {/* Profile Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28]">
-        <div className="h-20 bg-gradient-to-r from-[#A9FFB5]/20 via-[#5EF2C7]/15 to-[#39D6FF]/20" />
-        <div className="px-5 pb-5">
-          <div className="-mt-8 flex items-end gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#A9FFB5]/20 to-[#39D6FF]/20 text-2xl font-bold text-[#6AD7A3] ring-4 ring-[#171F28]">
-              {profile.display_name[0]?.toUpperCase()}
-            </div>
-            <div className="mb-1">
-              <h1 className="text-lg font-bold">{profile.display_name}</h1>
-              <p className="text-[12px] text-[#9CA3AF]">{profile.email}</p>
-            </div>
+      {/* Profile header */}
+      <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4 md:p-6">
+        <div className="flex items-center gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5]/20 to-[#39D6FF]/20 ring-1 ring-[#6AD7A3]/20">
+            <span className="text-xl font-bold text-[#6AD7A3]">
+              {profile.display_name[0]?.toUpperCase() ?? "?"}
+            </span>
           </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[1rem] md:text-[1.3125rem] font-bold text-white">{profile.display_name}</h2>
+            <p className="text-[0.8125rem] text-[#9CA3AF]">{profile.email}</p>
+          </div>
+          <span
+            className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] ${
+              profile.status === "active"
+                ? "border-[#6AD7A3]/25 bg-[#6AD7A3]/12 text-[#6AD7A3]"
+                : "border-[#DC2626]/25 bg-[#DC2626]/12 text-[#DC2626]"
+            }`}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            {profile.status === "active" ? "Active" : "Locked"}
+          </span>
+        </div>
 
-          <div className="mt-4 flex gap-3">
-            <div className="flex-1 rounded-xl bg-[#0C1016] p-3 text-center">
-              <p className="text-[10px] font-medium uppercase text-[#6B7280]">Member Since</p>
-              <p className="mt-0.5 text-[13px] font-semibold text-white">{memberSince}</p>
+        {/* Stats row */}
+        <div className="mt-4 flex gap-3">
+          {[
+            { label: "Member Since", value: memberSince },
+            { label: "Last Scan", value: lastScan },
+          ].map((s) => (
+            <div key={s.label} className="flex-1 rounded-lg bg-[#0C1016] p-3 text-center">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">{s.label}</p>
+              <p className="mt-0.5 text-[0.8125rem] font-semibold text-white">{s.value}</p>
             </div>
-            <div className="flex-1 rounded-xl bg-[#0C1016] p-3 text-center">
-              <p className="text-[10px] font-medium uppercase text-[#6B7280]">Last Scan</p>
-              <p className="mt-0.5 text-[13px] font-semibold text-white">{lastScan}</p>
-            </div>
-            <div className="flex-1 rounded-xl bg-[#0C1016] p-3 text-center">
-              <p className="text-[10px] font-medium uppercase text-[#6B7280]">Status</p>
-              <p className={`mt-0.5 text-[13px] font-semibold ${profile.status === "active" ? "text-[#6AD7A3]" : "text-[#DC2626]"}`}>
-                {profile.status === "active" ? "Active" : "Locked"}
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
       {/* Roles */}
       {roles.length > 0 && (
-        <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4">
-          <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">Target Roles</h2>
-          <div className="flex flex-wrap gap-1.5">
+        <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4 md:p-6">
+          <h3 className="mb-3 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Target Roles</h3>
+          <div className="flex flex-wrap gap-2">
             {roles.map((r, i) => (
-              <span key={i} className="rounded-full bg-[#6AD7A3]/10 px-3 py-1 text-[12px] font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20">
+              <span key={i} className="inline-flex h-[26px] items-center rounded-full border border-[#6AD7A3]/20 bg-[#6AD7A3]/8 px-3 text-[0.6875rem] font-medium text-[#6AD7A3]">
                 {r}
               </span>
             ))}
@@ -182,11 +193,11 @@ export default function ProfilePage() {
 
       {/* Skills */}
       {profile.top_skills.length > 0 && (
-        <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4">
-          <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">Top Skills</h2>
-          <div className="flex flex-wrap gap-1.5">
+        <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4 md:p-6">
+          <h3 className="mb-3 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Top Skills</h3>
+          <div className="flex flex-wrap gap-2">
             {profile.top_skills.map((s, i) => (
-              <span key={i} className="rounded-full bg-[#38BDF8]/10 px-3 py-1 text-[12px] font-medium text-[#38BDF8] ring-1 ring-[#38BDF8]/20">
+              <span key={i} className="inline-flex h-[26px] items-center rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/8 px-3 text-[0.6875rem] font-medium text-[#38BDF8]">
                 {s}
               </span>
             ))}
@@ -195,51 +206,47 @@ export default function ProfilePage() {
       )}
 
       {/* Preferences — Editable */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4">
+      <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4 md:p-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#6B7280]">Preferences</h2>
+          <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Preferences</h3>
           {!editing && (
             <button
+              type="button"
               onClick={() => setEditing(true)}
-              className="rounded-full bg-[#6AD7A3]/10 px-3 py-1 text-[11px] font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20 transition hover:bg-[#6AD7A3]/20"
+              className="inline-flex items-center gap-1 rounded-full bg-[#171F28] px-3 py-1 text-[0.6875rem] font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20 hover:bg-[#6AD7A3]/10"
             >
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+              </svg>
               Edit
             </button>
           )}
         </div>
 
         {editing ? (
-          <div className="space-y-4">
+          <div className="space-y-3 animate-slide-down">
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Display Name</label>
-              <input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-xl border border-[#2A3544] bg-[#0C1016] px-3 py-2.5 text-sm text-white outline-none focus:border-[#6AD7A3]"
-              />
+              <label className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Display Name</label>
+              <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputClass} />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">City</label>
-              <input
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="w-full rounded-xl border border-[#2A3544] bg-[#0C1016] px-3 py-2.5 text-sm text-white outline-none focus:border-[#6AD7A3]"
-              />
+              <label className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">City</label>
+              <input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Min Salary</label>
+              <label className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Min Salary</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#6B7280]">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.8125rem] text-[#9CA3AF]">$</span>
                 <input
                   type="number"
                   value={salary || ""}
                   onChange={(e) => setSalary(parseInt(e.target.value) || 0)}
-                  className="w-full rounded-xl border border-[#2A3544] bg-[#0C1016] py-2.5 pl-7 pr-3 text-sm text-white outline-none focus:border-[#6AD7A3]"
+                  className={`${inputClass} pl-7`}
                 />
               </div>
             </div>
             <div>
-              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Work Mode</label>
+              <label className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Work Mode</label>
               <div className="flex gap-2">
                 {([
                   ["Remote", remote, setRemote],
@@ -248,11 +255,12 @@ export default function ProfilePage() {
                 ] as const).map(([label, val, setter]) => (
                   <button
                     key={label}
+                    type="button"
                     onClick={() => (setter as (v: boolean) => void)(!val)}
-                    className={`flex-1 rounded-xl py-2.5 text-sm font-medium transition ${
+                    className={`flex-1 rounded-full py-2 text-[0.8125rem] font-medium transition-colors ${
                       val
                         ? "bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30"
-                        : "bg-[#0C1016] text-[#6B7280] ring-1 ring-[#2A3544]"
+                        : "bg-[#151C24] text-[#9CA3AF] ring-1 ring-[#2A3544]"
                     }`}
                   >
                     {label}
@@ -261,7 +269,7 @@ export default function ProfilePage() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">
+              <label className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
                 Max Distance: {distance} km
               </label>
               <input
@@ -274,21 +282,26 @@ export default function ProfilePage() {
                 className="w-full accent-[#6AD7A3]"
               />
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setEditing(false)} className="flex-1 rounded-xl border border-[#2A3544] py-2.5 text-sm font-medium text-[#9CA3AF]">
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="flex-1 rounded-full border border-[#2A3544] py-2.5 text-[0.8125rem] font-medium text-[#9CA3AF] hover:text-white"
+              >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 rounded-xl bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] py-2.5 text-sm font-bold text-[#0C1016] disabled:opacity-50"
+                className="flex-1 rounded-full border border-[rgba(169,255,181,0.35)] bg-gradient-to-r from-[rgba(14,18,24,0.6)] to-[rgba(21,28,36,0.60)] py-2.5 text-[0.8125rem] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_20px_rgba(106,215,163,0.1)] disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 text-[0.9375rem]">
             <PrefRow label="City" value={profile.current_city || "Not set"} />
             <PrefRow label="Min Salary" value={profile.salary_min > 0 ? `$${profile.salary_min.toLocaleString()}` : "Not set"} />
             <PrefRow label="Work Mode" value={[profile.accept_remote && "Remote", profile.accept_hybrid && "Hybrid", profile.accept_onsite && "Onsite"].filter(Boolean).join(", ") || "Any"} />
@@ -299,8 +312,9 @@ export default function ProfilePage() {
 
       {/* Sign Out */}
       <button
+        type="button"
         onClick={handleSignOut}
-        className="w-full rounded-xl border border-[#DC2626]/20 py-3 text-sm font-medium text-[#DC2626] transition hover:bg-[#DC2626]/10"
+        className="w-full rounded-full border border-[#2A3544] py-2.5 text-[0.875rem] font-medium text-[#9CA3AF] transition-all hover:border-[#DC2626]/40 hover:text-[#DC2626]"
       >
         Sign Out
       </button>
@@ -311,8 +325,8 @@ export default function ProfilePage() {
 function PrefRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[12px] text-[#6B7280]">{label}</span>
-      <span className="text-[13px] font-medium text-white">{value}</span>
+      <span className="text-[#B8BFC8]">{label}</span>
+      <span className="font-medium text-white">{value}</span>
     </div>
   );
 }
