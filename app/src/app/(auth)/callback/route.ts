@@ -10,6 +10,11 @@ export async function GET(request: Request) {
     const supabase = await createServerSupabase();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Auto-create profile if it doesn't exist
+      await fetch(`${origin}/api/auth/profile-init`, {
+        method: "POST",
+        headers: { cookie: request.headers.get("cookie") ?? "" },
+      });
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

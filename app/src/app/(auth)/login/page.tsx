@@ -17,11 +17,23 @@ export default function LoginPage() {
     setMessage("");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setMessage(error.message);
-      setLoading(false);
-    } else {
-      window.location.href = "/inbox";
+      // If user doesn't exist, try signing up
+      if (error.message.includes("Invalid login")) {
+        const { error: signUpErr } = await supabase.auth.signUp({ email, password });
+        if (signUpErr) {
+          setMessage(signUpErr.message);
+          setLoading(false);
+          return;
+        }
+      } else {
+        setMessage(error.message);
+        setLoading(false);
+        return;
+      }
     }
+    // Auto-create profile if needed
+    await fetch("/api/auth/profile-init", { method: "POST" });
+    window.location.href = "/inbox";
   }
 
   async function handleMagicLink(e: React.FormEvent) {

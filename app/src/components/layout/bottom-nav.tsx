@@ -39,13 +39,31 @@ const navItems = [
   },
 ];
 
-export default function BottomNav() {
+export default function BottomNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
+
+  const items = isAdmin
+    ? [
+        ...navItems,
+        {
+          label: "Admin",
+          href: "/admin",
+          icon: (
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          ),
+        },
+      ]
+    : navItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#2A3544] bg-[#0C1016]/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-lg items-center justify-around py-2">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
             <Link
