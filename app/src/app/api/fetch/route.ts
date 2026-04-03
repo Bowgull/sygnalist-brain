@@ -1,9 +1,11 @@
 import { requireAuth, json, error, getServiceClient } from "@/lib/api-helpers";
+import { runFetchPipeline } from "@/lib/sources/orchestrator";
 
 /**
  * POST /api/fetch — trigger a job fetch for the user's profile.
  *
- * Stub for Phase 4. Validates auth, logs the request, returns placeholder.
+ * Runs all 6 source adapters in parallel, deduplicates, scores, enriches with AI,
+ * and delivers the top results to the user's inbox.
  */
 export async function POST() {
   const { profile, response } = await requireAuth();
@@ -15,26 +17,37 @@ export async function POST() {
   }
 
   const service = getServiceClient();
-  const requestId = crypto.randomUUID();
 
-  await service.from("job_fetch_logs").insert({
-    profile_id: profile.id,
-    source_name: "stub",
-    jobs_returned: 0,
-    request_id: requestId,
-    duration_ms: 0,
-  });
-
+  // Log the fetch event
   await service.from("user_events").insert({
     user_id: profile.id,
     event_type: "fetch",
-    metadata: { request_id: requestId },
+    metadata: { triggered_by: "user" },
   });
 
-  // TODO: Phase 4 will implement the actual fetch pipeline
-  return json({
-    request_id: requestId,
-    message: "Fetch pipeline will be available after Phase 4",
-    jobs_delivered: 0,
-  });
+  try {
+    const result = await runFetchPipeline(profile, service);
+
+    return json({
+      request_id: result.requestId,
+      search_terms: result.searchTerms,
+      sources: result.sourceResults,
+      total_raw: result.totalRaw,
+      after_dedupe: result.afterDedupe,
+      after_filter: result.afterFilter,
+      jobs_delivered: result.jobsDelivered,
+      duration_ms: result.duration_ms,
+    });
+  } catch (err) {
+    // Log the error
+    await service.from("error_logs").insert({
+      severity: "error",
+      source_system: "fetch_pipeline",
+      message: err instanceof Error ? err.message : "Unknown fetch error",
+      stack_trace: err instanceof Error ? err.stack ?? null : null,
+      user_id: profile.id,
+    });
+
+    return error("Fetch failed — please try again", 500);
+  }
 }
