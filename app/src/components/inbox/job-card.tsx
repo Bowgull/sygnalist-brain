@@ -55,7 +55,7 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] transition-all ${swipeBg}`}
+      className={`glass-card relative overflow-hidden transition-all ${swipeBg}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

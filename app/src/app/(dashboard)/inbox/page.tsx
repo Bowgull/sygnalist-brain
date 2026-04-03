@@ -109,7 +109,7 @@ export default function InboxPage() {
       )}
 
       {/* Job list */}
-      <div className="space-y-3 px-4 py-3">
+      <div className="stagger-children mx-auto max-w-2xl space-y-3 px-4 py-3 lg:px-0">
         {loading ? (
           <>
             <SkeletonCard />
@@ -145,7 +145,7 @@ export default function InboxPage() {
         type="button"
         onClick={handleFetch}
         disabled={loading}
-        className="fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] shadow-lg shadow-[#6AD7A3]/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+        className="btn-press animate-pulse-glow fixed bottom-20 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] shadow-lg shadow-[#6AD7A3]/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 lg:bottom-8 lg:right-8"
       >
         <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#0C1016]" fill="none" stroke="currentColor" strokeWidth={2}>
           <circle cx="12" cy="12" r="9" />

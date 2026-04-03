@@ -27,7 +27,11 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-dvh flex-col">
       <AdminNav displayName={profile.display_name} />
-      <main className="flex-1 px-4 py-4 pb-20 lg:px-8">{children}</main>
+      <main className="flex-1 pb-20">
+        <div className="mx-auto max-w-6xl px-4 py-4 lg:px-8">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

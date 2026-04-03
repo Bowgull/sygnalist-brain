@@ -34,7 +34,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
     daysInStage < 3 ? "text-[#6AD7A3]" : daysInStage < 7 ? "text-[#F59E0B]" : "text-[#DC2626]";
 
   return (
-    <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] transition-all">
+    <div className="glass-card transition-all">
       {/* Collapsed header */}
       <button
         type="button"

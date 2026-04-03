@@ -2,7 +2,7 @@
 
 export default function Header({ displayName }: { displayName?: string }) {
   return (
-    <header className="sticky top-0 z-40 bg-[#0C1016]/95 backdrop-blur-md">
+    <header className="sticky top-0 z-40 bg-[#0C1016]/90 backdrop-blur-xl">
       <div className="flex items-center justify-between px-4 py-3">
         {/* Logo */}
         <div className="flex items-center gap-2.5">
