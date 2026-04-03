@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
 import JobCard from "@/components/inbox/job-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
+import StatRing from "@/components/ui/stat-ring";
 import type { Database } from "@/types/database";
 
 type InboxJob = Database["public"]["Tables"]["inbox_jobs"]["Row"];
@@ -14,7 +14,7 @@ export default function InboxPage() {
   const [activeLane, setActiveLane] = useState("All");
   const [lanes, setLanes] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
-  const supabase = createClient();
+  const [trackerCount, setTrackerCount] = useState(0);
 
   const fetchJobs = useCallback(
     async (lane: string) => {
@@ -28,7 +28,6 @@ export default function InboxPage() {
         setJobs(data.jobs ?? []);
         setTotal(data.total ?? 0);
 
-        // Extract unique lanes from jobs
         if (lane === "All" && data.jobs) {
           const uniqueLanes = [
             ...new Set(
@@ -49,42 +48,52 @@ export default function InboxPage() {
     fetchJobs(activeLane);
   }, [activeLane, fetchJobs]);
 
+  // Fetch tracker count for stat display
+  useEffect(() => {
+    fetch("/api/tracker")
+      .then((r) => r.json())
+      .then((data) => setTrackerCount(data.entries?.length ?? 0))
+      .catch(() => {});
+  }, []);
+
+  // Tier distribution for stats
+  const tierCounts = jobs.reduce(
+    (acc, j) => {
+      const t = (j.tier ?? "C") as string;
+      acc[t] = (acc[t] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
   async function handlePromote(id: string) {
     const res = await fetch(`/api/inbox/${id}/promote`, { method: "POST" });
     if (res.ok) {
-      // Optimistic: keep card visible but show "In Tracker" state
+      setTrackerCount((c) => c + 1);
     }
   }
 
   async function handleDismiss(id: string) {
-    // Optimistic remove
     setJobs((prev) => prev.filter((j) => j.id !== id));
     setTotal((prev) => prev - 1);
-
     await fetch(`/api/inbox/${id}/dismiss`, { method: "POST" });
   }
 
   async function handleFetch() {
     setLoading(true);
     await fetch("/api/fetch", { method: "POST" });
-    // Refresh inbox after fetch
     await fetchJobs(activeLane);
   }
 
   return (
     <div className="relative">
-      {/* Stat bar */}
-      <div className="border-b border-[#2A3544] px-4 py-2">
-        <div className="flex items-center gap-4 overflow-x-auto text-xs">
-          <div className="flex items-center gap-1.5 whitespace-nowrap">
-            <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="9" />
-              <circle cx="12" cy="12" r="4" opacity={0.4} />
-              <path d="M12 12L18 8" strokeLinecap="round" />
-            </svg>
-            <span className="text-[#9CA3AF]">Open Sygnals</span>
-            <span className="font-semibold text-white">{total}</span>
-          </div>
+      {/* Stats dashboard bar */}
+      <div className="border-b border-[#2A3544] px-4 py-3">
+        <div className="mx-auto flex max-w-2xl items-center justify-around gap-2 lg:justify-start lg:gap-8">
+          <StatRing value={total} max={Math.max(total, 20)} label="Sygnals" color="#6AD7A3" />
+          <StatRing value={trackerCount} max={Math.max(trackerCount, 10)} label="Tracked" color="#38BDF8" />
+          <StatRing value={tierCounts["S"] ?? 0} max={Math.max(total, 1)} label="S-Tier" color="#FAD76A" />
+          <StatRing value={tierCounts["A"] ?? 0} max={Math.max(total, 1)} label="A-Tier" color="#6AD7A3" />
         </div>
       </div>
 
@@ -118,11 +127,14 @@ export default function InboxPage() {
           </>
         ) : jobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <svg viewBox="0 0 64 64" className="mb-4 h-12 w-12 text-[#2A3544]">
-              <circle cx="32" cy="32" r="17" fill="none" stroke="currentColor" strokeWidth="3" />
-              <circle cx="32" cy="32" r="4" fill="currentColor" opacity="0.3" />
-              <path d="M32 32 L49 22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
-            </svg>
+            <div className="relative mb-4">
+              <svg viewBox="0 0 64 64" className="h-16 w-16 text-[#2A3544]">
+                <circle cx="32" cy="32" r="17" fill="none" stroke="currentColor" strokeWidth="3" />
+                <circle cx="32" cy="32" r="4" fill="currentColor" opacity="0.3" />
+                <path d="M32 32 L49 22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
+              </svg>
+              <div className="absolute inset-0 animate-pulse-glow rounded-full" />
+            </div>
             <p className="text-sm font-medium text-[#B8BFC8]">No fresh sygnals yet</p>
             <p className="mt-1 text-xs text-[#9CA3AF]">
               Run Scan or check back after the next run.

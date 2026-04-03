@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import StatRing from "@/components/ui/stat-ring";
 
 interface HealthData {
   status: string;
@@ -45,42 +46,70 @@ export default function AdminHealthPage() {
   }
 
   const pipelineStages = [
-    "Prospect", "Applied", "Interview 1", "Interview 2", "Final", "Offer",
-    "Rejected", "Ghosted", "Withdrawn",
+    { label: "Prospect", color: "#1DD3B0" },
+    { label: "Applied", color: "#3B82F6" },
+    { label: "Interview 1", color: "#8B5CF6" },
+    { label: "Interview 2", color: "#8B5CF6" },
+    { label: "Final", color: "#F59E0B" },
+    { label: "Offer", color: "#22C55E" },
+    { label: "Rejected", color: "#DC2626" },
+    { label: "Ghosted", color: "#4B5563" },
+    { label: "Withdrawn", color: "#6B7280" },
   ];
   const pipelineTotal = Object.values(analytics?.pipeline ?? {}).reduce((a, b) => a + b, 0);
 
   return (
     <div className="stagger-children space-y-4">
-      {/* System Health */}
-      <div className="glass-card p-4">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-          <span
-            className={`h-2.5 w-2.5 rounded-full ${health?.status === "healthy" ? "animate-pulse bg-[#6AD7A3]" : "bg-[#DC2626]"}`}
-          />
-          System Health
-        </h2>
-        <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-          <StatBox
-            label="Database"
-            value={health?.database.connected ? "Connected" : "Down"}
-            color={health?.database.connected ? "green" : "red"}
-          />
-          <StatBox
-            label="DB Latency"
-            value={health?.database.latency_ms ? `${health.database.latency_ms}ms` : "—"}
-            color="default"
-          />
-          <StatBox
-            label="Unresolved Errors"
-            value={String(analytics?.errors.unresolved ?? 0)}
-            color={analytics?.errors.unresolved ? "red" : "green"}
-          />
-          <StatBox
-            label="Last Check"
-            value={health?.timestamp ? new Date(health.timestamp).toLocaleTimeString() : "—"}
-            color="default"
-          />
+      {/* Hero stats with gradient mesh */}
+      <div className="glass-card relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute -left-12 -top-12 h-40 w-40 rounded-full bg-[#6AD7A3]/20 blur-3xl" />
+          <div className="absolute -right-8 bottom-0 h-32 w-32 rounded-full bg-[#39D6FF]/15 blur-3xl" />
+        </div>
+
+        <div className="relative p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${health?.status === "healthy" ? "bg-[#6AD7A3] shadow-[0_0_8px_rgba(106,215,163,0.5)]" : "bg-[#DC2626]"}`}
+            />
+            <span className="text-sm font-semibold">
+              {health?.status === "healthy" ? "All Systems Online" : "System Issues"}
+            </span>
+            <span className="ml-auto text-[11px] text-[#9CA3AF]">
+              {health?.database.latency_ms ? `${health.database.latency_ms}ms` : ""}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-around gap-2">
+            <StatRing
+              value={analytics?.profiles.active_clients ?? 0}
+              max={Math.max(analytics?.profiles.total ?? 1, 1)}
+              label="Active"
+              color="#6AD7A3"
+              size={64}
+            />
+            <StatRing
+              value={pipelineTotal}
+              max={Math.max(pipelineTotal, 20)}
+              label="Pipeline"
+              color="#38BDF8"
+              size={64}
+            />
+            <StatRing
+              value={analytics?.fetches.week ?? 0}
+              max={Math.max(analytics?.fetches.month ?? 1, 1)}
+              label="Fetches"
+              color="#FAD76A"
+              size={64}
+            />
+            <StatRing
+              value={analytics?.errors.unresolved ?? 0}
+              max={Math.max(analytics?.errors.unresolved ?? 0, 5)}
+              label="Errors"
+              color={analytics?.errors.unresolved ? "#DC2626" : "#6AD7A3"}
+              size={64}
+            />
+          </div>
         </div>
       </div>
 
@@ -100,15 +129,19 @@ export default function AdminHealthPage() {
         <h2 className="mb-3 text-sm font-semibold">Pipeline ({pipelineTotal} total)</h2>
         <div className="space-y-2">
           {pipelineStages.map((stage) => {
-            const count = analytics?.pipeline[stage] ?? 0;
+            const count = analytics?.pipeline[stage.label] ?? 0;
             const pct = pipelineTotal > 0 ? (count / pipelineTotal) * 100 : 0;
             return (
-              <div key={stage} className="flex items-center gap-3">
-                <span className="w-24 text-xs text-[#B8BFC8]">{stage}</span>
+              <div key={stage.label} className="flex items-center gap-3">
+                <span className="w-24 text-xs text-[#B8BFC8]">{stage.label}</span>
                 <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-[#151C24]">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#6AD7A3] to-[#39D6FF]"
-                    style={{ width: `${Math.max(pct, count > 0 ? 2 : 0)}%` }}
+                    className="h-full rounded-full transition-all duration-700 ease-out"
+                    style={{
+                      width: `${Math.max(pct, count > 0 ? 3 : 0)}%`,
+                      backgroundColor: stage.color,
+                      boxShadow: count > 0 ? `0 0 8px ${stage.color}40` : "none",
+                    }}
                   />
                 </div>
                 <span className="w-8 text-right text-xs font-medium text-white">{count}</span>

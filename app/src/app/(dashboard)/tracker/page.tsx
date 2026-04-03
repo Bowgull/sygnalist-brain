@@ -38,16 +38,14 @@ export default function TrackerPage() {
     fetchEntries();
   }, [fetchEntries]);
 
-  // Count per stage
+  const totalEntries = entries.length;
   const stageCounts = STAGES.map(
     (s) => entries.filter((e) => e.status === s.label).length
   );
 
-  // Filter entries for active stage
   const currentStage = STAGES[activeStage];
   const stageEntries = entries.filter((e) => e.status === currentStage.label);
 
-  // Swipe between stages
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
   }
@@ -62,11 +60,9 @@ export default function TrackerPage() {
   }
 
   async function handleUpdate(id: string, patch: Record<string, unknown>) {
-    // Optimistic update
     setEntries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...patch } as TrackerEntry : e))
     );
-
     await fetch(`/api/tracker/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -94,32 +90,58 @@ export default function TrackerPage() {
 
   return (
     <div className="relative">
-      {/* Stage dots/pills */}
+      {/* Pipeline visualization bar */}
       <div className="border-b border-[#2A3544] px-4 py-3">
-        <div className="flex items-center justify-center gap-2">
-          {STAGES.map((stage, i) => (
-            <button
-              key={stage.label}
-              type="button"
-              onClick={() => setActiveStage(i)}
-              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all ${
-                i === activeStage
-                  ? "ring-1"
-                  : "opacity-60 hover:opacity-80"
-              }`}
-              style={{
-                color: stage.color,
-                backgroundColor: i === activeStage ? `${stage.color}15` : "transparent",
-                ...(i === activeStage ? { boxShadow: `inset 0 0 0 1px ${stage.color}40` } : {}),
-              }}
-            >
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: stage.color }} />
-              {i === activeStage && <span>{stage.label}</span>}
-              {stageCounts[i] > 0 && (
-                <span className="ml-0.5 opacity-70">{stageCounts[i]}</span>
-              )}
-            </button>
-          ))}
+        <div className="mx-auto max-w-2xl">
+          {/* Pipeline progress bar */}
+          <div className="mb-3 flex h-2 overflow-hidden rounded-full bg-[#151C24]">
+            {STAGES.map((stage, i) => {
+              const pct = totalEntries > 0 ? (stageCounts[i] / totalEntries) * 100 : 0;
+              return (
+                <div
+                  key={stage.label}
+                  className="transition-all duration-500"
+                  style={{
+                    width: `${Math.max(pct, stageCounts[i] > 0 ? 3 : 0)}%`,
+                    backgroundColor: stage.color,
+                    opacity: i === activeStage ? 1 : 0.5,
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Stage pills */}
+          <div className="flex items-center justify-center gap-1.5">
+            {STAGES.map((stage, i) => (
+              <button
+                key={stage.label}
+                type="button"
+                onClick={() => setActiveStage(i)}
+                className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition-all ${
+                  i === activeStage
+                    ? "ring-1"
+                    : "opacity-50 hover:opacity-80"
+                }`}
+                style={{
+                  color: stage.color,
+                  backgroundColor: i === activeStage ? `${stage.color}15` : "transparent",
+                  ...(i === activeStage ? { boxShadow: `inset 0 0 0 1px ${stage.color}40` } : {}),
+                }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: stage.color }} />
+                {i === activeStage && <span>{stage.label}</span>}
+                {stageCounts[i] > 0 && (
+                  <span className="ml-0.5 text-[10px] opacity-70">{stageCounts[i]}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Total count */}
+          <p className="mt-2 text-center text-[11px] text-[#9CA3AF]">
+            {totalEntries} total &middot; {stageEntries.length} in {currentStage.label}
+          </p>
         </div>
       </div>
 
@@ -139,12 +161,12 @@ export default function TrackerPage() {
           ) : stageEntries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div
-                className="mb-3 flex h-10 w-10 items-center justify-center rounded-full"
+                className="mb-3 flex h-12 w-12 items-center justify-center rounded-full"
                 style={{ backgroundColor: `${currentStage.color}15` }}
               >
                 <span
-                  className="h-3 w-3 rounded-full"
-                  style={{ backgroundColor: currentStage.color }}
+                  className="h-4 w-4 rounded-full"
+                  style={{ backgroundColor: currentStage.color, opacity: 0.6 }}
                 />
               </div>
               <p className="text-sm font-medium text-[#B8BFC8]">
@@ -222,6 +244,9 @@ function ManualAddSheet({
         className="glass-card w-full max-w-lg animate-slide-up rounded-b-none rounded-t-[20px] p-6"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="mb-1 flex justify-center">
+          <div className="h-1 w-8 rounded-full bg-[#2A3544]" />
+        </div>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -287,7 +312,7 @@ function ManualAddSheet({
             </button>
             <button
               type="submit"
-              className="flex-1 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] py-2.5 text-sm font-semibold text-[#0C1016]"
+              className="btn-gradient flex-1 rounded-full py-2.5 text-sm"
             >
               Add to Tracker
             </button>
