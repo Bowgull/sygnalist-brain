@@ -35,6 +35,8 @@ export default function OnboardPage() {
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState("");
   const [parsed, setParsed] = useState<ParsedResume | null>(null);
+  const [pasteText, setPasteText] = useState("");
+  const [resumeMode, setResumeMode] = useState<"upload" | "paste">("upload");
 
   // Step 3: Review (editable parsed data)
   const [city, setCity] = useState("");
@@ -120,6 +122,47 @@ export default function OnboardPage() {
     } else {
       const err = await res.json();
       setParseError(err.error || "Parse failed");
+    }
+    setParsing(false);
+  }
+
+  async function handlePasteSubmit() {
+    if (pasteText.trim().length < 50) {
+      setParseError("Text too short — paste at least a few paragraphs");
+      return;
+    }
+    setParsing(true);
+    setParseError("");
+
+    const res = await fetch("/api/admin/resume-parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: pasteText }),
+    });
+
+    if (res.ok) {
+      const data: ParsedResume = await res.json();
+      setParsed(data);
+      if (data.display_name && !name) setName(data.display_name);
+      setCity(data.current_city || "");
+      setTopSkills(data.top_skills || []);
+      setSkillPlus(data.skill_keywords_plus || []);
+      setSummary(data.summary || "");
+      setEducation(data.education || "");
+      setExperience(data.experience_years || 0);
+      setAcceptRemote(data.accept_remote);
+      setAcceptHybrid(data.accept_hybrid);
+      setAcceptOnsite(data.accept_onsite);
+      setPreferredLocations(data.preferred_locations || []);
+      setRoleTracks((data.role_tracks || []).map((t) => ({ ...t, enabled: true })));
+      if (data.salary_estimate) {
+        const nums = data.salary_estimate.match(/[\d,]+/g);
+        if (nums?.length) setSalaryMin(parseInt(nums[0].replace(/,/g, ""), 10) || 0);
+      }
+      setStep("review");
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setParseError(err.error || "Parse failed. Try pasting more text.");
     }
     setParsing(false);
   }
@@ -306,15 +349,41 @@ export default function OnboardPage() {
       {step === "resume" && (
         <div className="space-y-4">
           <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-6">
-            <h2 className="mb-1 text-base font-semibold">Upload Resume</h2>
-            <p className="mb-5 text-[13px] text-[#9CA3AF]">
+            <h2 className="mb-1 text-base font-semibold">Resume</h2>
+            <p className="mb-4 text-[13px] text-[#9CA3AF]">
               We&apos;ll extract skills, roles, and preferences automatically.
             </p>
+
+            {/* Mode toggle */}
+            <div className="mb-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setResumeMode("upload")}
+                className={`flex-1 rounded-full py-2 text-[0.8125rem] font-medium transition-colors ${
+                  resumeMode === "upload"
+                    ? "bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30"
+                    : "bg-[#151C24] text-[#9CA3AF] ring-1 ring-[#2A3544]"
+                }`}
+              >
+                Upload Word Doc
+              </button>
+              <button
+                type="button"
+                onClick={() => setResumeMode("paste")}
+                className={`flex-1 rounded-full py-2 text-[0.8125rem] font-medium transition-colors ${
+                  resumeMode === "paste"
+                    ? "bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30"
+                    : "bg-[#151C24] text-[#9CA3AF] ring-1 ring-[#2A3544]"
+                }`}
+              >
+                Paste Text
+              </button>
+            </div>
 
             <input
               ref={fileRef}
               type="file"
-              accept=".pdf,.doc,.docx,.txt"
+              accept=".docx,.doc,.txt"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -328,7 +397,7 @@ export default function OnboardPage() {
                 <p className="text-sm text-[#B8BFC8]">Parsing resume with AI...</p>
                 <p className="text-[11px] text-[#6B7280]">Extracting skills, roles, and preferences</p>
               </div>
-            ) : (
+            ) : resumeMode === "upload" ? (
               <button
                 onClick={() => fileRef.current?.click()}
                 className="flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed border-[#2A3544] bg-[#0C1016]/50 py-12 transition hover:border-[#6AD7A3]/40 hover:bg-[#6AD7A3]/5"
@@ -340,9 +409,27 @@ export default function OnboardPage() {
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-medium text-white">Tap to upload resume</p>
-                  <p className="mt-0.5 text-[11px] text-[#6B7280]">PDF, DOC, DOCX, or TXT — Max 5MB</p>
+                  <p className="mt-0.5 text-[11px] text-[#6B7280]">Word (.docx) or plain text (.txt) — Max 5MB</p>
                 </div>
               </button>
+            ) : (
+              <div className="space-y-3">
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  rows={10}
+                  placeholder="Paste the full resume text here..."
+                  className="w-full rounded-xl border border-[#2A3544] bg-[#0C1016]/50 px-4 py-3 text-sm text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3] resize-none"
+                />
+                <button
+                  type="button"
+                  onClick={handlePasteSubmit}
+                  disabled={pasteText.trim().length < 50}
+                  className="w-full rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] py-2.5 text-sm font-semibold text-[#0C1016] disabled:opacity-40"
+                >
+                  Parse Resume Text
+                </button>
+              </div>
             )}
 
             {parseError && (
