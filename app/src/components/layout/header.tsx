@@ -1,5 +1,29 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
+function useRelativeTime(iso: string | null) {
+  const [text, setText] = useState("");
+  useEffect(() => {
+    function update() {
+      if (!iso) { setText("Never"); return; }
+      const diff = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) setText("Just now");
+      else if (mins < 60) setText(`${mins}m ago`);
+      else {
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) setText(`${hrs}h ago`);
+        else setText(`${Math.floor(hrs / 24)}d ago`);
+      }
+    }
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [iso]);
+  return text;
+}
+
 export default function Header({
   displayName,
   role,
@@ -7,6 +31,23 @@ export default function Header({
   displayName?: string;
   role?: string;
 }) {
+  const [lastFetch, setLastFetch] = useState<string | null>(null);
+  const lastScanText = useRelativeTime(lastFetch);
+
+  // Fetch last scan time on mount and refresh periodically
+  useEffect(() => {
+    async function load() {
+      const res = await fetch("/api/profile");
+      if (res.ok) {
+        const data = await res.json();
+        setLastFetch(data.last_fetch_at ?? null);
+      }
+    }
+    load();
+    const interval = setInterval(load, 120000); // refresh every 2 min
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <header className="header-scanlines sticky top-0 z-40 bg-[#0C1016]/95 backdrop-blur-md">
       <div className="mx-auto flex min-h-[56px] md:min-h-[var(--header-height)] max-w-[var(--layout-max-width)] items-center justify-between gap-3 md:gap-4 px-4 md:px-6 py-2 md:py-3">
@@ -49,7 +90,7 @@ export default function Header({
           <span className="h-2 w-2 rounded-full bg-[#6AD7A3] animate-dot-pulse" />
           <span className="h-4 w-px bg-[#2A3544]" />
           <span className="font-mono text-[#9CA3AF] tabular-nums">
-            <span className="text-[#B8BFC8]">Online</span>
+            Last Scan: <span className="text-[#6AD7A3]">{lastScanText || "—"}</span>
           </span>
         </div>
 
@@ -60,7 +101,6 @@ export default function Header({
               Admin
             </span>
           )}
-          {/* Mobile: compact name + active dot */}
           <div className="flex md:hidden items-center gap-1.5">
             {displayName && (
               <span className="text-[0.6875rem] text-[#B8BFC8] max-w-[100px] truncate">{displayName}</span>

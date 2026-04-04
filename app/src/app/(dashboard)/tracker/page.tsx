@@ -6,21 +6,27 @@ import SkeletonCard from "@/components/inbox/skeleton-card";
 import type { Database } from "@/types/database";
 
 type TrackerEntry = Database["public"]["Tables"]["tracker_entries"]["Row"];
+type ViewMode = "cards" | "ops";
 
 const STAGES = [
-  { label: "Prospect", color: "#1DD3B0" },
-  { label: "Applied", color: "#3B82F6" },
+  { label: "Prospect", display: "Prospect", color: "#1DD3B0" },
+  { label: "Applied", display: "Applied", color: "#3B82F6" },
   { label: "Interview 1", display: "1st Interview", color: "#8B5CF6" },
   { label: "Interview 2", display: "2nd Interview", color: "#8B5CF6" },
-  { label: "Final", color: "#F59E0B" },
-  { label: "Offer", color: "#22C55E" },
+  { label: "Final", display: "Final", color: "#F59E0B" },
+  { label: "Offer", display: "Offer", color: "#22C55E" },
 ];
+
+const ALL_STATUSES = [...STAGES.map((s) => s.label), "Rejected", "Ghosted", "Withdrawn"];
 
 export default function TrackerPage() {
   const [entries, setEntries] = useState<TrackerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeStage, setActiveStage] = useState(0);
   const [showManualAdd, setShowManualAdd] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const touchStartX = useRef(0);
 
   const fetchEntries = useCallback(async () => {
@@ -42,20 +48,31 @@ export default function TrackerPage() {
   );
 
   const currentStage = STAGES[activeStage];
-  const stageEntries = entries.filter((e) => e.status === currentStage.label);
 
-  // Mobile-only swipe between stages
+  // Filter + search + sort
+  let stageEntries = entries.filter((e) => e.status === currentStage.label);
+  if (search) {
+    const q = search.toLowerCase();
+    stageEntries = stageEntries.filter(
+      (e) =>
+        (e.title ?? "").toLowerCase().includes(q) ||
+        (e.company ?? "").toLowerCase().includes(q)
+    );
+  }
+  stageEntries.sort((a, b) => {
+    const aTime = new Date(a.added_at ?? a.updated_at).getTime();
+    const bTime = new Date(b.added_at ?? b.updated_at).getTime();
+    return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+  });
+
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
     const diff = e.changedTouches[0].clientX - touchStartX.current;
-    if (diff > 60 && activeStage > 0) {
-      setActiveStage((prev) => prev - 1);
-    } else if (diff < -60 && activeStage < STAGES.length - 1) {
-      setActiveStage((prev) => prev + 1);
-    }
+    if (diff > 60 && activeStage > 0) setActiveStage((prev) => prev - 1);
+    else if (diff < -60 && activeStage < STAGES.length - 1) setActiveStage((prev) => prev + 1);
   }
 
   async function handleUpdate(id: string, patch: Record<string, unknown>) {
@@ -89,8 +106,9 @@ export default function TrackerPage() {
 
   return (
     <div>
-      {/* Pipeline stage pills */}
-      <div className="sticky top-0 z-10 border-b border-[#2A3544] bg-[#151C24] px-4 md:px-6 py-3">
+      {/* Controls bar */}
+      <div className="sticky top-0 z-10 border-b border-[#2A3544] bg-[#151C24] px-4 md:px-6 py-3 space-y-2">
+        {/* Stage pills + controls */}
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           {STAGES.map((stage, i) => (
             <button
@@ -107,145 +125,192 @@ export default function TrackerPage() {
               }}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: stage.color }} />
-              <span>{(stage as { display?: string }).display ?? stage.label}</span>
-              {stageCounts[i] > 0 && (
-                <span className="ml-0.5 opacity-70">{stageCounts[i]}</span>
-              )}
+              <span>{stage.display}</span>
+              {stageCounts[i] > 0 && <span className="ml-0.5 opacity-70">{stageCounts[i]}</span>}
             </button>
           ))}
 
-          {/* Add button (inline, not FAB) */}
-          <button
-            type="button"
-            onClick={() => setShowManualAdd(true)}
-            className="ml-auto shrink-0 flex items-center gap-1 rounded-full bg-[#171F28] px-3 py-1.5 text-[0.6875rem] font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20 transition-colors hover:bg-[#6AD7A3]/10"
-          >
-            <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M8 3v10M3 8h10" strokeLinecap="round" />
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            {/* Ops Mode toggle */}
+            <button
+              type="button"
+              onClick={() => setViewMode(viewMode === "cards" ? "ops" : "cards")}
+              className={`rounded-full px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-colors ${
+                viewMode === "ops"
+                  ? "bg-[#FAD76A]/15 text-[#FAD76A] ring-1 ring-[#FAD76A]/30"
+                  : "text-[#9CA3AF] hover:text-[#B8BFC8] ring-1 ring-[#2A3544]"
+              }`}
+            >
+              {viewMode === "ops" ? "Ops" : "Cards"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowManualAdd(true)}
+              className="flex items-center gap-1 rounded-full bg-[#171F28] px-3 py-1.5 text-[0.6875rem] font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20 hover:bg-[#6AD7A3]/10"
+            >
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 3v10M3 8h10" strokeLinecap="round" />
+              </svg>
+              Add
+            </button>
+          </div>
+        </div>
+
+        {/* Search + sort row */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <svg viewBox="0 0 24 24" className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            Add
-          </button>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search title or company..."
+              className="w-full rounded-lg border border-[#2A3544] bg-[#171F28] py-1.5 pl-8 pr-3 text-[0.75rem] text-white placeholder-[#9CA3AF] outline-none focus:border-[#6AD7A3]"
+            />
+          </div>
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as "newest" | "oldest")}
+            className="rounded-lg border border-[#2A3544] bg-[#171F28] px-2 py-1.5 text-[0.75rem] text-[#9CA3AF] outline-none focus:border-[#6AD7A3]"
+          >
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
         </div>
       </div>
 
-      {/* Content — swipeable on mobile only */}
-      <div
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        className="min-h-[40vh]"
-      >
-        <div className="space-y-3 md:space-y-4 p-3 md:p-6">
-          {loading ? (
-            <>
-              <SkeletonCard />
-              <SkeletonCard />
-            </>
-          ) : stageEntries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div
-                className="mb-3 flex h-10 w-10 items-center justify-center rounded-full"
-                style={{ backgroundColor: `${currentStage.color}15` }}
-              >
-                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: currentStage.color }} />
+      {/* Content */}
+      {viewMode === "ops" ? (
+        <OpsTable entries={stageEntries} loading={loading} onUpdate={handleUpdate} onDelete={handleDelete} />
+      ) : (
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="min-h-[40vh]"
+        >
+          <div className="space-y-3 md:space-y-4 p-3 md:p-6">
+            {loading ? (
+              <><SkeletonCard /><SkeletonCard /></>
+            ) : stageEntries.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: `${currentStage.color}15` }}>
+                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: currentStage.color }} />
+                </div>
+                <p className="text-sm font-medium text-[#B8BFC8]">No jobs in {currentStage.display} yet</p>
+                <p className="mt-1 text-xs text-[#9CA3AF]">
+                  {activeStage === 0 ? "Add jobs from the inbox or manually" : `Move prospects here when you've ${currentStage.label.toLowerCase()}`}
+                </p>
               </div>
-              <p className="text-sm font-medium text-[#B8BFC8]">
-                No jobs in {currentStage.label} yet
-              </p>
-              <p className="mt-1 text-xs text-[#9CA3AF]">
-                {activeStage === 0
-                  ? "Add jobs from the inbox or manually"
-                  : `Move prospects here when you've ${currentStage.label.toLowerCase()}`}
-              </p>
-            </div>
-          ) : (
-            stageEntries.map((entry) => (
-              <TrackerCard
-                key={entry.id}
-                entry={entry}
-                onUpdate={handleUpdate}
-                onDelete={handleDelete}
-              />
-            ))
-          )}
+            ) : (
+              stageEntries.map((entry) => (
+                <TrackerCard key={entry.id} entry={entry} onUpdate={handleUpdate} onDelete={handleDelete} />
+              ))
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Manual Add — bottom sheet on mobile, centered modal on desktop */}
-      {showManualAdd && (
-        <ManualAddDialog
-          onClose={() => setShowManualAdd(false)}
-          onSubmit={handleManualAdd}
-        />
       )}
+
+      {showManualAdd && <ManualAddDialog onClose={() => setShowManualAdd(false)} onSubmit={handleManualAdd} />}
     </div>
   );
 }
 
-function ManualAddDialog({
-  onClose,
-  onSubmit,
+/** Ops Mode: dense table with inline status changes */
+function OpsTable({
+  entries,
+  loading,
+  onUpdate,
+  onDelete,
 }: {
-  onClose: () => void;
-  onSubmit: (data: { title: string; company: string; url?: string; location?: string; notes?: string }) => void;
+  entries: TrackerEntry[];
+  loading: boolean;
+  onUpdate: (id: string, patch: Record<string, unknown>) => void;
+  onDelete: (id: string) => void;
 }) {
+  if (loading) return <div className="p-4 space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-lg" />)}</div>;
+  if (entries.length === 0) return <p className="py-12 text-center text-[0.8125rem] text-[#9CA3AF]">No entries in this stage</p>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-[0.8125rem]">
+        <thead>
+          <tr className="border-b border-[#2A3544] text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
+            <th className="px-4 py-2.5">Title</th>
+            <th className="px-4 py-2.5">Company</th>
+            <th className="px-4 py-2.5">Salary</th>
+            <th className="px-4 py-2.5">Status</th>
+            <th className="px-4 py-2.5">Days</th>
+            <th className="px-4 py-2.5">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((e) => {
+            const days = Math.floor((Date.now() - new Date(e.stage_changed_at).getTime()) / 86400000);
+            const daysColor = days < 3 ? "text-[#6AD7A3]" : days < 7 ? "text-[#F59E0B]" : "text-[#DC2626]";
+            return (
+              <tr key={e.id} className="border-b border-[#2A3544]/40 hover:bg-[#222D3D]/30 transition-colors">
+                <td className="px-4 py-2 font-medium text-white">
+                  {e.url ? (
+                    <a href={e.url} target="_blank" rel="noopener noreferrer" className="hover:text-[#6AD7A3]">{e.title}</a>
+                  ) : e.title}
+                </td>
+                <td className="px-4 py-2 text-[#B8BFC8]">{e.company}</td>
+                <td className="px-4 py-2 text-[#B8BFC8]">{e.salary ?? "—"}</td>
+                <td className="px-4 py-2">
+                  <select
+                    value={e.status}
+                    onChange={(ev) => onUpdate(e.id, { status: ev.target.value, stage_changed_at: new Date().toISOString() })}
+                    className="rounded border border-[#2A3544] bg-[#151C24] px-2 py-1 text-[0.6875rem] text-white outline-none focus:border-[#6AD7A3]"
+                  >
+                    {ALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </td>
+                <td className={`px-4 py-2 tabular-nums font-semibold ${daysColor}`}>{days}d</td>
+                <td className="px-4 py-2">
+                  <button type="button" onClick={() => onDelete(e.id)} className="rounded px-2 py-0.5 text-[0.6875rem] text-[#DC2626] hover:bg-[#DC2626]/10">
+                    Remove
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ManualAddDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit: (data: { title: string; company: string; url?: string; location?: string; notes?: string }) => void }) {
   const [title, setTitle] = useState("");
   const [company, setCompany] = useState("");
   const [url, setUrl] = useState("");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    onSubmit({
-      title,
-      company,
-      url: url || undefined,
-      location: location || undefined,
-      notes: notes || undefined,
-    });
-  }
-
   const inputClass = "w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2.5 text-sm text-white placeholder-[#9CA3AF] outline-none transition-colors focus:border-[#6AD7A3]";
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-[rgba(5,6,10,0.9)]" onClick={onClose}>
-      <div
-        className="w-full max-w-lg animate-slide-up rounded-t-[20px] md:rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="w-full max-w-lg animate-slide-up rounded-t-[20px] md:rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-6" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+            <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             Add Job Manually
           </h2>
           <button type="button" onClick={onClose} className="text-[#9CA3AF] hover:text-white">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={(e) => { e.preventDefault(); onSubmit({ title, company, url: url || undefined, location: location || undefined, notes: notes || undefined }); }} className="space-y-3">
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Job Title *" className={inputClass} />
           <input type="text" value={company} onChange={(e) => setCompany(e.target.value)} required placeholder="Company *" className={inputClass} />
           <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Job URL (optional)" className={inputClass} />
           <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location (optional)" className={inputClass} />
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes (optional)" className={inputClass} />
-
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 rounded-full border border-[#2A3544] py-2.5 text-sm font-medium text-[#9CA3AF] hover:text-white hover:border-[rgba(255,255,255,0.2)]">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 rounded-full border border-[rgba(169,255,181,0.35)] bg-gradient-to-r from-[rgba(14,18,24,0.6)] to-[rgba(21,28,36,0.60)] py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_20px_rgba(106,215,163,0.15)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_30px_rgba(106,215,163,0.25)]"
-            >
-              Add to Tracker
-            </button>
+            <button type="button" onClick={onClose} className="flex-1 rounded-full border border-[#2A3544] py-2.5 text-sm font-medium text-[#9CA3AF]">Cancel</button>
+            <button type="submit" className="flex-1 rounded-full border border-[rgba(169,255,181,0.35)] bg-gradient-to-r from-[rgba(14,18,24,0.6)] to-[rgba(21,28,36,0.60)] py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_20px_rgba(106,215,163,0.15)]">Add to Tracker</button>
           </div>
         </form>
       </div>

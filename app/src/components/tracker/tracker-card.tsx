@@ -32,6 +32,8 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
   const [editing, setEditing] = useState(false);
   const [notes, setNotes] = useState(entry.notes);
   const [status, setStatus] = useState(entry.status);
+  const [goodFit, setGoodFit] = useState(entry.good_fit);
+  const [generatingFit, setGeneratingFit] = useState(false);
 
   // Close spotlight on ESC
   useEffect(() => {
@@ -46,6 +48,16 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
   function handleSave() {
     onUpdate(entry.id, { status, notes });
     setEditing(false);
+  }
+
+  async function handleGenerateGoodFit() {
+    setGeneratingFit(true);
+    const res = await fetch(`/api/tracker/${entry.id}/goodfit`, { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.good_fit) setGoodFit(data.good_fit);
+    }
+    setGeneratingFit(false);
   }
 
   const daysInStage = Math.floor(
@@ -174,13 +186,29 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
             )}
 
             {/* GoodFit */}
-            {entry.good_fit && (
+            {goodFit ? (
               <div className="rounded-lg border-l-[3px] border-l-[#2F8A63] bg-[#6AD7A3]/5 p-4">
                 <p className="text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-[#6AD7A3]">GOOD FIT</p>
                 <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[#B8BFC8] whitespace-pre-line">
-                  {entry.good_fit}
+                  {goodFit}
                 </p>
               </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleGenerateGoodFit}
+                disabled={generatingFit}
+                className="w-full rounded-lg border border-dashed border-[#6AD7A3]/30 bg-[#6AD7A3]/5 p-4 text-center transition-colors hover:bg-[#6AD7A3]/10 disabled:opacity-50"
+              >
+                {generatingFit ? (
+                  <span className="text-[0.8125rem] text-[#6AD7A3]">Generating GoodFit...</span>
+                ) : (
+                  <>
+                    <p className="text-[0.8125rem] font-medium text-[#6AD7A3]">Generate GoodFit</p>
+                    <p className="mt-0.5 text-[0.6875rem] text-[#9CA3AF]">AI analysis of how you match this role</p>
+                  </>
+                )}
+              </button>
             )}
 
             {/* Notes */}
