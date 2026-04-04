@@ -117,7 +117,10 @@ export async function DELETE(
 
   if (!target) return error("Profile not found", 404);
 
-  // Delete related data first (tracker entries, inbox items), then profile
+  // Delete all related data before removing the profile
+  await service.from("sent_messages").delete().eq("client_id", id);
+  await service.from("received_messages").delete().eq("client_id", id);
+  await service.from("outreach_suggestions").delete().eq("client_id", id);
   await service.from("tracker_entries").delete().eq("profile_id", id);
   await service.from("inbox_items").delete().eq("profile_id", id);
 
