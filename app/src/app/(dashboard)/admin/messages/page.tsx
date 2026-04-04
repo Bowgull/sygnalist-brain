@@ -53,14 +53,20 @@ export default function AdminMessagesPage() {
 
   async function loadData() {
     setLoading(true);
-    const [tRes, cRes, sRes] = await Promise.all([
-      fetch("/api/admin/messages/templates"),
-      fetch("/api/admin/profiles"),
-      fetch("/api/admin/messages"),
-    ]);
-    if (tRes.ok) setTemplates(await tRes.json());
-    if (cRes.ok) setClients(await cRes.json());
-    if (sRes.ok) setSentMessages(await sRes.json());
+    try {
+      const [tRes, cRes, sRes] = await Promise.all([
+        fetch("/api/admin/messages/templates"),
+        fetch("/api/admin/profiles"),
+        fetch("/api/admin/messages"),
+      ]);
+      if (tRes.ok) setTemplates(await tRes.json());
+      else showToast(`Templates: ${(await tRes.json().catch(() => ({}))).error ?? "failed to load"}`);
+      if (cRes.ok) setClients(await cRes.json());
+      if (sRes.ok) setSentMessages(await sRes.json());
+      else showToast(`Messages: ${(await sRes.json().catch(() => ({}))).error ?? "failed to load"}`);
+    } catch {
+      showToast("Failed to load message hub data");
+    }
     setLoading(false);
   }
 

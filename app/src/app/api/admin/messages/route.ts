@@ -38,7 +38,13 @@ export async function POST(request: Request) {
   const { client_id, template_id, subject, body: emailBody, tracker_entry_id } = body;
 
   if (!client_id || !subject || !emailBody) {
-    return error("client_id, subject, and body are required");
+    return error(`Missing fields: ${!client_id ? "client_id " : ""}${!subject ? "subject " : ""}${!emailBody ? "body" : ""}`);
+  }
+
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(client_id)) {
+    return error(`Invalid client_id format: "${client_id}" — expected UUID`);
   }
 
   const service = getServiceClient();
