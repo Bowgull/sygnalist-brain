@@ -2,13 +2,17 @@ import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
 /**
- * POST /api/admin/gmail-ingest — trigger Gmail ingest.
+ * POST /api/admin/gmail-ingest — Safe Gmail ingest.
  *
- * Pulls job URLs and metadata from labeled Gmail threads.
- * Supports newsletter-aware parsing for ZipRecruiter, LinkedIn, Indeed, Glassdoor.
+ * Pulls job URLs from labeled Gmail threads into the review queue (jobs_inbox).
+ * Jobs require admin approval before entering the Job Bank.
  *
- * Requires GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN env vars.
- * Uses Gmail API to fetch threads with the SYGN_INTAKE label.
+ * Safety controls:
+ * - Age cutoff: only emails from last 14 days
+ * - Batch cap: 20 messages per run
+ * - Label management: SYGN_INTAKE → SYGN_INGESTED after processing
+ * - Backlog detection: reports if more messages exist
+ * - Dedup: checks against jobs_inbox + global_job_bank URLs
  */
 export async function POST() {
   const { profile, response } = await requireAdmin();
@@ -26,7 +30,7 @@ export async function POST() {
   const service = getServiceClient();
 
   try {
-    // Get access token from refresh token
+    // --- Step 1: Get access token ---
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -44,9 +48,53 @@ export async function POST() {
 
     const { access_token } = await tokenRes.json();
 
-    // Search for threads with SYGN_INTAKE label
+    // --- Step 2: Resolve label IDs ---
+    const labelsRes = await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/labels",
+      { headers: { Authorization: `Bearer ${access_token}` } },
+    );
+    if (!labelsRes.ok) {
+      return error("Failed to fetch Gmail labels", 500);
+    }
+    const labelsData = await labelsRes.json();
+    const allLabels = labelsData.labels as Array<{ id: string; name: string }>;
+
+    const intakeLabel = allLabels.find((l) => l.name === "SYGN_INTAKE");
+    let ingestedLabel = allLabels.find((l) => l.name === "SYGN_INGESTED");
+
+    if (!intakeLabel) {
+      return error("Gmail label SYGN_INTAKE not found. Create it first.", 400);
+    }
+
+    // Create SYGN_INGESTED label if it doesn't exist
+    if (!ingestedLabel) {
+      const createRes = await fetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/labels",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: "SYGN_INGESTED",
+            labelListVisibility: "labelShow",
+            messageListVisibility: "show",
+          }),
+        },
+      );
+      if (createRes.ok) {
+        ingestedLabel = await createRes.json();
+      }
+    }
+
+    const intakeLabelId = intakeLabel.id;
+    const ingestedLabelId = ingestedLabel?.id;
+
+    // --- Step 3: Search for messages (with safety filters) ---
+    const searchQuery = "label:SYGN_INTAKE -label:SYGN_INGESTED newer_than:14d";
     const searchRes = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=label:SYGN_INTAKE&maxResults=20`,
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=20`,
       { headers: { Authorization: `Bearer ${access_token}` } },
     );
 
@@ -56,25 +104,59 @@ export async function POST() {
 
     const searchData = await searchRes.json();
     const messageIds: string[] = (searchData.messages ?? []).map((m: { id: string }) => m.id);
+    const hasMore = !!searchData.nextPageToken;
+    const estimatedTotal = searchData.resultSizeEstimate ?? messageIds.length;
 
     if (messageIds.length === 0) {
-      return json({ message: "No messages with SYGN_INTAKE label found", jobs_ingested: 0 });
+      return json({
+        messages_scanned: 0,
+        messages_skipped: 0,
+        jobs_found: 0,
+        jobs_new: 0,
+        jobs_duplicate: 0,
+        queue_remaining: 0,
+        backlog_detected: false,
+      });
     }
 
-    const jobs: Array<{ title: string; company: string; url: string; location: string | null; work_mode: string | null; source: string }> = [];
+    // --- Step 4: Load existing URLs for dedup ---
+    const { data: existingInbox } = await service
+      .from("jobs_inbox")
+      .select("url")
+      .not("url", "is", null);
+    const { data: existingBank } = await service
+      .from("global_job_bank")
+      .select("url")
+      .not("url", "is", null);
 
+    const existingUrls = new Set<string>();
+    for (const row of existingInbox ?? []) {
+      if (row.url) existingUrls.add(normalizeUrl(row.url));
+    }
+    for (const row of existingBank ?? []) {
+      if (row.url) existingUrls.add(normalizeUrl(row.url));
+    }
+
+    // --- Step 5: Process each message ---
+    const allJobs: ParsedJob[] = [];
     let skippedFetch = 0;
     let skippedNoHtml = 0;
+    let messagesProcessed = 0;
+    const processedMessageIds: string[] = [];
 
-    // Process each message
     for (const msgId of messageIds) {
       const msgRes = await fetch(
         `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}?format=full`,
         { headers: { Authorization: `Bearer ${access_token}` } },
       );
 
-      if (!msgRes.ok) { skippedFetch++; continue; }
+      if (!msgRes.ok) {
+        skippedFetch++;
+        continue;
+      }
+
       const msg = await msgRes.json();
+      messagesProcessed++;
 
       // Get sender from headers
       const fromHeader = msg.payload?.headers?.find(
@@ -84,72 +166,122 @@ export async function POST() {
 
       // Get HTML body
       const html = extractHtmlBody(msg.payload);
-      if (!html) { skippedNoHtml++; continue; }
+      if (!html) {
+        skippedNoHtml++;
+        // Still mark as processed — no point retrying a message with no HTML
+        processedMessageIds.push(msgId);
+        continue;
+      }
 
       // Route to appropriate parser based on sender
+      let parsed: ParsedJob[] = [];
       if (from.includes("ziprecruiter")) {
-        jobs.push(...parseZipRecruiter(html));
+        parsed = parseZipRecruiter(html);
       } else if (from.includes("linkedin")) {
-        jobs.push(...parseLinkedIn(html));
+        parsed = parseLinkedIn(html);
       } else if (from.includes("indeed")) {
-        jobs.push(...parseIndeed(html));
+        parsed = parseIndeed(html);
       } else if (from.includes("glassdoor")) {
-        jobs.push(...parseGlassdoor(html));
+        parsed = parseGlassdoor(html);
       } else {
-        // Generic: extract all job-like URLs
-        jobs.push(...parseGeneric(html));
+        parsed = parseGeneric(html);
+      }
+
+      // Tag each job with the gmail message ID
+      for (const job of parsed) {
+        job.gmail_message_id = msgId;
+      }
+
+      allJobs.push(...parsed);
+      processedMessageIds.push(msgId);
+    }
+
+    // --- Step 6: Dedup and insert into jobs_inbox (review queue) ---
+    let jobsNew = 0;
+    let jobsDuplicate = 0;
+    const seenInBatch = new Set<string>();
+
+    for (const job of allJobs) {
+      if (!job.url) continue;
+
+      const normalized = normalizeUrl(job.url);
+      if (existingUrls.has(normalized) || seenInBatch.has(normalized)) {
+        jobsDuplicate++;
+        continue;
+      }
+      seenInBatch.add(normalized);
+
+      const { error: insertErr } = await service.from("jobs_inbox").insert({
+        job_id: `gmail_${crypto.randomUUID().slice(0, 8)}`,
+        title: job.title || null,
+        company: job.company || null,
+        url: job.url,
+        source: job.source,
+        location: job.location,
+        work_mode: job.work_mode,
+        enrichment_status: "NEW",
+        review_status: "pending",
+        gmail_message_id: job.gmail_message_id || null,
+        email_received_at: new Date().toISOString(),
+      });
+
+      if (!insertErr) {
+        jobsNew++;
+      } else {
+        jobsDuplicate++;
       }
     }
 
-    // Insert into global_job_bank (dedupe by URL)
-    let inserted = 0;
-    if (jobs.length > 0) {
-      const rows = jobs.map((j) => ({
-        title: j.title || null,
-        company: j.company || null,
-        url: j.url,
-        source: j.source,
-        location: j.location,
-        work_mode: j.work_mode,
-      }));
-
-      // Filter to only jobs with URLs (required for upsert)
-      const withUrl = rows.filter((r) => r.url);
-      const withoutUrl = rows.filter((r) => !r.url);
-
-      if (withUrl.length > 0) {
-        const { data } = await service
-          .from("global_job_bank")
-          .upsert(withUrl, { onConflict: "url" })
-          .select("id");
-        inserted += data?.length ?? 0;
-      }
-
-      if (withoutUrl.length > 0) {
-        const { data } = await service
-          .from("global_job_bank")
-          .insert(withoutUrl)
-          .select("id");
-        inserted += data?.length ?? 0;
+    // --- Step 7: Update Gmail labels (mark processed) ---
+    if (ingestedLabelId) {
+      for (const msgId of processedMessageIds) {
+        try {
+          await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}/modify`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${access_token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                addLabelIds: [ingestedLabelId],
+                removeLabelIds: [intakeLabelId],
+              }),
+            },
+          );
+        } catch {
+          // Label update failure is non-fatal — dedup prevents duplicate inserts
+        }
       }
     }
+
+    // --- Step 8: Log event and return receipt ---
+    const queueRemaining = hasMore ? estimatedTotal - messageIds.length : 0;
+    const backlogDetected = hasMore || estimatedTotal > 30;
+
+    const receipt = {
+      messages_scanned: messagesProcessed,
+      messages_skipped: skippedFetch + skippedNoHtml,
+      jobs_found: allJobs.length,
+      jobs_new: jobsNew,
+      jobs_duplicate: jobsDuplicate,
+      queue_remaining: queueRemaining,
+      backlog_detected: backlogDetected,
+    };
 
     await logEvent("gmail.ingest_completed", {
       userId: profile.id,
+      success: true,
       metadata: {
-        messages_total: messageIds.length,
+        ...receipt,
         messages_skipped_fetch: skippedFetch,
         messages_skipped_no_html: skippedNoHtml,
-        jobs_found: jobs.length,
-        jobs_inserted: inserted,
+        messages_labeled: processedMessageIds.length,
       },
     });
 
-    return json({
-      message: `Processed ${messageIds.length} emails, found ${jobs.length} jobs, ${inserted} added to job bank`,
-      jobs_ingested: inserted,
-      jobs_found: jobs.length,
-    });
+    return json(receipt);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown gmail ingest error";
     await logError(msg, {
@@ -157,6 +289,23 @@ export async function POST() {
       userId: profile.id,
     });
     return error("Gmail ingest failed", 500);
+  }
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function normalizeUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.delete("utm_source");
+    u.searchParams.delete("utm_medium");
+    u.searchParams.delete("utm_campaign");
+    u.searchParams.delete("ref");
+    return (u.origin + u.pathname + (u.search || "")).toLowerCase();
+  } catch {
+    return url.toLowerCase().trim();
   }
 }
 
@@ -188,12 +337,12 @@ interface ParsedJob {
   location: string | null;
   work_mode: string | null;
   source: string;
+  gmail_message_id?: string;
 }
 
 /** ZipRecruiter newsletter parser */
 function parseZipRecruiter(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  // ZipRecruiter cards have a pattern: <a> with job title text, nearby company and location
   const linkRegex = /<a[^>]+href="([^"]*ziprecruiter[^"]*)"[^>]*>([^<]+)<\/a>/gi;
   let match;
 
@@ -203,7 +352,6 @@ function parseZipRecruiter(html: string): ParsedJob[] {
     if (!title || title.length < 3 || title.length > 200) continue;
     if (/unsubscribe|privacy|view in browser/i.test(title)) continue;
 
-    // Try to find company/location nearby in the HTML
     const nearby = html.slice(match.index, match.index + 500);
     const company = extractNearbyText(nearby, /(?:at|company[:\s]*)([^<]{2,60})/i);
     const location = extractNearbyText(nearby, /(?:location[:\s]*|in\s+)([^<]{2,60})/i);

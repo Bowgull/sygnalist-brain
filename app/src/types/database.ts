@@ -385,6 +385,11 @@ export interface Database {
           promoted_at: string | null;
           notes: string | null;
           role_bank_id: string | null;
+          review_status: string;
+          lane_key: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          gmail_message_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -407,6 +412,11 @@ export interface Database {
           promoted_at?: string | null;
           notes?: string | null;
           role_bank_id?: string | null;
+          review_status?: string;
+          lane_key?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          gmail_message_id?: string | null;
         };
         Update: {
           id?: string;
@@ -428,6 +438,11 @@ export interface Database {
           promoted_at?: string | null;
           notes?: string | null;
           role_bank_id?: string | null;
+          review_status?: string;
+          lane_key?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          gmail_message_id?: string | null;
         };
         Relationships: [];
       };
