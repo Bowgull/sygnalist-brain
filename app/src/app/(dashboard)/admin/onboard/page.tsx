@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 interface ParsedResume {
@@ -58,6 +58,8 @@ export default function OnboardPage() {
   // Step 5: Roles
   const [roleTracks, setRoleTracks] = useState<Array<{ label: string; roleKeywords: string[]; priorityWeight: number; enabled: boolean }>>([]);
   const [newRoleLabel, setNewRoleLabel] = useState("");
+  const [existingLanes, setExistingLanes] = useState<string[]>([]);
+  const [lanesLoaded, setLanesLoaded] = useState(false);
 
   // Step 6: Invite
   const [createdProfileId, setCreatedProfileId] = useState<string | null>(null);
@@ -171,7 +173,39 @@ export default function OnboardPage() {
     setStep("filters");
   }
 
-  // ─── Step 5: Add role ─────────────────────────────────────
+  // ─── Step 5: Lane detection ────────────────────────────────
+  async function loadExistingLanes() {
+    if (lanesLoaded) return;
+    const res = await fetch("/api/admin/lanes");
+    if (res.ok) {
+      const data = await res.json();
+      const keys = (data as Array<{ lane_key: string }>).map((l: { lane_key: string }) => l.lane_key);
+      setExistingLanes([...new Set(keys)]);
+    }
+    setLanesLoaded(true);
+  }
+
+  function laneExists(label: string): boolean {
+    const key = label.toLowerCase().replace(/\s+/g, "_");
+    return existingLanes.some((l) => l === key);
+  }
+
+  async function createLaneFromRole(label: string) {
+    const res = await fetch("/api/admin/lanes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: label, source: "resume_auto" }),
+    });
+    if (res.ok) {
+      const key = label.toLowerCase().replace(/\s+/g, "_");
+      setExistingLanes((prev) => [...prev, key]);
+      showToast(`Lane "${label}" created`);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error ?? "Failed to create lane");
+    }
+  }
+
   function addRole() {
     if (!newRoleLabel.trim()) return;
     setRoleTracks((prev) => [
@@ -633,91 +667,18 @@ export default function OnboardPage() {
 
       {/* ─── Step 5: Role Tracks ─────────────────────────── */}
       {step === "roles" && (
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-6">
-            <h2 className="mb-1 text-base font-semibold">Job Roles</h2>
-            <p className="mb-5 text-[13px] text-[#9CA3AF]">
-              Toggle roles on/off. These determine what jobs get fetched.
-            </p>
-
-            <div className="space-y-2">
-              {roleTracks.map((track, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center justify-between rounded-xl p-3 transition ${
-                    track.enabled
-                      ? "bg-[#6AD7A3]/8 ring-1 ring-[#6AD7A3]/20"
-                      : "bg-[#0C1016] ring-1 ring-[#2A3544] opacity-50"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => toggleRole(i)}
-                      className={`flex h-6 w-6 items-center justify-center rounded-md transition ${
-                        track.enabled
-                          ? "bg-[#6AD7A3] text-[#0C1016]"
-                          : "border border-[#4B5563]"
-                      }`}
-                    >
-                      {track.enabled && (
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3}>
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
-                    </button>
-                    <div>
-                      <p className="text-sm font-medium text-white">{track.label}</p>
-                      {track.roleKeywords.length > 0 && (
-                        <p className="text-[11px] text-[#6B7280]">
-                          {track.roleKeywords.slice(0, 3).join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      track.priorityWeight >= 0.9
-                        ? "bg-[#6AD7A3]/10 text-[#6AD7A3]"
-                        : "bg-[#38BDF8]/10 text-[#38BDF8]"
-                    }`}>
-                      {track.priorityWeight >= 0.9 ? "Primary" : "Secondary"}
-                    </span>
-                    <button onClick={() => removeRole(i)} className="text-[#6B7280] hover:text-[#DC2626]">
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Add new role */}
-            <div className="mt-4 flex gap-2">
-              <input
-                value={newRoleLabel}
-                onChange={(e) => setNewRoleLabel(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addRole()}
-                placeholder="Add a role..."
-                className="flex-1 rounded-xl border border-[#2A3544] bg-[#0C1016] px-3 py-2.5 text-sm text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3]"
-              />
-              <button
-                onClick={addRole}
-                className="rounded-xl bg-[#6AD7A3]/15 px-4 text-sm font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20 transition hover:bg-[#6AD7A3]/25"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setStep("invite")}
-            className="w-full rounded-xl bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] py-3.5 text-sm font-bold text-[#0C1016] transition hover:opacity-90 active:scale-[0.98]"
-          >
-            Next: Send Invite
-          </button>
-        </div>
+        <RolesStep
+          roleTracks={roleTracks}
+          toggleRole={toggleRole}
+          removeRole={removeRole}
+          newRoleLabel={newRoleLabel}
+          setNewRoleLabel={setNewRoleLabel}
+          addRole={addRole}
+          laneExists={laneExists}
+          createLaneFromRole={createLaneFromRole}
+          loadExistingLanes={loadExistingLanes}
+          onNext={() => setStep("invite")}
+        />
       )}
 
       {/* ─── Step 6: Review & Invite ─────────────────────── */}
@@ -811,6 +772,130 @@ export default function OnboardPage() {
 }
 
 // ─── Reusable Components ──────────────────────────────────────
+
+function RolesStep({
+  roleTracks, toggleRole, removeRole, newRoleLabel, setNewRoleLabel, addRole,
+  laneExists, createLaneFromRole, loadExistingLanes, onNext,
+}: {
+  roleTracks: Array<{ label: string; roleKeywords: string[]; priorityWeight: number; enabled: boolean }>;
+  toggleRole: (i: number) => void;
+  removeRole: (i: number) => void;
+  newRoleLabel: string;
+  setNewRoleLabel: (v: string) => void;
+  addRole: () => void;
+  laneExists: (label: string) => boolean;
+  createLaneFromRole: (label: string) => void;
+  loadExistingLanes: () => void;
+  onNext: () => void;
+}) {
+  useEffect(() => { loadExistingLanes(); }, []);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-6">
+        <h2 className="mb-1 text-base font-semibold">Job Roles</h2>
+        <p className="mb-5 text-[13px] text-[#9CA3AF]">
+          These roles determine what jobs get fetched. Roles that match an existing lane are ready to go.
+        </p>
+
+        <div className="space-y-2">
+          {roleTracks.map((track, i) => {
+            const hasLane = laneExists(track.label);
+            return (
+              <div
+                key={i}
+                className={`flex items-center justify-between rounded-xl p-3 transition ${
+                  track.enabled
+                    ? "bg-[#6AD7A3]/8 ring-1 ring-[#6AD7A3]/20"
+                    : "bg-[#0C1016] ring-1 ring-[#2A3544] opacity-50"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => toggleRole(i)}
+                    className={`flex h-6 w-6 items-center justify-center rounded-md transition ${
+                      track.enabled ? "bg-[#6AD7A3] text-[#0C1016]" : "border border-[#4B5563]"
+                    }`}
+                  >
+                    {track.enabled && (
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={3}>
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-white">{track.label}</p>
+                      {hasLane ? (
+                        <span className="flex items-center gap-1 rounded-full bg-[#22C55E]/10 px-2 py-0.5 text-[10px] font-medium text-[#22C55E]">
+                          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={3}>
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          Lane exists
+                        </span>
+                      ) : track.enabled ? (
+                        <button
+                          onClick={() => createLaneFromRole(track.label)}
+                          className="flex items-center gap-1 rounded-full bg-[#FAD76A]/10 px-2 py-0.5 text-[10px] font-medium text-[#FAD76A] transition hover:bg-[#FAD76A]/20"
+                        >
+                          + Create Lane
+                        </button>
+                      ) : null}
+                    </div>
+                    {track.roleKeywords.length > 0 && (
+                      <p className="text-[11px] text-[#6B7280]">
+                        {track.roleKeywords.slice(0, 3).join(", ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    track.priorityWeight >= 0.9
+                      ? "bg-[#6AD7A3]/10 text-[#6AD7A3]"
+                      : "bg-[#38BDF8]/10 text-[#38BDF8]"
+                  }`}>
+                    {track.priorityWeight >= 0.9 ? "Primary" : "Secondary"}
+                  </span>
+                  <button onClick={() => removeRole(i)} className="text-[#6B7280] hover:text-[#DC2626]">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Add new role */}
+        <div className="mt-4 flex gap-2">
+          <input
+            value={newRoleLabel}
+            onChange={(e) => setNewRoleLabel(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addRole()}
+            placeholder="Add a role..."
+            className="flex-1 rounded-xl border border-[#2A3544] bg-[#0C1016] px-3 py-2.5 text-sm text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3]"
+          />
+          <button
+            onClick={addRole}
+            className="rounded-xl bg-[#6AD7A3]/15 px-4 text-sm font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20 transition hover:bg-[#6AD7A3]/25"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
+      <button
+        onClick={onNext}
+        className="w-full rounded-xl bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] py-3.5 text-sm font-bold text-[#0C1016] transition hover:opacity-90 active:scale-[0.98]"
+      >
+        Next: Send Invite
+      </button>
+    </div>
+  );
+}
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
