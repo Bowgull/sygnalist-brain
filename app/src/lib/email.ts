@@ -82,14 +82,10 @@ function wrapInTemplate(body: string): string {
   const escaped = escapeHtml(body);
   const htmlBody = escaped.replace(/\n/g, "<br>");
 
-  // Detect deployment URL for logo — fallback to production domain
-  const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-    : process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "https://sygnalist.app";
-
-  const logoUrl = `${baseUrl}/email-logo.png`;
+  // Use production deployment URL for logo
+  const logoUrl = process.env.NEXT_PUBLIC_APP_URL
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/email-logo.png`
+    : "https://sygnalist-brain-bu9uul4gn-bowgulls-projects.vercel.app/email-logo.png";
 
   return `<!DOCTYPE html>
 <html lang="en">

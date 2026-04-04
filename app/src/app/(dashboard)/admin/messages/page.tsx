@@ -1048,16 +1048,17 @@ function ConversationsView({
     const res = await fetch("/api/admin/messages/poll-replies", { method: "POST" });
     if (res.ok) {
       const data = await res.json();
-      showToast(
-        data.new_replies > 0
-          ? `${data.new_replies} new repl${data.new_replies !== 1 ? "ies" : "y"} found`
-          : "No new replies",
-      );
+      if (data.new_replies > 0) {
+        showToast(`${data.new_replies} new repl${data.new_replies !== 1 ? "ies" : "y"} found`);
+      } else {
+        const info = data.debug?.join(", ") ?? "";
+        showToast(`No new replies${info ? ` (${info})` : ""}`);
+      }
       await loadConversations();
-      // Refresh thread if viewing one
       if (selectedClientId) await loadThread(selectedClientId);
     } else {
-      showToast("Failed to poll replies");
+      const errData = await res.json().catch(() => ({}));
+      showToast(errData.error || "Failed to poll replies");
     }
     setPolling(false);
   }
