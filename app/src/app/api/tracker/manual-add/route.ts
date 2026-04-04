@@ -1,6 +1,8 @@
 import { requireAuth, json, error, getServiceClient, getRequestId } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
+const ALLOWED_STAGES = ["Prospect", "Applied", "Interview 1", "Interview 2", "Final", "Offer"];
+
 /** POST /api/tracker/manual-add — manually add a job to tracker */
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
@@ -13,6 +15,8 @@ export async function POST(request: Request) {
   if (!body.title || !body.company) {
     return error("Title and company are required");
   }
+
+  const status = body.status && ALLOWED_STAGES.includes(body.status) ? body.status : "Prospect";
 
   // Check for duplicate URL if provided
   if (body.url) {
@@ -39,8 +43,9 @@ export async function POST(request: Request) {
       location: body.location || null,
       salary: body.salary || null,
       notes: body.notes || null,
-      status: "Prospect",
+      status,
       source: "manual",
+      ...(status === "Applied" ? { date_applied: new Date().toISOString().slice(0, 10) } : {}),
     })
     .select()
     .single();

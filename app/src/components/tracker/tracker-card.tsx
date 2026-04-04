@@ -75,7 +75,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
       style={{
         borderTopWidth: "2px",
         borderTopColor: borderColor,
-        backgroundImage: `linear-gradient(to bottom, ${borderColor}08, transparent 40%)`,
+        backgroundImage: `linear-gradient(to bottom, ${borderColor}18, transparent 40%)`,
       }}
       onClick={() => setSpotlight(true)}
     >
