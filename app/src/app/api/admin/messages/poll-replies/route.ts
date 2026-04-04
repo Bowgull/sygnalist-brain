@@ -28,7 +28,6 @@ export async function POST() {
   }
 
   const service = getServiceClient();
-  const debug: string[] = [];
 
   try {
     // --- Step 1: Get access token ---
@@ -49,7 +48,7 @@ export async function POST() {
     }
 
     const { access_token } = await tokenRes.json();
-    debug.push("token: ok");
+
 
     // --- Step 2: Build lookup maps (parallel DB queries) ---
     const [profilesRes, sentRecipientsRes, existingRes, sentMsgsRes] = await Promise.all([
@@ -71,11 +70,11 @@ export async function POST() {
         if (!emailToProfileId.has(e)) emailToProfileId.set(e, s.client_id);
       }
     }
-    debug.push(`known_emails: ${emailToProfileId.size}`);
+
 
     // Already-stored gmail message IDs (for dedup)
     const existingIds = new Set((existingRes.data ?? []).map((m) => m.gmail_message_id));
-    debug.push(`already_stored: ${existingIds.size}`);
+
 
     // Sent message ID → client mapping (for In-Reply-To matching)
     const sentByMessageId = new Map<string, { id: string; client_id: string }>();
@@ -85,7 +84,7 @@ export async function POST() {
         sentByMessageId.set(normalized, { id: s.id, client_id: s.client_id });
       }
     }
-    debug.push(`sent_with_msgid: ${sentByMessageId.size}`);
+
 
     // --- Step 3: Search Gmail for messages sent TO this account (replies) ---
     // Using "to:me" filters to only replies, not outgoing or noise
@@ -103,14 +102,14 @@ export async function POST() {
 
     const searchData = await searchRes.json();
     const gmailMessages = (searchData.messages ?? []) as Array<{ id: string; threadId: string }>;
-    debug.push(`inbox_messages: ${gmailMessages.length}`);
+
 
     // Filter out already-stored messages BEFORE fetching (saves API calls)
     const toFetch = gmailMessages.filter((m) => !existingIds.has(m.id));
-    debug.push(`to_fetch: ${toFetch.length}`);
+
 
     if (toFetch.length === 0) {
-      return json({ new_replies: 0, processed: 0, errors: 0, skipped_known: gmailMessages.length - toFetch.length, debug });
+      return json({ new_replies: 0, processed: 0, errors: 0 });
     }
 
     // --- Step 4: Fetch messages in parallel batches ---
@@ -137,7 +136,7 @@ export async function POST() {
       for (const result of results) {
         if (result.status === "rejected") {
           errors++;
-          debug.push(`fetch_err: ${result.reason}`);
+          await logError(`Reply fetch failed: ${result.reason}`, { severity: "warning", sourceSystem: "gmail.poll_replies", userId: profile.id, metadata: {} });
           continue;
         }
 
@@ -202,11 +201,11 @@ export async function POST() {
           });
 
           if (insertErr) {
-            debug.push(`insert_err: ${insertErr.message}`);
+            await logError(`Reply insert failed: ${insertErr.message}`, { severity: "warning", sourceSystem: "gmail.poll_replies", userId: profile.id, metadata: { gmail_message_id: gmailMsgId, from_email: fromEmail } });
             errors++;
           } else {
             newReplies++;
-            debug.push(`matched: ${fromEmail} → ${clientId}`);
+            // Successfully matched and stored
 
             await service
               .from("sent_messages")
@@ -214,8 +213,8 @@ export async function POST() {
               .eq("id", matchedSentId);
           }
         } catch (err) {
-          debug.push(`process_err: ${err instanceof Error ? err.message : "unknown"}`);
           errors++;
+          await logError(err instanceof Error ? err.message : "Reply processing failed", { severity: "warning", sourceSystem: "gmail.poll_replies", userId: profile.id, metadata: { gmail_message_id: gmailMsgId } });
         }
       }
     }
@@ -230,7 +229,7 @@ export async function POST() {
       metadata: { new_replies: newReplies, errors, skippedNotContact, total: gmailMessages.length },
     });
 
-    return json({ new_replies: newReplies, processed: toFetch.length, errors, skippedNotContact, debug });
+    return json({ new_replies: newReplies, processed: toFetch.length, errors });
   } catch (err) {
     await logError(err instanceof Error ? err.message : "Reply polling failed", {
       severity: "error",
