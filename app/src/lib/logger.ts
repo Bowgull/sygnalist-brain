@@ -1,6 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
-import nodemailer from "nodemailer";
 
 type Meta = Record<string, unknown>;
 
@@ -74,7 +73,8 @@ async function sendAlertEmail(errorMessage: string, severity: string, source: st
   const from = process.env.ALERT_EMAIL_FROM ?? user;
   if (!host || !user || !pass || !to) return;
 
-  const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+  const nodemailer = await import("nodemailer");
+  const transporter = nodemailer.default.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
   const metaBlock = metadata ? Object.entries(metadata).map(([k, v]) => `  ${k}: ${JSON.stringify(v)}`).join("\n") : "  (none)";
 
   await transporter.sendMail({
