@@ -1,11 +1,13 @@
-import { requireAuth, json, error, getServiceClient } from "@/lib/api-helpers";
+import { requireAuth, json, error, getServiceClient, getRequestId } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /** POST /api/inbox/:id/promote — move an inbox job to the tracker */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const requestId = getRequestId(request);
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;
   if (!profile) return error("Profile not found", 404);
@@ -30,6 +32,12 @@ export async function POST(
       .limit(1);
 
     if (existing && existing.length > 0) {
+      await logEvent("inbox.promote", {
+        userId: profile.id,
+        requestId,
+        success: false,
+        metadata: { inbox_job_id: id, reason: "duplicate_url" },
+      });
       return error("Job already in tracker", 409);
     }
   }
@@ -55,7 +63,15 @@ export async function POST(
     .select()
     .single();
 
-  if (insertErr) return error(insertErr.message, 500);
+  if (insertErr) {
+    await logError(insertErr.message, {
+      sourceSystem: "api.inbox.promote",
+      userId: profile.id,
+      requestId,
+      metadata: { inbox_job_id: id },
+    });
+    return error(insertErr.message, 500);
+  }
 
   // Also upsert to global job bank (if URL exists)
   if (job.url) {
@@ -72,11 +88,9 @@ export async function POST(
     );
   }
 
-  // Log user event
-  const service = getServiceClient();
-  await service.from("user_events").insert({
-    user_id: profile.id,
-    event_type: "promote",
+  await logEvent("inbox.promote", {
+    userId: profile.id,
+    requestId,
     metadata: { inbox_job_id: id, tracker_entry_id: entry.id },
   });
 

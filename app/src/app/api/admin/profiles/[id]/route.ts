@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /** GET /api/admin/profiles/:id — get a single profile (admin view) */
 export async function GET(
@@ -26,7 +27,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const { response } = await requireAdmin();
+  const { profile: admin, response } = await requireAdmin();
   if (response) return response;
 
   const body = await request.json();
@@ -82,6 +83,22 @@ export async function PATCH(
     .select()
     .single();
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    await logError(dbError.message, {
+      sourceSystem: "api.admin.profiles.update",
+      userId: admin?.id,
+      metadata: { target_profile_id: id, fields: Object.keys(patch) },
+    });
+    return error(dbError.message, 500);
+  }
+
+  await logEvent("admin.profile_update", {
+    userId: admin?.id,
+    metadata: {
+      target_profile_id: id,
+      changed_fields: Object.keys(patch),
+    },
+  });
+
   return json(data);
 }

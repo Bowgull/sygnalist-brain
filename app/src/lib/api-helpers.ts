@@ -57,3 +57,8 @@ export async function requireAdmin() {
 export function getServiceClient() {
   return createServiceClient();
 }
+
+/** Extract the x-request-id header set by middleware. */
+export function getRequestId(request: Request): string {
+  return request.headers.get("x-request-id") ?? crypto.randomUUID();
+}

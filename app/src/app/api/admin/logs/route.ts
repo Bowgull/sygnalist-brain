@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logEvent } from "@/lib/logger";
 
 /** GET /api/admin/logs — get event logs, error logs, or fetch logs */
 export async function GET(request: Request) {
@@ -81,5 +82,11 @@ export async function PATCH(request: Request) {
     .single();
 
   if (dbError) return error(dbError.message, 500);
+
+  await logEvent("admin.error_resolve", {
+    userId: profile!.id,
+    metadata: { error_id: body.error_id },
+  });
+
   return json(data);
 }

@@ -3,6 +3,14 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+function logAuth(event: string, method?: string, error?: string) {
+  fetch("/api/auth/log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event, method, error }),
+  }).catch(() => {});
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,9 +25,11 @@ export default function LoginPage() {
     setMessage("");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      logAuth("login_failed", "password", error.message);
       setMessage(error.message);
       setLoading(false);
     } else {
+      logAuth("login", "password");
       window.location.href = "/inbox";
     }
   }
@@ -33,6 +43,7 @@ export default function LoginPage() {
       options: { emailRedirectTo: `${window.location.origin}/callback` },
     });
     if (error) {
+      logAuth("login_failed", "magic", error.message);
       setMessage(error.message);
     } else {
       setMessage("Check your email for the login link.");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import TrackerCard from "@/components/tracker/tracker-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import type { Database } from "@/types/database";
@@ -30,6 +31,8 @@ export default function TrackerPage() {
     if (res.ok) {
       const data = await res.json();
       setEntries(data.entries ?? []);
+    } else {
+      toast.error("Failed to load tracker");
     }
     setLoading(false);
   }, []);
@@ -62,21 +65,36 @@ export default function TrackerPage() {
   }
 
   async function handleUpdate(id: string, patch: Record<string, unknown>) {
+    // Save previous state for rollback
+    const prev = entries;
+
     // Optimistic update
-    setEntries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, ...patch } as TrackerEntry : e))
+    setEntries((e) =>
+      e.map((x) => (x.id === id ? { ...x, ...patch } as TrackerEntry : x))
     );
 
-    await fetch(`/api/tracker/${id}`, {
+    const res = await fetch(`/api/tracker/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
+
+    if (!res.ok) {
+      setEntries(prev);
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error ?? "Failed to update");
+    }
   }
 
   async function handleDelete(id: string) {
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-    await fetch(`/api/tracker/${id}`, { method: "DELETE" });
+    const prev = entries;
+    setEntries((e) => e.filter((x) => x.id !== id));
+
+    const res = await fetch(`/api/tracker/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setEntries(prev);
+      toast.error("Failed to remove");
+    }
   }
 
   async function handleManualAdd(data: { title: string; company: string; url?: string; location?: string; notes?: string }) {
@@ -89,6 +107,14 @@ export default function TrackerPage() {
       const entry = await res.json();
       setEntries((prev) => [entry, ...prev]);
       setShowManualAdd(false);
+      toast.success("Added to Tracker");
+    } else {
+      const err = await res.json().catch(() => null);
+      if (res.status === 409) {
+        toast.error("Job with this URL already tracked");
+      } else {
+        toast.error(err?.error ?? "Failed to add");
+      }
     }
   }
 

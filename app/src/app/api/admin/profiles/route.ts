@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /** GET /api/admin/profiles — list all profiles */
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
 
 /** POST /api/admin/profiles — create a new profile */
 export async function POST(request: Request) {
-  const { response } = await requireAdmin();
+  const { profile: admin, response } = await requireAdmin();
   if (response) return response;
 
   const body = await request.json();
@@ -45,6 +46,21 @@ export async function POST(request: Request) {
     .select()
     .single();
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    await logError(dbError.message, {
+      sourceSystem: "api.admin.profiles.create",
+      userId: admin?.id,
+    });
+    return error(dbError.message, 500);
+  }
+
+  await logEvent("admin.profile_create", {
+    userId: admin?.id,
+    metadata: {
+      target_profile_id: data.id,
+      display_name: body.display_name,
+    },
+  });
+
   return json(data, 201);
 }

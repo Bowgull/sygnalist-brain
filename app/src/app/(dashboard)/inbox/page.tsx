@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 import JobCard from "@/components/inbox/job-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import type { Database } from "@/types/database";
@@ -14,7 +14,6 @@ export default function InboxPage() {
   const [activeLane, setActiveLane] = useState("All");
   const [lanes, setLanes] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
-  const supabase = createClient();
 
   const fetchJobs = useCallback(
     async (lane: string) => {
@@ -39,6 +38,8 @@ export default function InboxPage() {
           ];
           setLanes(uniqueLanes);
         }
+      } else {
+        toast.error("Failed to load inbox");
       }
       setLoading(false);
     },
@@ -52,21 +53,40 @@ export default function InboxPage() {
   async function handlePromote(id: string) {
     const res = await fetch(`/api/inbox/${id}/promote`, { method: "POST" });
     if (res.ok) {
-      // Optimistic: keep card visible but show "In Tracker" state
+      toast.success("Added to Tracker");
+    } else {
+      const data = await res.json().catch(() => null);
+      const msg = data?.error ?? "Failed to promote";
+      if (res.status === 409) {
+        toast.error("Already in Tracker");
+      } else {
+        toast.error(msg);
+      }
     }
   }
 
   async function handleDismiss(id: string) {
     // Optimistic remove
-    setJobs((prev) => prev.filter((j) => j.id !== id));
-    setTotal((prev) => prev - 1);
+    const prev = jobs;
+    setJobs((j) => j.filter((x) => x.id !== id));
+    setTotal((t) => t - 1);
 
-    await fetch(`/api/inbox/${id}/dismiss`, { method: "POST" });
+    const res = await fetch(`/api/inbox/${id}/dismiss`, { method: "POST" });
+    if (!res.ok) {
+      // Rollback
+      setJobs(prev);
+      setTotal((t) => t + 1);
+      toast.error("Failed to dismiss");
+    }
   }
 
   async function handleFetch() {
     setLoading(true);
-    await fetch("/api/fetch", { method: "POST" });
+    const res = await fetch("/api/fetch", { method: "POST" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error ?? "Fetch failed");
+    }
     // Refresh inbox after fetch
     await fetchJobs(activeLane);
   }

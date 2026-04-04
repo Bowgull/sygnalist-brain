@@ -1,4 +1,5 @@
-import { requireAuth, json, error, getServiceClient } from "@/lib/api-helpers";
+import { requireAuth, json, error, getRequestId } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /** GET /api/tracker/:id — get a single tracker entry */
 export async function GET(
@@ -27,6 +28,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const requestId = getRequestId(request);
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;
   if (!profile) return error("Profile not found", 404);
@@ -67,7 +69,8 @@ export async function PATCH(
   if (!current) return error("Entry not found", 404);
 
   // If status changed, update stage_changed_at
-  if (patch.status && patch.status !== current.status) {
+  const statusChanged = patch.status && patch.status !== current.status;
+  if (statusChanged) {
     patch.stage_changed_at = new Date().toISOString();
   }
 
@@ -79,14 +82,20 @@ export async function PATCH(
     .select()
     .single();
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    await logError(dbError.message, {
+      sourceSystem: "api.tracker.update",
+      userId: profile.id,
+      requestId,
+      metadata: { tracker_entry_id: id, fields: Object.keys(patch) },
+    });
+    return error(dbError.message, 500);
+  }
 
-  // Log status change event
-  if (patch.status && patch.status !== current.status) {
-    const service = getServiceClient();
-    await service.from("user_events").insert({
-      user_id: profile.id,
-      event_type: "status_change",
+  if (statusChanged) {
+    await logEvent("tracker.status_change", {
+      userId: profile.id,
+      requestId,
       metadata: {
         tracker_entry_id: id,
         from: current.status,
@@ -100,10 +109,11 @@ export async function PATCH(
 
 /** DELETE /api/tracker/:id — remove a tracker entry */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const requestId = getRequestId(request);
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;
   if (!profile) return error("Profile not found", 404);
@@ -114,13 +124,19 @@ export async function DELETE(
     .eq("id", id)
     .eq("profile_id", profile.id);
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    await logError(dbError.message, {
+      sourceSystem: "api.tracker.delete",
+      userId: profile.id,
+      requestId,
+      metadata: { tracker_entry_id: id },
+    });
+    return error(dbError.message, 500);
+  }
 
-  // Log event
-  const service = getServiceClient();
-  await service.from("user_events").insert({
-    user_id: profile.id,
-    event_type: "remove_from_tracker",
+  await logEvent("tracker.remove", {
+    userId: profile.id,
+    requestId,
     metadata: { tracker_entry_id: id },
   });
 

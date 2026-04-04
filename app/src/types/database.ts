@@ -566,6 +566,8 @@ export interface Database {
           user_id: string | null;
           event_type: string;
           metadata: Json;
+          request_id: string | null;
+          success: boolean;
           created_at: string;
         };
         Insert: {
@@ -573,12 +575,16 @@ export interface Database {
           user_id?: string | null;
           event_type: string;
           metadata?: Json;
+          request_id?: string | null;
+          success?: boolean;
         };
         Update: {
           id?: string;
           user_id?: string | null;
           event_type?: string;
           metadata?: Json;
+          request_id?: string | null;
+          success?: boolean;
         };
         Relationships: [];
       };

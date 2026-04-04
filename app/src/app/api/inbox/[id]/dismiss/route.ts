@@ -1,11 +1,13 @@
-import { requireAuth, json, error, getServiceClient } from "@/lib/api-helpers";
+import { requireAuth, json, error, getRequestId } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /** POST /api/inbox/:id/dismiss — dismiss an inbox job (won't reappear) */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const requestId = getRequestId(request);
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;
   if (!profile) return error("Profile not found", 404);
@@ -22,7 +24,7 @@ export async function POST(
 
   // Record dismissal (prevents reappearing in future fetches)
   if (job.url) {
-    await supabase.from("dismissed_jobs").upsert(
+    const { error: upsertErr } = await supabase.from("dismissed_jobs").upsert(
       {
         profile_id: profile.id,
         url: job.url,
@@ -31,16 +33,33 @@ export async function POST(
       },
       { onConflict: "profile_id,url" }
     );
+
+    if (upsertErr) {
+      await logError(upsertErr.message, {
+        sourceSystem: "api.inbox.dismiss",
+        userId: profile.id,
+        requestId,
+        metadata: { inbox_job_id: id },
+      });
+    }
   }
 
   // Remove from inbox
-  await supabase.from("inbox_jobs").delete().eq("id", id);
+  const { error: deleteErr } = await supabase.from("inbox_jobs").delete().eq("id", id);
 
-  // Log event
-  const service = getServiceClient();
-  await service.from("user_events").insert({
-    user_id: profile.id,
-    event_type: "dismiss",
+  if (deleteErr) {
+    await logError(deleteErr.message, {
+      sourceSystem: "api.inbox.dismiss",
+      userId: profile.id,
+      requestId,
+      metadata: { inbox_job_id: id },
+    });
+    return error(deleteErr.message, 500);
+  }
+
+  await logEvent("inbox.dismiss", {
+    userId: profile.id,
+    requestId,
     metadata: { url: job.url },
   });
 
