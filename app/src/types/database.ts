@@ -554,6 +554,10 @@ export interface Database {
           body: string;
           trigger_event: string | null;
           tracker_entry_id: string | null;
+          smtp_message_id: string | null;
+          gmail_thread_id: string | null;
+          gmail_message_id: string | null;
+          recipient_email: string | null;
           sent_at: string;
         };
         Insert: {
@@ -565,6 +569,10 @@ export interface Database {
           body: string;
           trigger_event?: string | null;
           tracker_entry_id?: string | null;
+          smtp_message_id?: string | null;
+          gmail_thread_id?: string | null;
+          gmail_message_id?: string | null;
+          recipient_email?: string | null;
         };
         Update: {
           id?: string;
@@ -575,6 +583,10 @@ export interface Database {
           body?: string;
           trigger_event?: string | null;
           tracker_entry_id?: string | null;
+          smtp_message_id?: string | null;
+          gmail_thread_id?: string | null;
+          gmail_message_id?: string | null;
+          recipient_email?: string | null;
         };
         Relationships: [];
       };
@@ -779,6 +791,103 @@ export interface Database {
         Update: {
           id?: string;
           statuses?: Json;
+        };
+        Relationships: [];
+      };
+      received_messages: {
+        Row: {
+          id: string;
+          gmail_message_id: string;
+          gmail_thread_id: string;
+          from_email: string;
+          from_name: string | null;
+          subject: string | null;
+          body_text: string | null;
+          body_html: string | null;
+          received_at: string;
+          in_reply_to: string | null;
+          client_id: string | null;
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          gmail_message_id: string;
+          gmail_thread_id: string;
+          from_email: string;
+          from_name?: string | null;
+          subject?: string | null;
+          body_text?: string | null;
+          body_html?: string | null;
+          received_at: string;
+          in_reply_to?: string | null;
+          client_id?: string | null;
+          is_read?: boolean;
+        };
+        Update: {
+          id?: string;
+          gmail_message_id?: string;
+          gmail_thread_id?: string;
+          from_email?: string;
+          from_name?: string | null;
+          subject?: string | null;
+          body_text?: string | null;
+          body_html?: string | null;
+          received_at?: string;
+          in_reply_to?: string | null;
+          client_id?: string | null;
+          is_read?: boolean;
+        };
+        Relationships: [];
+      };
+      outreach_suggestions: {
+        Row: {
+          id: string;
+          client_id: string;
+          trigger_event: string;
+          template_id: string | null;
+          tracker_entry_id: string | null;
+          status: string;
+          context_snapshot: Json;
+          created_at: string;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          trigger_event: string;
+          template_id?: string | null;
+          tracker_entry_id?: string | null;
+          status?: string;
+          context_snapshot?: Json;
+          resolved_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          trigger_event?: string;
+          template_id?: string | null;
+          tracker_entry_id?: string | null;
+          status?: string;
+          context_snapshot?: Json;
+          resolved_at?: string | null;
+        };
+        Relationships: [];
+      };
+      gmail_poll_state: {
+        Row: {
+          id: string;
+          last_polled_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          last_polled_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          last_polled_at?: string | null;
+          updated_at?: string;
         };
         Relationships: [];
       };

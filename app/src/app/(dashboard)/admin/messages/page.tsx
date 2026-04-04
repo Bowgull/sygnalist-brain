@@ -1,6 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+
+/* ------------------------------------------------------------------ */
+/*  Types                                                              */
+/* ------------------------------------------------------------------ */
 
 interface Template {
   id: string;
@@ -20,52 +24,83 @@ interface Client {
   status: string;
 }
 
-interface SentMessage {
+interface Suggestion {
   id: string;
   client_id: string;
-  subject: string;
-  body: string;
-  sent_at: string;
-  trigger_event: string | null;
+  trigger_event: string;
+  template_id: string | null;
+  tracker_entry_id: string | null;
+  status: string;
+  context_snapshot: Record<string, unknown>;
+  created_at: string;
+  client: { id: string; display_name: string; email: string | null } | null;
+  template: { id: string; name: string; subject: string; trigger_event: string | null } | null;
+  tracker_entry: { id: string; company: string; title: string; status: string } | null;
 }
 
-type View = "hub" | "compose" | "sent" | "templates";
+interface Conversation {
+  client_id: string | null;
+  email: string;
+  display_name: string | null;
+  last_message_preview: string;
+  last_message_at: string;
+  last_direction: "sent" | "received";
+  unread_count: number;
+}
+
+interface ThreadMessage {
+  id: string;
+  direction: "sent" | "received";
+  subject: string | null;
+  body: string;
+  timestamp: string;
+  gmail_thread_id: string | null;
+}
+
+type View = "outreach" | "compose" | "conversations";
+
+/* ------------------------------------------------------------------ */
+/*  Merge field tokens                                                 */
+/* ------------------------------------------------------------------ */
+
+const MERGE_FIELDS = [
+  "{clientName}",
+  "{clientEmail}",
+  "{coachName}",
+  "{pipelineCount}",
+  "{appliedCount}",
+  "{interviewCount}",
+  "{daysSinceLastFetch}",
+  "{topSkills}",
+  "{assignedLanes}",
+];
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
 
 export default function AdminMessagesPage() {
-  const [view, setView] = useState<View>("hub");
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [view, setView] = useState<View>("outreach");
   const [clients, setClients] = useState<Client[]>([]);
-  const [sentMessages, setSentMessages] = useState<SentMessage[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Compose state
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [sending, setSending] = useState(false);
-  const [drafting, setDrafting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
+    loadSharedData();
   }, []);
 
-  async function loadData() {
+  async function loadSharedData() {
     setLoading(true);
     try {
-      const [tRes, cRes, sRes] = await Promise.all([
+      const [tRes, cRes] = await Promise.all([
         fetch("/api/admin/messages/templates"),
         fetch("/api/admin/profiles"),
-        fetch("/api/admin/messages"),
       ]);
       if (tRes.ok) setTemplates(await tRes.json());
-      else showToast(`Templates: ${(await tRes.json().catch(() => ({}))).error ?? "failed to load"}`);
       if (cRes.ok) setClients(await cRes.json());
-      if (sRes.ok) setSentMessages(await sRes.json());
-      else showToast(`Messages: ${(await sRes.json().catch(() => ({}))).error ?? "failed to load"}`);
     } catch {
-      showToast("Failed to load message hub data");
+      showToast("Failed to load data");
     }
     setLoading(false);
   }
@@ -75,46 +110,574 @@ export default function AdminMessagesPage() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  async function handlePickTemplate(template: Template) {
-    setSelectedTemplate(template);
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-20 animate-pulse rounded-2xl bg-[#171F28]" />
+        ))}
+      </div>
+    );
+  }
 
-    if (!selectedClient) {
-      setSubject(template.subject);
-      setBody(template.body);
-      return;
+  const views: { key: View; label: string }[] = [
+    { key: "outreach", label: "Outreach" },
+    { key: "compose", label: "Compose" },
+    { key: "conversations", label: "Conversations" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-sm font-medium text-[#0C1016]">
+          {toast}
+        </div>
+      )}
+
+      {/* View tab bar */}
+      <div className="flex gap-1 rounded-xl bg-[#151C24] p-1">
+        {views.map((v) => (
+          <button
+            key={v.key}
+            onClick={() => setView(v.key)}
+            className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              view === v.key
+                ? "bg-[#171F28] text-[#FAD76A]"
+                : "text-[#9CA3AF] hover:text-white"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "outreach" && (
+        <OutreachView
+          clients={clients}
+          templates={templates}
+          showToast={showToast}
+          onComposeWith={(clientId, templateId) => {
+            setView("compose");
+          }}
+        />
+      )}
+      {view === "compose" && (
+        <ComposeView
+          clients={clients}
+          templates={templates}
+          showToast={showToast}
+        />
+      )}
+      {view === "conversations" && (
+        <ConversationsView
+          clients={clients}
+          showToast={showToast}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  OUTREACH VIEW                                                      */
+/* ================================================================== */
+
+function OutreachView({
+  clients,
+  templates,
+  showToast,
+}: {
+  clients: Client[];
+  templates: Template[];
+  showToast: (msg: string) => void;
+  onComposeWith: (clientId: string, templateId: string | null) => void;
+}) {
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [sendingAll, setSendingAll] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Inline compose state for "Edit & Send"
+  const [editingSuggestion, setEditingSuggestion] = useState<Suggestion | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editDrafting, setEditDrafting] = useState(false);
+  const [editSending, setEditSending] = useState(false);
+
+  useEffect(() => {
+    loadSuggestions();
+  }, []);
+
+  async function loadSuggestions() {
+    setLoading(true);
+    const res = await fetch("/api/admin/messages/suggestions");
+    if (res.ok) setSuggestions(await res.json());
+    setLoading(false);
+  }
+
+  async function generateSuggestions() {
+    setGenerating(true);
+    const res = await fetch("/api/admin/messages/suggestions/generate", { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`Generated ${data.generated} suggestion${data.generated !== 1 ? "s" : ""}`);
+      await loadSuggestions();
+    } else {
+      showToast("Failed to generate suggestions");
     }
+    setGenerating(false);
+  }
 
-    // Get AI-assisted draft with merge fields resolved
-    setDrafting(true);
+  async function dismissSuggestion(id: string) {
+    const res = await fetch("/api/admin/messages/suggestions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: "dismissed" }),
+    });
+    if (res.ok) {
+      setSuggestions((prev) => prev.filter((s) => s.id !== id));
+    }
+  }
+
+  async function sendBulk(triggerEvent: string, ids: string[], templateId: string | null) {
+    setSendingAll(triggerEvent);
+    const recipients = suggestions
+      .filter((s) => ids.includes(s.id))
+      .map((s) => ({ client_id: s.client_id }));
+
+    const res = await fetch("/api/admin/messages/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipients,
+        template_id: templateId,
+        trigger_event: triggerEvent,
+        suggestion_ids: ids,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`Sent ${data.sent}, ${data.failed} failed`);
+      setSuggestions((prev) => prev.filter((s) => !ids.includes(s.id)));
+    } else {
+      showToast("Bulk send failed");
+    }
+    setSendingAll(null);
+  }
+
+  async function openEditSend(suggestion: Suggestion) {
+    setEditingSuggestion(suggestion);
+    setEditDrafting(true);
+
+    // Fetch draft with merge fields resolved
     const res = await fetch("/api/admin/messages/draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_id: selectedClient.id,
-        template_id: template.id,
+        client_id: suggestion.client_id,
+        template_id: suggestion.template_id,
       }),
     });
 
     if (res.ok) {
       const draft = await res.json();
-      setSubject(draft.subject);
-      setBody(draft.body);
+      setEditSubject(draft.subject || "");
+      setEditBody(draft.body || "");
     } else {
+      setEditSubject(suggestion.template?.subject || "");
+      setEditBody("");
+    }
+    setEditDrafting(false);
+  }
+
+  async function sendEdited() {
+    if (!editingSuggestion || !editSubject || !editBody) return;
+    setEditSending(true);
+
+    const res = await fetch("/api/admin/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: editingSuggestion.client_id,
+        template_id: editingSuggestion.template_id,
+        subject: editSubject,
+        body: editBody,
+      }),
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      if (result.sent) showToast("Email sent!");
+      else showToast(result.error ? `Saved: ${result.error}` : "Saved");
+
+      // Mark suggestion as sent
+      await fetch("/api/admin/messages/suggestions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingSuggestion.id, status: "sent" }),
+      });
+
+      setSuggestions((prev) => prev.filter((s) => s.id !== editingSuggestion.id));
+      setEditingSuggestion(null);
+      setEditSubject("");
+      setEditBody("");
+    } else {
+      showToast("Failed to send");
+    }
+    setEditSending(false);
+  }
+
+  // Group suggestions by trigger_event
+  const grouped = suggestions.reduce<Record<string, Suggestion[]>>((acc, s) => {
+    (acc[s.trigger_event] ??= []).push(s);
+    return acc;
+  }, {});
+
+  const triggerLabels: Record<string, string> = {
+    interview_reached: "Interview Reached",
+    offer_reached: "Offer Received",
+    inactive_checkin: "Inactive Check-in",
+    welcome: "New Client Welcome",
+    weekly_digest: "Weekly Digest",
+  };
+
+  const triggerColors: Record<string, string> = {
+    interview_reached: "#8B5CF6",
+    offer_reached: "#22C55E",
+    inactive_checkin: "#FAD76A",
+    welcome: "#6AD7A3",
+    weekly_digest: "#38BDF8",
+  };
+
+  /* -- Edit & Send inline pane -- */
+  if (editingSuggestion) {
+    const client = editingSuggestion.client;
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setEditingSuggestion(null); setEditSubject(""); setEditBody(""); }}
+            className="text-[#9CA3AF] hover:text-white"
+          >
+            <BackArrow />
+          </button>
+          <h2 className="text-lg font-semibold">Edit & Send</h2>
+        </div>
+
+        <div className="rounded-xl bg-[#151C24] px-3 py-2 text-sm">
+          To: <span className="font-medium text-[#6AD7A3]">{client?.display_name ?? "Unknown"}</span>
+          <span className="ml-2 text-[11px] text-[#9CA3AF]">{client?.email}</span>
+        </div>
+
+        {editDrafting ? (
+          <div className="rounded-xl bg-[#171F28] p-4 text-center text-sm text-[#B8BFC8]">
+            <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-[#6AD7A3] border-t-transparent" />
+            Generating draft...
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="mb-1 block text-xs text-[#9CA3AF]">Subject</label>
+              <input
+                type="text"
+                value={editSubject}
+                onChange={(e) => setEditSubject(e.target.value)}
+                className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-[#9CA3AF]">Body</label>
+              <textarea
+                value={editBody}
+                onChange={(e) => setEditBody(e.target.value)}
+                rows={10}
+                className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
+              />
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={sendEdited}
+                disabled={editSending || !editSubject || !editBody}
+                className="rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-6 py-2 text-sm font-semibold text-[#0C1016] transition disabled:opacity-40"
+              >
+                {editSending ? "Sending..." : "Send"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Outreach</h2>
+        <button
+          onClick={generateSuggestions}
+          disabled={generating}
+          className="rounded-full border border-[#6AD7A3]/30 px-4 py-1.5 text-sm text-[#6AD7A3] transition hover:bg-[#6AD7A3]/10 disabled:opacity-40"
+        >
+          {generating ? "Scanning..." : "Generate Suggestions"}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-[#171F28]" />
+          ))}
+        </div>
+      ) : suggestions.length === 0 ? (
+        <div className="flex flex-col items-center rounded-2xl bg-[#171F28] p-12 text-center">
+          <svg viewBox="0 0 24 24" className="mb-3 h-10 w-10 text-[#2A3544]" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+          <p className="text-sm font-medium text-[#B8BFC8]">No pending suggestions</p>
+          <p className="mt-1 text-[11px] text-[#6B7280]">Click &quot;Generate Suggestions&quot; to scan for outreach opportunities</p>
+        </div>
+      ) : (
+        Object.entries(grouped).map(([trigger, items]) => {
+          const color = triggerColors[trigger] || "#6AD7A3";
+          const label = triggerLabels[trigger] || trigger;
+          const isExpanded = expanded === trigger;
+          const templateId = items[0]?.template_id;
+
+          return (
+            <div key={trigger} className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] overflow-hidden">
+              {/* Group header */}
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-sm font-semibold">{label}</span>
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    style={{ backgroundColor: `${color}15`, color }}
+                  >
+                    {items.length}
+                  </span>
+                </div>
+
+                {items.length > 1 && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setExpanded(isExpanded ? null : trigger)}
+                      className="rounded-full border border-[rgba(255,255,255,0.12)] px-3 py-1 text-[11px] text-[#B8BFC8] transition hover:bg-[#222D3D]"
+                    >
+                      {isExpanded ? "Collapse" : "Review Individually"}
+                    </button>
+                    <button
+                      onClick={() => sendBulk(trigger, items.map((i) => i.id), templateId)}
+                      disabled={sendingAll === trigger}
+                      className="rounded-full px-3 py-1 text-[11px] font-medium text-[#0C1016] transition"
+                      style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}
+                    >
+                      {sendingAll === trigger ? "Sending..." : `Send All (${items.length})`}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Individual cards — show when only 1 item or expanded */}
+              {(items.length === 1 || isExpanded) && (
+                <div className="border-t border-[#2A3544]/50">
+                  {items.map((s) => (
+                    <SuggestionCard
+                      key={s.id}
+                      suggestion={s}
+                      color={color}
+                      onEditSend={() => openEditSend(s)}
+                      onDismiss={() => dismissSuggestion(s.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+function SuggestionCard({
+  suggestion,
+  color,
+  onEditSend,
+  onDismiss,
+}: {
+  suggestion: Suggestion;
+  color: string;
+  onEditSend: () => void;
+  onDismiss: () => void;
+}) {
+  const s = suggestion;
+  const ctx = s.context_snapshot;
+
+  let description = "";
+  switch (s.trigger_event) {
+    case "interview_reached":
+      description = `Reached ${ctx.status || "interview"} at ${ctx.company || "a company"} — ${ctx.title || ""}`;
+      break;
+    case "offer_reached":
+      description = `Received an offer from ${ctx.company || "a company"}`;
+      break;
+    case "inactive_checkin":
+      description = `Inactive for ${ctx.days_inactive === "never" ? "unknown" : `${ctx.days_inactive} days`}`;
+      break;
+    case "welcome":
+      description = "Just onboarded";
+      break;
+    case "weekly_digest":
+      description = "Weekly digest due";
+      break;
+    default:
+      description = s.trigger_event;
+  }
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 transition hover:bg-[#1A2330]">
+      <div className="flex items-center gap-3">
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
+          style={{ backgroundColor: `${color}15`, color }}
+        >
+          {(s.client?.display_name ?? "?")[0].toUpperCase()}
+        </div>
+        <div>
+          <p className="text-sm font-medium">{s.client?.display_name ?? "Unknown"}</p>
+          <p className="text-[11px] text-[#9CA3AF]">{description}</p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={onDismiss}
+          className="rounded-full border border-[rgba(255,255,255,0.12)] px-3 py-1 text-[11px] text-[#9CA3AF] transition hover:bg-[#222D3D] hover:text-white"
+        >
+          Dismiss
+        </button>
+        <button
+          onClick={onEditSend}
+          className="rounded-full px-3 py-1 text-[11px] font-medium text-[#0C1016]"
+          style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}
+        >
+          Edit & Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  COMPOSE VIEW                                                       */
+/* ================================================================== */
+
+function ComposeView({
+  clients,
+  templates,
+  showToast,
+}: {
+  clients: Client[];
+  templates: Template[];
+  showToast: (msg: string) => void;
+}) {
+  const [step, setStep] = useState<"recipients" | "template" | "editor">("recipients");
+  const [selectedClients, setSelectedClients] = useState<Client[]>([]);
+  const [freeEmail, setFreeEmail] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const [search, setSearch] = useState("");
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  const activeClients = clients.filter((c) => c.status === "active" && c.email);
+  const filteredClients = search
+    ? activeClients.filter(
+        (c) =>
+          c.display_name.toLowerCase().includes(search.toLowerCase()) ||
+          (c.email && c.email.toLowerCase().includes(search.toLowerCase())),
+      )
+    : activeClients;
+
+  function toggleClient(client: Client) {
+    setSelectedClients((prev) =>
+      prev.some((c) => c.id === client.id)
+        ? prev.filter((c) => c.id !== client.id)
+        : [...prev, client],
+    );
+  }
+
+  async function handlePickTemplate(template: Template) {
+    setSelectedTemplate(template);
+    setStep("editor");
+
+    if (selectedClients.length === 1) {
+      setDrafting(true);
+      const res = await fetch("/api/admin/messages/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: selectedClients[0].id,
+          template_id: template.id,
+        }),
+      });
+      if (res.ok) {
+        const draft = await res.json();
+        setSubject(draft.subject || "");
+        setBody(draft.body || "");
+      } else {
+        setSubject(template.subject);
+        setBody(template.body);
+      }
+      setDrafting(false);
+    } else {
+      // For bulk, show template with raw merge fields
       setSubject(template.subject);
       setBody(template.body);
     }
-    setDrafting(false);
+  }
+
+  function handleStartBlank() {
+    setSelectedTemplate(null);
+    setSubject("");
+    setBody("");
+    setStep("editor");
+  }
+
+  function insertMergeField(field: string) {
+    const textarea = bodyRef.current;
+    if (!textarea) {
+      setBody((prev) => prev + field);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newBody = body.slice(0, start) + field + body.slice(end);
+    setBody(newBody);
+    // Restore cursor position after the inserted field
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + field.length, start + field.length);
+    }, 0);
   }
 
   async function handleGenerateAI() {
-    if (!selectedClient) return;
+    if (selectedClients.length !== 1) return;
     setDrafting(true);
 
     const res = await fetch("/api/admin/messages/draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_id: selectedClient.id,
+        client_id: selectedClients[0].id,
         template_id: selectedTemplate?.id,
         context: "Write a personalized check-in email based on their current pipeline status and activity.",
       }),
@@ -129,404 +692,602 @@ export default function AdminMessagesPage() {
   }
 
   async function handleSend() {
-    if (!selectedClient || !subject || !body) return;
+    if (!subject || !body || selectedClients.length === 0) return;
     setSending(true);
 
-    const res = await fetch("/api/admin/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: selectedClient.id,
-        template_id: selectedTemplate?.id,
-        subject,
-        body,
-      }),
-    });
+    if (selectedClients.length === 1) {
+      // Single send
+      const res = await fetch("/api/admin/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          client_id: selectedClients[0].id,
+          template_id: selectedTemplate?.id,
+          subject,
+          body,
+        }),
+      });
 
-    if (res.ok) {
-      const result = await res.json();
-      if (result.sent) {
-        showToast("Email sent successfully!");
-      } else if (result.saved) {
-        showToast(result.error ? `Saved but not sent: ${result.error}` : "Message saved (email not configured)");
+      if (res.ok) {
+        const result = await res.json();
+        showToast(result.sent ? "Email sent!" : result.error ? `Saved: ${result.error}` : "Saved");
+        resetCompose();
       } else {
-        showToast("Failed to send");
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || "Failed to send");
       }
-      setSelectedClient(null);
-      setSelectedTemplate(null);
-      setSubject("");
-      setBody("");
-      setView("hub");
-      const sRes = await fetch("/api/admin/messages");
-      if (sRes.ok) setSentMessages(await sRes.json());
     } else {
-      const err = await res.json();
-      showToast(err.error || "Failed to send email");
+      // Bulk send
+      const res = await fetch("/api/admin/messages/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipients: selectedClients.map((c) => ({ client_id: c.id })),
+          template_id: selectedTemplate?.id || templates[0]?.id,
+          trigger_event: "manual_bulk",
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`Sent ${data.sent}, ${data.failed} failed`);
+        resetCompose();
+      } else {
+        showToast("Bulk send failed");
+      }
     }
     setSending(false);
   }
 
   function resetCompose() {
-    setSelectedClient(null);
+    setStep("recipients");
+    setSelectedClients([]);
     setSelectedTemplate(null);
     setSubject("");
     setBody("");
-    setView("hub");
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 animate-pulse rounded-2xl bg-[#171F28]" />
-        ))}
-      </div>
-    );
+    setFreeEmail("");
+    setSearch("");
   }
 
   return (
-    <div className="space-y-4">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-sm font-medium text-[#0C1016]">
-          {toast}
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        {step !== "recipients" && (
+          <button
+            onClick={() => {
+              if (step === "editor") setStep("template");
+              else setStep("recipients");
+            }}
+            className="text-[#9CA3AF] hover:text-white"
+          >
+            <BackArrow />
+          </button>
+        )}
+        <h2 className="text-lg font-semibold">Compose</h2>
+        <div className="ml-auto flex gap-1.5">
+          {["recipients", "template", "editor"].map((s, i) => (
+            <div
+              key={s}
+              className={`h-1.5 w-6 rounded-full transition ${
+                step === s ? "bg-[#6AD7A3]" : i < ["recipients", "template", "editor"].indexOf(step) ? "bg-[#6AD7A3]/40" : "bg-[#2A3544]"
+              }`}
+            />
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* Hub Home */}
-      {view === "hub" && (
-        <>
-          <h1 className="text-lg font-semibold">Message Hub</h1>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setView("compose")}
-              className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-5 text-left transition hover:bg-[#222D3D]"
-            >
-              <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#6AD7A3]/10">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </div>
-              <span className="text-sm font-semibold">Compose</span>
-              <p className="mt-1 text-[11px] text-[#9CA3AF]">Send a message to a client</p>
-            </button>
-
-            <button
-              onClick={() => setView("sent")}
-              className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-5 text-left transition hover:bg-[#222D3D]"
-            >
-              <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#38BDF8]/10">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#38BDF8]" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-              </div>
-              <span className="text-sm font-semibold">Sent</span>
-              <p className="mt-1 text-[11px] text-[#9CA3AF]">{sentMessages.length} messages sent</p>
-            </button>
-          </div>
-
-          {/* Templates preview */}
-          <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Templates</h2>
-              <button
-                onClick={() => setView("templates")}
-                className="text-[11px] text-[#6AD7A3]"
-              >
-                View All
-              </button>
-            </div>
-            <div className="space-y-2">
-              {templates.slice(0, 5).map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-center justify-between rounded-lg bg-[#151C24] px-3 py-2"
-                >
-                  <span className="text-[13px] text-white">{t.name}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] ${
-                    t.trigger_event
-                      ? "bg-[#FAD76A]/10 text-[#FAD76A]"
-                      : "bg-[#6AD7A3]/10 text-[#6AD7A3]"
-                  }`}>
-                    {t.trigger_event || "Manual"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Compose Flow */}
-      {view === "compose" && (
-        <>
-          <div className="flex items-center gap-2">
-            <button onClick={resetCompose} className="text-[#9CA3AF] hover:text-white">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-semibold">Compose</h1>
-          </div>
-
-          {/* Step 1: Pick client */}
-          {!selectedClient && (
-            <div className="space-y-2">
-              <label className="text-xs text-[#9CA3AF]">Select Client</label>
-              {clients
-                .filter((c) => c.status === "active" && c.email)
-                .map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedClient(c)}
-                    className="flex w-full items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#6AD7A3]/10 text-sm font-semibold text-[#6AD7A3]">
-                      {c.display_name[0]?.toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium">{c.display_name}</div>
-                      <div className="text-[11px] text-[#9CA3AF]">{c.email}</div>
-                    </div>
-                  </button>
-                ))}
-            </div>
-          )}
-
-          {/* Step 2: Pick template or write */}
-          {selectedClient && !subject && !selectedTemplate && (
-            <div className="space-y-2">
-              <div className="rounded-xl bg-[#151C24] px-3 py-2 text-sm">
-                To: <span className="font-medium text-[#6AD7A3]">{selectedClient.display_name}</span>
-                <span className="ml-2 text-[11px] text-[#9CA3AF]">{selectedClient.email}</span>
-              </div>
-
-              <label className="text-xs text-[#9CA3AF]">Choose a template or start blank</label>
-
-              <button
-                onClick={() => {
-                  setSubject("");
-                  setBody("");
-                  setSelectedTemplate({ id: "blank", name: "Blank", subject: "", body: "", ai_prompt_hint: null, trigger_event: null, is_system: false });
-                }}
-                className="flex w-full items-center gap-3 rounded-xl border border-dashed border-[rgba(255,255,255,0.2)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
-              >
-                <span className="text-sm text-[#B8BFC8]">Start blank</span>
-              </button>
-
-              {templates.map((t) => (
+      {/* Step 1: Recipients */}
+      {step === "recipients" && (
+        <div className="space-y-2">
+          {/* Selected pills */}
+          {selectedClients.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {selectedClients.map((c) => (
                 <button
-                  key={t.id}
-                  onClick={() => handlePickTemplate(t)}
-                  className="flex w-full items-center justify-between rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+                  key={c.id}
+                  onClick={() => toggleClient(c)}
+                  className="flex items-center gap-1.5 rounded-full bg-[#6AD7A3]/10 px-3 py-1 text-[12px] text-[#6AD7A3] transition hover:bg-[#6AD7A3]/20"
                 >
-                  <div>
-                    <div className="text-sm font-medium">{t.name}</div>
-                    <div className="text-[11px] text-[#9CA3AF]">{t.subject.slice(0, 60)}</div>
-                  </div>
-                  {t.ai_prompt_hint && (
-                    <span className="rounded-full bg-[#8B5CF6]/10 px-2 py-0.5 text-[10px] text-[#8B5CF6]">AI</span>
-                  )}
+                  {c.display_name}
+                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
                 </button>
               ))}
             </div>
           )}
 
-          {/* Step 3: Edit & send */}
-          {selectedClient && (subject !== "" || selectedTemplate) && (
-            <div className="space-y-3">
-              <div className="rounded-xl bg-[#151C24] px-3 py-2 text-sm">
-                To: <span className="font-medium text-[#6AD7A3]">{selectedClient.display_name}</span>
-              </div>
+          {/* Search */}
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
+            placeholder="Search clients..."
+          />
 
-              {drafting && (
-                <div className="rounded-xl bg-[#171F28] p-4 text-center text-sm text-[#B8BFC8]">
-                  <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-[#6AD7A3] border-t-transparent" />
-                  Generating draft...
-                </div>
-              )}
-
-              {!drafting && (
-                <>
+          {/* Client list */}
+          <div className="max-h-[400px] space-y-1 overflow-y-auto">
+            {filteredClients.map((c) => {
+              const isSelected = selectedClients.some((sc) => sc.id === c.id);
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => toggleClient(c)}
+                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
+                    isSelected
+                      ? "border-[#6AD7A3]/30 bg-[#6AD7A3]/5"
+                      : "border-[rgba(255,255,255,0.08)] bg-[#171F28] hover:bg-[#222D3D]"
+                  }`}
+                >
+                  <div className={`flex h-5 w-5 items-center justify-center rounded border transition ${
+                    isSelected ? "border-[#6AD7A3] bg-[#6AD7A3]" : "border-[#2A3544]"
+                  }`}>
+                    {isSelected && (
+                      <svg viewBox="0 0 24 24" className="h-3 w-3 text-[#0C1016]" fill="none" stroke="currentColor" strokeWidth={3}>
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6AD7A3]/10 text-xs font-bold text-[#6AD7A3]">
+                    {c.display_name[0]?.toUpperCase()}
+                  </div>
                   <div>
-                    <label className="mb-1 block text-xs text-[#9CA3AF]">Subject</label>
-                    <input
-                      type="text"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      className="w-full rounded-lg border border-[rgba(255,255,255,0.12)] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
-                      placeholder="Email subject..."
-                    />
+                    <div className="text-sm font-medium">{c.display_name}</div>
+                    <div className="text-[11px] text-[#9CA3AF]">{c.email}</div>
                   </div>
+                </button>
+              );
+            })}
+          </div>
 
-                  <div>
-                    <label className="mb-1 block text-xs text-[#9CA3AF]">Body</label>
-                    <textarea
-                      value={body}
-                      onChange={(e) => setBody(e.target.value)}
-                      rows={10}
-                      className="w-full rounded-lg border border-[rgba(255,255,255,0.12)] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
-                      placeholder="Write your message..."
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleGenerateAI}
-                      disabled={drafting}
-                      className="rounded-full border border-[#6AD7A3] px-4 py-2 text-sm text-[#6AD7A3] transition hover:bg-[#6AD7A3]/10"
-                    >
-                      Generate AI Content
-                    </button>
-
-                    <button
-                      onClick={handleSend}
-                      disabled={sending || !subject || !body}
-                      className="ml-auto rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-6 py-2 text-sm font-semibold text-[#0C1016] transition disabled:opacity-40"
-                    >
-                      {sending ? "Sending..." : "Send"}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+          {/* Free type email */}
+          <div className="mt-2 flex gap-2">
+            <input
+              type="email"
+              value={freeEmail}
+              onChange={(e) => setFreeEmail(e.target.value)}
+              className="flex-1 rounded-lg border border-dashed border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
+              placeholder="Or type an email address..."
+            />
+          </div>
+          {freeEmail && (
+            <p className="text-[11px] text-[#9CA3AF]">
+              Free-typed emails require a client profile in the system.
+            </p>
           )}
-        </>
+
+          {/* Next button */}
+          <button
+            onClick={() => setStep("template")}
+            disabled={selectedClients.length === 0}
+            className="w-full rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] py-2.5 text-sm font-semibold text-[#0C1016] transition disabled:opacity-30"
+          >
+            Next — Choose Template ({selectedClients.length} selected)
+          </button>
+        </div>
       )}
 
-      {/* Sent Messages */}
-      {view === "sent" && (
-        <>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setView("hub")} className="text-[#9CA3AF] hover:text-white">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-semibold">Sent Messages</h1>
-          </div>
-
-          {/* Stats */}
-          <div className="flex gap-3">
-            <div className="flex-1 rounded-xl bg-[#171F28] p-3 text-center">
-              <p className="text-lg font-bold text-[#6AD7A3]">{sentMessages.length}</p>
-              <p className="text-[10px] text-[#6B7280]">Total Sent</p>
-            </div>
-            <div className="flex-1 rounded-xl bg-[#171F28] p-3 text-center">
-              <p className="text-lg font-bold text-[#38BDF8]">
-                {new Set(sentMessages.map((m) => m.client_id)).size}
-              </p>
-              <p className="text-[10px] text-[#6B7280]">Clients Reached</p>
-            </div>
-            <div className="flex-1 rounded-xl bg-[#171F28] p-3 text-center">
-              <p className="text-lg font-bold text-[#FAD76A]">
-                {sentMessages.filter((m) => {
-                  const d = new Date(m.sent_at);
-                  const week = new Date(Date.now() - 7 * 86400000);
-                  return d > week;
-                }).length}
-              </p>
-              <p className="text-[10px] text-[#6B7280]">This Week</p>
-            </div>
-          </div>
-
-          {sentMessages.length === 0 ? (
-            <div className="flex flex-col items-center rounded-2xl bg-[#171F28] p-12 text-center">
-              <svg viewBox="0 0 24 24" className="mb-3 h-10 w-10 text-[#2A3544]" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-              <p className="text-sm font-medium text-[#B8BFC8]">No messages sent yet</p>
-              <p className="mt-1 text-[11px] text-[#6B7280]">Compose a message to get started</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {sentMessages.map((msg) => {
-                const client = clients.find((c) => c.id === msg.client_id);
-                const sentDate = new Date(msg.sent_at);
-                const timeAgo = formatTimeAgo(sentDate);
-                return (
-                  <div
-                    key={msg.id}
-                    className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6AD7A3]/10 text-xs font-bold text-[#6AD7A3]">
-                          {(client?.display_name ?? "?")[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{client?.display_name ?? "Unknown"}</p>
-                          <p className="text-[11px] text-[#6B7280]">{client?.email}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[11px] text-[#9CA3AF]">{timeAgo}</p>
-                        <p className="text-[10px] text-[#4B5563]">
-                          {sentDate.toLocaleDateString()} {sentDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-[13px] font-medium text-white">{msg.subject}</div>
-                    <p className="mt-1 text-[12px] text-[#9CA3AF] line-clamp-2">{msg.body.slice(0, 150)}...</p>
-                    <div className="mt-2 flex gap-1.5">
-                      {msg.trigger_event && (
-                        <span className="rounded-full bg-[#FAD76A]/10 px-2 py-0.5 text-[10px] font-medium text-[#FAD76A]">
-                          {msg.trigger_event}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Templates View */}
-      {view === "templates" && (
-        <>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setView("hub")} className="text-[#9CA3AF] hover:text-white">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-semibold">Templates</h1>
-          </div>
-
-          <div className="space-y-2">
-            {templates.map((t) => (
-              <div
-                key={t.id}
-                className="rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">{t.name}</span>
-                  <div className="flex gap-1">
-                    {t.is_system && (
-                      <span className="rounded-full bg-[#38BDF8]/10 px-2 py-0.5 text-[10px] text-[#38BDF8]">System</span>
-                    )}
-                    {t.trigger_event && (
-                      <span className="rounded-full bg-[#FAD76A]/10 px-2 py-0.5 text-[10px] text-[#FAD76A]">{t.trigger_event}</span>
-                    )}
-                    {t.ai_prompt_hint && (
-                      <span className="rounded-full bg-[#8B5CF6]/10 px-2 py-0.5 text-[10px] text-[#8B5CF6]">AI</span>
-                    )}
-                  </div>
-                </div>
-                <div className="mt-1 text-[12px] text-[#9CA3AF]">{t.subject}</div>
-                <div className="mt-2 text-[12px] text-[#B8BFC8] line-clamp-3">{t.body.slice(0, 200)}...</div>
-              </div>
+      {/* Step 2: Template */}
+      {step === "template" && (
+        <div className="space-y-2">
+          <div className="rounded-xl bg-[#151C24] px-3 py-2 text-sm">
+            To:{" "}
+            {selectedClients.map((c, i) => (
+              <span key={c.id}>
+                {i > 0 && ", "}
+                <span className="font-medium text-[#6AD7A3]">{c.display_name}</span>
+              </span>
             ))}
           </div>
-        </>
+
+          <button
+            onClick={handleStartBlank}
+            className="flex w-full items-center gap-3 rounded-xl border border-dashed border-[rgba(255,255,255,0.2)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+          >
+            <span className="text-sm text-[#B8BFC8]">Start blank</span>
+          </button>
+
+          {templates.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => handlePickTemplate(t)}
+              className="flex w-full items-center justify-between rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+            >
+              <div>
+                <div className="text-sm font-medium">{t.name}</div>
+                <div className="text-[11px] text-[#9CA3AF]">{t.subject.slice(0, 60)}</div>
+              </div>
+              <div className="flex gap-1">
+                {t.trigger_event && (
+                  <span className="rounded-full bg-[#FAD76A]/10 px-2 py-0.5 text-[10px] text-[#FAD76A]">
+                    {t.trigger_event}
+                  </span>
+                )}
+                {t.ai_prompt_hint && (
+                  <span className="rounded-full bg-[#8B5CF6]/10 px-2 py-0.5 text-[10px] text-[#8B5CF6]">AI</span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Step 3: Editor */}
+      {step === "editor" && (
+        <div className="space-y-3">
+          {/* Recipient bar */}
+          <div className="rounded-xl bg-[#151C24] px-3 py-2 text-sm">
+            To:{" "}
+            {selectedClients.slice(0, 3).map((c, i) => (
+              <span key={c.id}>
+                {i > 0 && ", "}
+                <span className="font-medium text-[#6AD7A3]">{c.display_name}</span>
+              </span>
+            ))}
+            {selectedClients.length > 3 && (
+              <span className="text-[#9CA3AF]"> +{selectedClients.length - 3} more</span>
+            )}
+          </div>
+
+          {drafting ? (
+            <div className="rounded-xl bg-[#171F28] p-4 text-center text-sm text-[#B8BFC8]">
+              <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-[#6AD7A3] border-t-transparent" />
+              Generating draft...
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="mb-1 block text-xs text-[#9CA3AF]">Subject</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
+                  placeholder="Email subject..."
+                />
+              </div>
+
+              {/* Merge field pills */}
+              <div className="flex flex-wrap gap-1.5">
+                {MERGE_FIELDS.map((field) => (
+                  <button
+                    key={field}
+                    onClick={() => insertMergeField(field)}
+                    className="rounded-full bg-[#6AD7A3]/10 px-2.5 py-0.5 text-[11px] text-[#6AD7A3] transition hover:bg-[#6AD7A3]/20"
+                  >
+                    {field}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-[#9CA3AF]">Body</label>
+                <textarea
+                  ref={bodyRef}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={10}
+                  className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
+                  placeholder="Write your message..."
+                />
+              </div>
+
+              <div className="flex gap-2">
+                {selectedClients.length === 1 && (
+                  <button
+                    onClick={handleGenerateAI}
+                    disabled={drafting}
+                    className="rounded-full border border-[#6AD7A3]/30 px-4 py-2 text-sm text-[#6AD7A3] transition hover:bg-[#6AD7A3]/10"
+                  >
+                    Generate AI Content
+                  </button>
+                )}
+
+                <button
+                  onClick={handleSend}
+                  disabled={sending || !subject || !body}
+                  className="ml-auto rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-6 py-2 text-sm font-semibold text-[#0C1016] transition disabled:opacity-40"
+                >
+                  {sending
+                    ? "Sending..."
+                    : selectedClients.length > 1
+                      ? `Send to ${selectedClients.length}`
+                      : "Send"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+/* ================================================================== */
+/*  CONVERSATIONS VIEW                                                 */
+/* ================================================================== */
+
+function ConversationsView({
+  clients,
+  showToast,
+}: {
+  clients: Client[];
+  showToast: (msg: string) => void;
+}) {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [polling, setPolling] = useState(false);
+
+  // Thread view
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedClientName, setSelectedClientName] = useState<string>("");
+  const [thread, setThread] = useState<ThreadMessage[]>([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+
+  // Reply state
+  const [replySubject, setReplySubject] = useState("");
+  const [replyBody, setReplyBody] = useState("");
+  const [replySending, setReplySending] = useState(false);
+
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
+  async function loadConversations() {
+    setLoading(true);
+    const res = await fetch("/api/admin/messages/conversations");
+    if (res.ok) {
+      const data = await res.json();
+      setConversations(data.conversations ?? []);
+    }
+    setLoading(false);
+  }
+
+  async function pollReplies() {
+    setPolling(true);
+    const res = await fetch("/api/admin/messages/poll-replies", { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      showToast(
+        data.new_replies > 0
+          ? `${data.new_replies} new repl${data.new_replies !== 1 ? "ies" : "y"} found`
+          : "No new replies",
+      );
+      await loadConversations();
+      // Refresh thread if viewing one
+      if (selectedClientId) await loadThread(selectedClientId);
+    } else {
+      showToast("Failed to poll replies");
+    }
+    setPolling(false);
+  }
+
+  async function loadThread(clientId: string) {
+    setThreadLoading(true);
+    const res = await fetch(`/api/admin/messages/conversations/${clientId}`);
+    if (res.ok) {
+      const data = await res.json();
+      setThread(data.messages ?? []);
+      setSelectedClientName(data.client?.display_name || "Unknown");
+
+      // Auto-fill reply subject from last message
+      const lastMsg = data.messages?.[data.messages.length - 1];
+      if (lastMsg?.subject) {
+        const sub = lastMsg.subject.startsWith("Re:") ? lastMsg.subject : `Re: ${lastMsg.subject}`;
+        setReplySubject(sub);
+      }
+    }
+    setThreadLoading(false);
+  }
+
+  function openThread(conv: Conversation) {
+    if (!conv.client_id) return;
+    setSelectedClientId(conv.client_id);
+    loadThread(conv.client_id);
+  }
+
+  function closeThread() {
+    setSelectedClientId(null);
+    setThread([]);
+    setReplySubject("");
+    setReplyBody("");
+    loadConversations(); // Refresh unread counts
+  }
+
+  async function sendReply() {
+    if (!selectedClientId || !replySubject || !replyBody) return;
+    setReplySending(true);
+
+    const res = await fetch("/api/admin/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: selectedClientId,
+        subject: replySubject,
+        body: replyBody,
+      }),
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      showToast(result.sent ? "Reply sent!" : result.error || "Saved");
+      setReplyBody("");
+      await loadThread(selectedClientId);
+    } else {
+      showToast("Failed to send reply");
+    }
+    setReplySending(false);
+  }
+
+  /* -- Thread view -- */
+  if (selectedClientId) {
+    return (
+      <div className="flex flex-col space-y-3">
+        <div className="flex items-center gap-2">
+          <button onClick={closeThread} className="text-[#9CA3AF] hover:text-white">
+            <BackArrow />
+          </button>
+          <h2 className="text-lg font-semibold">{selectedClientName}</h2>
+        </div>
+
+        {threadLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-xl bg-[#171F28]" />
+            ))}
+          </div>
+        ) : thread.length === 0 ? (
+          <div className="rounded-xl bg-[#171F28] p-6 text-center text-sm text-[#9CA3AF]">
+            No messages in this conversation yet
+          </div>
+        ) : (
+          <div className="max-h-[500px] space-y-2 overflow-y-auto">
+            {thread.map((msg, i) => {
+              const prevSubject = i > 0 ? thread[i - 1].subject : null;
+              const showSubject = msg.subject && msg.subject !== prevSubject;
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`rounded-xl p-3 ${
+                    msg.direction === "sent"
+                      ? "ml-8 bg-[#171F28] border border-[rgba(255,255,255,0.08)]"
+                      : "mr-8 bg-[#151C24] border-l-2 border-[#6AD7A3]/40"
+                  }`}
+                >
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
+                      {msg.direction === "sent" ? "You" : selectedClientName}
+                    </span>
+                    <span className="text-[10px] text-[#6B7280]">
+                      {formatTimeAgo(new Date(msg.timestamp))}
+                    </span>
+                  </div>
+                  {showSubject && (
+                    <p className="mb-1 text-[12px] font-semibold text-[#B8BFC8]">{msg.subject}</p>
+                  )}
+                  <p className="whitespace-pre-wrap text-[13px] text-white">{msg.body}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Reply box */}
+        <div className="rounded-xl border border-[#2A3544] bg-[#151C24] p-3 space-y-2">
+          <input
+            type="text"
+            value={replySubject}
+            onChange={(e) => setReplySubject(e.target.value)}
+            className="w-full rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-1.5 text-sm text-white outline-none focus:border-[#6AD7A3]"
+            placeholder="Subject..."
+          />
+          <textarea
+            value={replyBody}
+            onChange={(e) => setReplyBody(e.target.value)}
+            rows={3}
+            className="w-full rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-1.5 text-sm text-white outline-none focus:border-[#6AD7A3]"
+            placeholder="Write a reply..."
+          />
+          <div className="flex justify-end">
+            <button
+              onClick={sendReply}
+              disabled={replySending || !replySubject || !replyBody}
+              className="rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-5 py-1.5 text-sm font-semibold text-[#0C1016] transition disabled:opacity-40"
+            >
+              {replySending ? "Sending..." : "Reply"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* -- Conversation list -- */
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Conversations</h2>
+        <button
+          onClick={pollReplies}
+          disabled={polling}
+          className="rounded-full border border-[#6AD7A3]/30 px-4 py-1.5 text-sm text-[#6AD7A3] transition hover:bg-[#6AD7A3]/10 disabled:opacity-40"
+        >
+          {polling ? "Checking..." : "Check for Replies"}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-[#171F28]" />
+          ))}
+        </div>
+      ) : conversations.length === 0 ? (
+        <div className="flex flex-col items-center rounded-2xl bg-[#171F28] p-12 text-center">
+          <svg viewBox="0 0 24 24" className="mb-3 h-10 w-10 text-[#2A3544]" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <p className="text-sm font-medium text-[#B8BFC8]">No conversations yet</p>
+          <p className="mt-1 text-[11px] text-[#6B7280]">Send a message to start a conversation</p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {conversations.map((conv) => (
+            <button
+              key={conv.client_id || conv.email}
+              onClick={() => openThread(conv)}
+              className="flex w-full items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+            >
+              <div className="relative">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#6AD7A3]/10 text-sm font-bold text-[#6AD7A3]">
+                  {(conv.display_name ?? conv.email)[0]?.toUpperCase()}
+                </div>
+                {conv.unread_count > 0 && (
+                  <div className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[#6AD7A3] border-2 border-[#171F28]" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium truncate">
+                    {conv.display_name || conv.email}
+                  </span>
+                  <span className="ml-2 text-[10px] text-[#6B7280] whitespace-nowrap">
+                    {formatTimeAgo(new Date(conv.last_message_at))}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {conv.last_direction === "sent" && (
+                    <span className="text-[10px] text-[#9CA3AF]">You:</span>
+                  )}
+                  <p className="truncate text-[12px] text-[#9CA3AF]">
+                    {conv.last_message_preview}
+                  </p>
+                </div>
+              </div>
+              {conv.unread_count > 0 && (
+                <span className="rounded-full bg-[#6AD7A3] px-1.5 py-0.5 text-[10px] font-bold text-[#0C1016]">
+                  {conv.unread_count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Shared components & utilities                                      */
+/* ================================================================== */
+
+function BackArrow() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M19 12H5M12 19l-7-7 7-7" />
+    </svg>
   );
 }
 

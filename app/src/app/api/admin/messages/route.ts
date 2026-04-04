@@ -87,6 +87,8 @@ export async function POST(request: Request) {
       body: emailBody,
       trigger_event: validTrackerId ? "manual_with_tracker" : "manual",
       tracker_entry_id: validTrackerId,
+      smtp_message_id: result.messageId || null,
+      recipient_email: client.email,
     })
     .select()
     .single();
