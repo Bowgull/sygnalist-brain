@@ -21,7 +21,7 @@ const badgeStyles: Record<string, string> = {
 
 function getBadgeStyle(type: string, severity?: string): string {
   if (severity && badgeStyles[severity]) return badgeStyles[severity];
-  const lower = type.toLowerCase();
+  const lower = (type || "").toLowerCase();
   for (const [key, style] of Object.entries(badgeStyles)) {
     if (lower.includes(key)) return style;
   }
@@ -177,7 +177,7 @@ export default function AdminLogsPage() {
             }
 
             // Events
-            const eventType = log.event_type as string;
+            const eventType = (log.event_type as string) || "unknown";
             const meta = log.metadata as Record<string, unknown> | null;
             return (
               <div
