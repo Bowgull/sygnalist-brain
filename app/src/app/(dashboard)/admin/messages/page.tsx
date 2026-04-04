@@ -1024,13 +1024,11 @@ function ConversationsView({
   const [thread, setThread] = useState<ThreadMessage[]>([]);
   const [threadLoading, setThreadLoading] = useState(false);
 
-  // Reply state
-  const [replySubject, setReplySubject] = useState("");
-  const [replyBody, setReplyBody] = useState("");
-  const [replySending, setReplySending] = useState(false);
+  // (Reply state is now per-thread via ThreadReplyBox)
 
   // Thread expansion state
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+  const [replyingToThread, setReplyingToThread] = useState<string | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -1073,13 +1071,6 @@ function ConversationsView({
       const data = await res.json();
       setThread(data.messages ?? []);
       setSelectedClientName(data.client?.display_name || "Unknown");
-
-      // Auto-fill reply subject from last message
-      const lastMsg = data.messages?.[data.messages.length - 1];
-      if (lastMsg?.subject) {
-        const sub = lastMsg.subject.startsWith("Re:") ? lastMsg.subject : `Re: ${lastMsg.subject}`;
-        setReplySubject(sub);
-      }
     }
     setThreadLoading(false);
   }
@@ -1093,36 +1084,12 @@ function ConversationsView({
   function closeThread() {
     setSelectedClientId(null);
     setThread([]);
-    setReplySubject("");
-    setReplyBody("");
     setExpandedThreads(new Set());
+    setReplyingToThread(null);
     loadConversations();
   }
 
-  async function sendReply() {
-    if (!selectedClientId || !replySubject || !replyBody || replySending) return;
-    setReplySending(true);
-
-    const res = await fetch("/api/admin/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: selectedClientId,
-        subject: replySubject,
-        body: replyBody,
-      }),
-    });
-
-    if (res.ok) {
-      const result = await res.json();
-      showToast(result.sent ? "Reply sent!" : result.error || "Saved");
-      setReplyBody("");
-      await loadThread(selectedClientId);
-    } else {
-      showToast("Failed to send reply");
-    }
-    setReplySending(false);
-  }
+  // Reply is now handled per-thread via ThreadReplyBox
 
   // Group messages by subject thread, newest thread first
   function groupByThread(messages: ThreadMessage[]) {
@@ -1237,18 +1204,34 @@ function ConversationsView({
                         {messages.length} message{messages.length !== 1 ? "s" : ""} &middot; {formatTimeAgo(new Date(newestMsg.timestamp))}
                       </span>
                     </div>
-                    <svg
-                      viewBox="0 0 24 24"
-                      className={`h-4 w-4 text-[#6B7280] transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReplyingToThread(replyingToThread === subject ? null : subject);
+                          if (!isExpanded) toggleThread(subject);
+                        }}
+                        className="rounded-full p-1.5 text-[#6B7280] transition hover:bg-[#6AD7A3]/10 hover:text-[#6AD7A3]"
+                        title="Reply in this thread"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <polyline points="9 17 4 12 9 7" />
+                          <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+                        </svg>
+                      </button>
+                      <svg
+                        viewBox="0 0 24 24"
+                        className={`h-4 w-4 text-[#6B7280] transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </div>
                   </button>
 
-                  {/* Messages — newest first */}
+                  {/* Messages + per-thread reply box */}
                   {isExpanded && (
                     <div className="border-t border-[#2A3544]/40 px-3 pb-3 pt-2 space-y-2">
                       {messages.map((msg) => {
@@ -1291,6 +1274,19 @@ function ConversationsView({
                           </div>
                         );
                       })}
+
+                      {/* Per-thread reply box — shown when reply icon is clicked */}
+                      {replyingToThread === subject && (
+                        <ThreadReplyBox
+                          subject={subject}
+                          clientId={selectedClientId!}
+                          threadMessages={messages}
+                          clientName={selectedClientName}
+                          onSent={() => loadThread(selectedClientId!)}
+                          onClose={() => setReplyingToThread(null)}
+                          showToast={showToast}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
@@ -1298,33 +1294,6 @@ function ConversationsView({
             })}
           </div>
         )}
-
-        {/* Reply box */}
-        <div className="rounded-xl border border-[#2A3544] bg-[#151C24] p-3 space-y-2">
-          <input
-            type="text"
-            value={replySubject}
-            onChange={(e) => setReplySubject(e.target.value)}
-            className="w-full rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-1.5 text-sm text-white outline-none focus:border-[#6AD7A3]"
-            placeholder="Subject..."
-          />
-          <textarea
-            value={replyBody}
-            onChange={(e) => setReplyBody(e.target.value)}
-            rows={3}
-            className="w-full rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-1.5 text-sm text-white outline-none focus:border-[#6AD7A3]"
-            placeholder="Write a reply..."
-          />
-          <div className="flex justify-end">
-            <button
-              onClick={sendReply}
-              disabled={replySending || !replySubject || !replyBody}
-              className="rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-5 py-1.5 text-sm font-semibold text-[#0C1016] transition disabled:opacity-40"
-            >
-              {replySending ? "Sending..." : "Reply"}
-            </button>
-          </div>
-        </div>
       </div>
     );
   }
@@ -1400,6 +1369,134 @@ function ConversationsView({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Thread Reply Box                                                   */
+/* ================================================================== */
+
+function ThreadReplyBox({
+  subject,
+  clientId,
+  threadMessages,
+  clientName,
+  onSent,
+  onClose,
+  showToast,
+}: {
+  subject: string;
+  clientId: string;
+  threadMessages: ThreadMessage[];
+  clientName: string;
+  onSent: () => void;
+  onClose: () => void;
+  showToast: (msg: string) => void;
+}) {
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [refining, setRefining] = useState(false);
+
+  // Build thread context for AI refinement
+  function buildThreadContext(): string {
+    // Chronological order (oldest first) for context, take last 6 messages max
+    const sorted = [...threadMessages]
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      .slice(-6);
+    return sorted
+      .map((m) => `${m.direction === "sent" ? "Coach (Josh)" : clientName}: ${m.body.slice(0, 300)}`)
+      .join("\n\n");
+  }
+
+  async function handleRefine() {
+    if (!body || refining) return;
+    setRefining(true);
+
+    const res = await fetch("/api/admin/messages/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: clientId,
+        refine_body: body,
+        thread_context: buildThreadContext(),
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.body) setBody(data.body);
+    }
+    setRefining(false);
+  }
+
+  async function handleSend() {
+    if (!body || sending) return;
+    setSending(true);
+
+    const replySubject = subject.startsWith("Re:") ? subject : `Re: ${subject}`;
+
+    const res = await fetch("/api/admin/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: clientId,
+        subject: replySubject,
+        body,
+      }),
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      showToast(result.sent ? "Reply sent!" : result.error || "Saved");
+      setBody("");
+      onSent();
+      onClose();
+    } else {
+      showToast("Failed to send reply");
+    }
+    setSending(false);
+  }
+
+  return (
+    <div className="mt-2 rounded-xl border border-[#2A3544] bg-[#0C1016] p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-[#6B7280]">
+          Replying to: <span className="text-[#FAD76A]">{subject}</span>
+        </span>
+        <button
+          onClick={onClose}
+          className="text-[#6B7280] hover:text-white transition"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        rows={3}
+        className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3] placeholder-[#4B5563]"
+        placeholder="Write your reply..."
+        autoFocus
+      />
+      <div className="flex items-center gap-2 justify-end">
+        <button
+          onClick={handleRefine}
+          disabled={refining || !body}
+          className="rounded-full border border-[#6AD7A3]/30 px-3 py-1.5 text-[12px] text-[#6AD7A3] transition hover:bg-[#6AD7A3]/10 disabled:opacity-40"
+        >
+          {refining ? "Refining..." : "Refine with AI"}
+        </button>
+        <button
+          onClick={handleSend}
+          disabled={sending || !body}
+          className="rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-5 py-1.5 text-[12px] font-semibold text-[#0C1016] transition disabled:opacity-40"
+        >
+          {sending ? "Sending..." : "Reply"}
+        </button>
+      </div>
     </div>
   );
 }

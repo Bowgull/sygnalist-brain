@@ -69,14 +69,19 @@ export function resolveMergeFields(text: string, fields: Record<string, string>)
 
 /**
  * Refine a user-written email to match the Sygnalist/GoodFit voice.
- * This does NOT generate a new email — it polishes what the user wrote.
+ * Optionally includes thread context so the AI understands the conversation.
  */
 export async function refineWithAi(
   mergeFields: Record<string, string>,
   userContent: string,
+  threadContext?: string,
 ): Promise<string | null> {
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey || !userContent) return null;
+
+  const threadSection = threadContext
+    ? `\n\nConversation so far (for context — do NOT repeat this, just use it to inform your tone and content):\n${threadContext}`
+    : "";
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -90,7 +95,7 @@ export async function refineWithAi(
         messages: [
           {
             role: "system",
-            content: `You are an editor refining an email written by a job-hunt coach named Josh. Your job is to take the draft below and improve it to match this voice:
+            content: `You are an editor refining an email reply written by a job-hunt coach named Josh. Your job is to take the draft below and improve it to match this voice:
 
 Voice rules:
 - Warm, direct, encouraging. Never corporate or generic.
@@ -99,11 +104,12 @@ Voice rules:
 - No "I hope this email finds you well" or similar filler.
 - Sign off as "Josh" — no "Best regards" or "Take care".
 - Keep it concise. Under 150 words.
+- If replying to something the client said, acknowledge it naturally.
 
 Client context:
 - Name: ${mergeFields["{clientName}"]}
 - Target roles: ${mergeFields["{assignedLanes}"]}
-- Pipeline: ${mergeFields["{pipelineCount}"]} tracked, ${mergeFields["{appliedCount}"]} applied, ${mergeFields["{interviewCount}"]} interviewing
+- Pipeline: ${mergeFields["{pipelineCount}"]} tracked, ${mergeFields["{appliedCount}"]} applied, ${mergeFields["{interviewCount}"]} interviewing${threadSection}
 
 Return ONLY the refined email body. No subject line. No preamble. Just the email text.`,
           },

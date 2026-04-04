@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (response) return response;
 
   const body = await request.json();
-  const { client_id, template_id, refine_body } = body;
+  const { client_id, template_id, refine_body, thread_context } = body;
 
   if (!client_id) return error("client_id is required");
 
@@ -40,9 +40,9 @@ export async function POST(request: Request) {
     }
   }
 
-  // If user wants to refine custom content with AI
+  // If user wants to refine custom content with AI (optionally with thread context)
   if (refine_body) {
-    const refined = await refineWithAi(mergeFields, refine_body);
+    const refined = await refineWithAi(mergeFields, refine_body, thread_context);
     if (refined) {
       emailBody = refined;
     }
