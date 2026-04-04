@@ -9,7 +9,7 @@ import { logEvent, logError } from "@/lib/logger";
  *
  * Safety controls:
  * - Age cutoff: only emails from last 14 days
- * - Batch cap: 20 messages per run
+ * - Batch cap: 20 messages per run, 50 jobs per run
  * - Label management: SYGN_INTAKE → SYGN_INGESTED after processing
  * - Backlog detection: reports if more messages exist
  * - Dedup: checks against jobs_inbox + global_job_bank URLs
@@ -197,8 +197,10 @@ export async function POST() {
     }
 
     // --- Step 6: Dedup and insert into jobs_inbox (review queue) ---
+    const MAX_INGEST_JOBS = 50;
     let jobsNew = 0;
     let jobsDuplicate = 0;
+    let jobsCapped = false;
     const seenInBatch = new Set<string>();
 
     for (const job of allJobs) {
@@ -210,6 +212,12 @@ export async function POST() {
         continue;
       }
       seenInBatch.add(normalized);
+
+      // Cap at MAX_INGEST_JOBS per run
+      if (jobsNew >= MAX_INGEST_JOBS) {
+        jobsCapped = true;
+        break;
+      }
 
       const { error: insertErr } = await service.from("jobs_inbox").insert({
         job_id: `gmail_${crypto.randomUUID().slice(0, 8)}`,
@@ -266,6 +274,8 @@ export async function POST() {
       jobs_found: allJobs.length,
       jobs_new: jobsNew,
       jobs_duplicate: jobsDuplicate,
+      jobs_capped: jobsCapped,
+      jobs_cap_limit: MAX_INGEST_JOBS,
       queue_remaining: queueRemaining,
       backlog_detected: backlogDetected,
     };

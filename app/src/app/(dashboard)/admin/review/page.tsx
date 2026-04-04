@@ -4,45 +4,38 @@ import { useState, useEffect } from "react";
 
 interface ReviewJob {
   id: string;
-  job_id: string | null;
   title: string | null;
   company: string | null;
   url: string | null;
   source: string | null;
   location: string | null;
   work_mode: string | null;
+  lane_key: string | null;
+  notes: string | null;
+  review_status: string;
   created_at: string;
-  gmail_message_id: string | null;
 }
 
-interface ReviewCounts {
-  pending: number;
-  approved: number;
-  rejected: number;
-}
-
-interface ApprovalReceipt {
-  action: string;
-  count: number;
-  lane_key?: string;
-  bank_inserted?: number;
-  enriched?: number;
-}
+const STAGES = [
+  { key: "pending", label: "Needs Review", color: "#FAD76A" },
+  { key: "ready", label: "Ready to Approve", color: "#3B82F6" },
+];
 
 export default function AdminReviewPage() {
   const [jobs, setJobs] = useState<ReviewJob[]>([]);
   const [lanes, setLanes] = useState<string[]>([]);
-  const [counts, setCounts] = useState<ReviewCounts>({ pending: 0, approved: 0, rejected: 0 });
+  const [counts, setCounts] = useState({ pending: 0, ready: 0 });
   const [loading, setLoading] = useState(true);
+  const [activeStage, setActiveStage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [selectedLane, setSelectedLane] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [acting, setActing] = useState(false);
-  const [receipt, setReceipt] = useState<ApprovalReceipt | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadQueue();
-  }, []);
+  const currentStage = STAGES[activeStage];
+  const filtered = jobs.filter((j) => j.review_status === currentStage.key);
+
+  useEffect(() => { loadQueue(); }, []);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -56,13 +49,13 @@ export default function AdminReviewPage() {
       const data = await res.json();
       setJobs(data.jobs ?? []);
       setLanes(data.lanes ?? []);
-      setCounts(data.counts ?? { pending: 0, approved: 0, rejected: 0 });
+      setCounts(data.counts ?? { pending: 0, ready: 0 });
     }
     setLoading(false);
   }
 
   function toggleSelect(id: string) {
-    setSelected((prev) => {
+    setSelected((prev: Set<string>) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -71,44 +64,56 @@ export default function AdminReviewPage() {
   }
 
   function toggleSelectAll() {
-    if (selected.size === jobs.length) {
+    if (selected.size === filtered.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(jobs.map((j) => j.id)));
+      setSelected(new Set(filtered.map((j: ReviewJob) => j.id)));
     }
   }
 
-  async function handleAction(action: "approve" | "reject") {
+  async function handleBatchAction(action: string) {
     if (selected.size === 0) return;
-    if (action === "approve" && !selectedLane) {
-      showToast("Select a lane before approving");
-      return;
-    }
-
     setActing(true);
-    setReceipt(null);
 
     const res = await fetch("/api/admin/review", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action,
-        job_ids: [...selected],
-        lane_key: action === "approve" ? selectedLane : undefined,
-      }),
+      body: JSON.stringify({ action, job_ids: [...selected] }),
     });
 
     if (res.ok) {
       const data = await res.json();
-      setReceipt(data);
+      if (action === "approve") {
+        showToast(`Approved ${data.count} jobs → Job Bank (${data.enriched} enriched)`);
+      } else if (action === "reject") {
+        showToast(`Rejected ${data.count} jobs`);
+      } else if (action === "move_to_ready") {
+        showToast(`Moved ${data.count} jobs to Ready`);
+      } else if (action === "back_to_review") {
+        showToast(`Moved ${data.count} jobs back to Review`);
+      }
       setSelected(new Set());
       await loadQueue();
     } else {
       const data = await res.json().catch(() => ({}));
-      showToast(data.error ?? `Failed to ${action}`);
+      showToast(data.error ?? `Action failed`);
     }
-
     setActing(false);
+  }
+
+  async function handleSaveJob(id: string, patch: Record<string, unknown>) {
+    setJobs((prev) => prev.map((j: ReviewJob) => (j.id === id ? { ...j, ...patch } : j)));
+
+    const res = await fetch("/api/admin/review", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, patch }),
+    });
+
+    if (!res.ok) {
+      showToast("Failed to save");
+      await loadQueue();
+    }
   }
 
   function timeAgo(dateStr: string): string {
@@ -120,14 +125,6 @@ export default function AdminReviewPage() {
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
   }
-
-  const sourceBadgeColor: Record<string, string> = {
-    ziprecruiter_email: "bg-[#6366F1]/10 text-[#818CF8] ring-[#6366F1]/20",
-    linkedin_email: "bg-[#0A66C2]/10 text-[#38BDF8] ring-[#0A66C2]/20",
-    indeed_email: "bg-[#2557A7]/10 text-[#60A5FA] ring-[#2557A7]/20",
-    glassdoor_email: "bg-[#0CAA41]/10 text-[#6AD7A3] ring-[#0CAA41]/20",
-    email_generic: "bg-[#6B7280]/10 text-[#9CA3AF] ring-[#6B7280]/20",
-  };
 
   if (loading) {
     return (
@@ -150,177 +147,261 @@ export default function AdminReviewPage() {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">Review Queue</h1>
-          <div className="mt-1 flex gap-3 text-[11px] text-[#6B7280]">
-            <span className="text-[#FAD76A]">{counts.pending} pending</span>
-            <span className="text-[#6AD7A3]">{counts.approved} approved</span>
-            <span className="text-[#DC2626]">{counts.rejected} rejected</span>
-          </div>
-        </div>
+        <h1 className="text-lg font-semibold">Review Queue</h1>
+        <a href="/admin/ingest" className="rounded-full border border-[#2A3544] px-3 py-1 text-[11px] font-medium text-[#9CA3AF] hover:border-[#6AD7A3]/50 hover:text-white">
+          Back to Ingest
+        </a>
       </div>
 
-      {/* Action Bar */}
-      {jobs.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] px-4 py-3">
-          {/* Select All */}
+      {/* Stage Pills */}
+      <div className="flex gap-2 overflow-x-auto scrollbar-none">
+        {STAGES.map((stage, i) => {
+          const count = stage.key === "pending" ? counts.pending : counts.ready;
+          const isActive = i === activeStage;
+          return (
+            <button
+              key={stage.key}
+              onClick={() => { setActiveStage(i); setSelected(new Set()); setExpanded(null); }}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[12px] font-medium transition-colors ${
+                isActive ? "ring-1" : "opacity-60 hover:opacity-80"
+              }`}
+              style={{
+                color: stage.color,
+                backgroundColor: isActive ? `${stage.color}15` : "transparent",
+                ...(isActive ? { boxShadow: `inset 0 0 0 1px ${stage.color}40` } : {}),
+              }}
+            >
+              {stage.label}
+              <span className="rounded-full bg-[#0C1016] px-2 py-0.5 text-[10px] font-bold" style={{ color: stage.color }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Batch Action Bar */}
+      {filtered.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] px-4 py-2.5">
           <label className="flex items-center gap-2 text-[12px] text-[#9CA3AF] cursor-pointer">
             <input
               type="checkbox"
-              checked={selected.size === jobs.length && jobs.length > 0}
+              checked={selected.size === filtered.length && filtered.length > 0}
               onChange={toggleSelectAll}
-              className="h-4 w-4 rounded border-[#2A3544] bg-[#0C1016] text-[#6AD7A3] focus:ring-[#6AD7A3]"
+              className="h-3.5 w-3.5 rounded border-[#2A3544] bg-[#0C1016] text-[#6AD7A3] focus:ring-[#6AD7A3]"
             />
             {selected.size > 0 ? `${selected.size} selected` : "Select all"}
           </label>
 
-          <div className="h-5 w-px bg-[#2A3544]" />
+          <div className="h-4 w-px bg-[#2A3544]" />
 
-          {/* Lane dropdown */}
-          <select
-            value={selectedLane}
-            onChange={(e) => setSelectedLane(e.target.value)}
-            className="rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-1.5 text-[12px] text-white outline-none focus:border-[#6AD7A3]"
-          >
-            <option value="">Assign Lane...</option>
-            {lanes.map((lane) => (
-              <option key={lane} value={lane}>
-                {lane.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
+          {currentStage.key === "pending" && (
+            <>
+              <button
+                onClick={() => handleBatchAction("move_to_ready")}
+                disabled={acting || selected.size === 0}
+                className="rounded-full px-3 py-1.5 text-[11px] font-semibold text-[#0C1016] disabled:opacity-40"
+                style={{ background: `linear-gradient(to right, #A9FFB5, #5EF2C7, #39D6FF)` }}
+              >
+                {acting ? "..." : `Move to Ready (${selected.size})`}
+              </button>
+              <button
+                onClick={() => handleBatchAction("reject")}
+                disabled={acting || selected.size === 0}
+                className="rounded-full border border-[#DC2626]/30 px-3 py-1.5 text-[11px] font-medium text-[#DC2626] hover:bg-[#DC2626]/10 disabled:opacity-40"
+              >
+                Reject ({selected.size})
+              </button>
+            </>
+          )}
 
-          {/* Approve button */}
-          <button
-            onClick={() => handleAction("approve")}
-            disabled={acting || selected.size === 0}
-            className="rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-4 py-1.5 text-[12px] font-semibold text-[#0C1016] disabled:opacity-40"
-          >
-            {acting ? "Processing..." : `Approve (${selected.size})`}
-          </button>
-
-          {/* Reject button */}
-          <button
-            onClick={() => handleAction("reject")}
-            disabled={acting || selected.size === 0}
-            className="rounded-full border border-[#DC2626]/30 px-4 py-1.5 text-[12px] font-medium text-[#DC2626] hover:bg-[#DC2626]/10 disabled:opacity-40"
-          >
-            Reject ({selected.size})
-          </button>
-        </div>
-      )}
-
-      {/* Receipt */}
-      {receipt && (
-        <div className={`rounded-2xl border p-4 ${
-          receipt.action === "approve"
-            ? "border-[#6AD7A3]/20 bg-[#6AD7A3]/5"
-            : "border-[#DC2626]/20 bg-[#DC2626]/5"
-        }`}>
-          <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${receipt.action === "approve" ? "bg-[#6AD7A3]" : "bg-[#DC2626]"}`} />
-            <span className="text-[13px] font-medium">
-              {receipt.action === "approve"
-                ? `Approved ${receipt.count} jobs → "${receipt.lane_key}" lane`
-                : `Rejected ${receipt.count} jobs`}
-            </span>
-          </div>
-          {receipt.action === "approve" && (
-            <div className="mt-2 flex gap-4 text-[11px] text-[#6B7280]">
-              <span>Added to bank: {receipt.bank_inserted}</span>
-              <span>Enriched: {receipt.enriched}</span>
-            </div>
+          {currentStage.key === "ready" && (
+            <>
+              <button
+                onClick={() => handleBatchAction("approve")}
+                disabled={acting || selected.size === 0}
+                className="rounded-full px-3 py-1.5 text-[11px] font-semibold text-[#0C1016] disabled:opacity-40"
+                style={{ background: `linear-gradient(to right, #A9FFB5, #5EF2C7, #39D6FF)` }}
+              >
+                {acting ? "Approving..." : `Approve to Job Bank (${selected.size})`}
+              </button>
+              <button
+                onClick={() => handleBatchAction("back_to_review")}
+                disabled={acting || selected.size === 0}
+                className="rounded-full border border-[#2A3544] px-3 py-1.5 text-[11px] font-medium text-[#9CA3AF] disabled:opacity-40"
+              >
+                Back to Review ({selected.size})
+              </button>
+            </>
           )}
         </div>
       )}
 
       {/* Job List */}
-      {jobs.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="flex flex-col items-center rounded-2xl bg-[#171F28] p-12 text-center">
-          <svg viewBox="0 0 24 24" className="mb-3 h-10 w-10 text-[#2A3544]" fill="none" stroke="currentColor" strokeWidth={1.5}>
-            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-            <rect x="9" y="3" width="6" height="4" rx="1" />
-            <path d="M9 14l2 2 4-4" />
-          </svg>
-          <p className="text-sm font-medium text-[#B8BFC8]">Review queue is empty</p>
+          <p className="text-sm font-medium text-[#B8BFC8]">
+            {currentStage.key === "pending" ? "No jobs pending review" : "No jobs ready to approve"}
+          </p>
           <p className="mt-1 text-[11px] text-[#6B7280]">
-            Run Gmail ingest to populate the queue with candidate jobs
+            {currentStage.key === "pending"
+              ? "Run Gmail ingest to populate the queue"
+              : "Move jobs from Needs Review after editing"}
           </p>
         </div>
       ) : (
         <div className="space-y-1.5">
-          {jobs.map((job) => (
-            <div
+          {filtered.map((job) => (
+            <ReviewCard
               key={job.id}
-              onClick={() => toggleSelect(job.id)}
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition ${
-                selected.has(job.id)
-                  ? "border-[#6AD7A3]/30 bg-[#6AD7A3]/5"
-                  : "border-[rgba(255,255,255,0.06)] bg-[#171F28] hover:border-[rgba(255,255,255,0.12)]"
-              }`}
-            >
-              {/* Checkbox */}
-              <input
-                type="checkbox"
-                checked={selected.has(job.id)}
-                onChange={() => toggleSelect(job.id)}
-                onClick={(e) => e.stopPropagation()}
-                className="h-4 w-4 shrink-0 rounded border-[#2A3544] bg-[#0C1016] text-[#6AD7A3] focus:ring-[#6AD7A3]"
-              />
-
-              {/* Job info */}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-[13px] font-medium text-white">
-                    {job.title || "Untitled"}
-                  </span>
-                  <span className="text-[12px] text-[#6B7280]">
-                    — {job.company || "Unknown"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Badges */}
-              <div className="flex shrink-0 items-center gap-2">
-                {job.source && (
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
-                    sourceBadgeColor[job.source] ?? "bg-[#151C24] text-[#6B7280] ring-[#2A3544]"
-                  }`}>
-                    {job.source.replace(/_email$/, "")}
-                  </span>
-                )}
-                {job.work_mode && (
-                  <span className="rounded-full bg-[#38BDF8]/10 px-2 py-0.5 text-[10px] text-[#38BDF8] ring-1 ring-[#38BDF8]/20">
-                    {job.work_mode}
-                  </span>
-                )}
-                {job.location && (
-                  <span className="hidden text-[10px] text-[#6B7280] sm:inline">
-                    {job.location}
-                  </span>
-                )}
-                <span className="text-[10px] text-[#4B5563]">
-                  {timeAgo(job.created_at)}
-                </span>
-              </div>
-
-              {/* Link */}
-              {job.url && (
-                <a
-                  href={job.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="shrink-0 text-[#38BDF8] hover:text-[#60A5FA]"
-                  title="Open listing"
-                >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
-                  </svg>
-                </a>
-              )}
-            </div>
+              job={job}
+              lanes={lanes}
+              isSelected={selected.has(job.id)}
+              isExpanded={expanded === job.id}
+              onToggleSelect={() => toggleSelect(job.id)}
+              onToggleExpand={() => setExpanded(expanded === job.id ? null : job.id)}
+              onSave={(patch) => handleSaveJob(job.id, patch)}
+              timeAgo={timeAgo}
+            />
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReviewCard({
+  job, lanes, isSelected, isExpanded, onToggleSelect, onToggleExpand, onSave, timeAgo,
+}: {
+  job: ReviewJob; lanes: string[]; isSelected: boolean; isExpanded: boolean;
+  onToggleSelect: () => void; onToggleExpand: () => void;
+  onSave: (patch: Record<string, unknown>) => void; timeAgo: (d: string) => string;
+}) {
+  const [title, setTitle] = useState(job.title ?? "");
+  const [company, setCompany] = useState(job.company ?? "");
+  const [location, setLocation] = useState(job.location ?? "");
+  const [workMode, setWorkMode] = useState(job.work_mode ?? "");
+  const [laneKey, setLaneKey] = useState(job.lane_key ?? "");
+  const [url, setUrl] = useState(job.url ?? "");
+  const [notes, setNotes] = useState(job.notes ?? "");
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    setTitle(job.title ?? ""); setCompany(job.company ?? "");
+    setLocation(job.location ?? ""); setWorkMode(job.work_mode ?? "");
+    setLaneKey(job.lane_key ?? ""); setUrl(job.url ?? "");
+    setNotes(job.notes ?? ""); setDirty(false);
+  }, [job.title, job.company, job.location, job.work_mode, job.lane_key, job.url, job.notes]);
+
+  function markDirty() { setDirty(true); }
+
+  function handleSave() {
+    onSave({ title: title || null, company: company || null, location: location || null, work_mode: workMode || null, lane_key: laneKey || null, url: url || null, notes: notes || null });
+    setDirty(false);
+  }
+
+  function handleCancel() {
+    setTitle(job.title ?? ""); setCompany(job.company ?? "");
+    setLocation(job.location ?? ""); setWorkMode(job.work_mode ?? "");
+    setLaneKey(job.lane_key ?? ""); setUrl(job.url ?? "");
+    setNotes(job.notes ?? ""); setDirty(false);
+  }
+
+  const sourceBadge: Record<string, string> = {
+    ziprecruiter_email: "text-[#818CF8]", linkedin_email: "text-[#38BDF8]",
+    indeed_email: "text-[#60A5FA]", glassdoor_email: "text-[#6AD7A3]", email_generic: "text-[#9CA3AF]",
+  };
+
+  const inputClass = "w-full rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-2 text-[12px] text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3]";
+
+  return (
+    <div className={`rounded-xl border transition ${isSelected ? "border-[#6AD7A3]/30 bg-[#6AD7A3]/5" : "border-[rgba(255,255,255,0.06)] bg-[#171F28] hover:border-[rgba(255,255,255,0.12)]"}`}>
+      <div className="flex items-center gap-3 px-4 py-3">
+        <input type="checkbox" checked={isSelected} onChange={onToggleSelect} onClick={(e) => e.stopPropagation()}
+          className="h-3.5 w-3.5 shrink-0 rounded border-[#2A3544] bg-[#0C1016] text-[#6AD7A3] focus:ring-[#6AD7A3]" />
+
+        <div className="min-w-0 flex-1 cursor-pointer" onClick={onToggleExpand}>
+          <div className="flex items-center gap-2">
+            <span className="truncate text-[13px] font-medium text-white">{job.title || "Untitled"}</span>
+            <span className="shrink-0 text-[12px] text-[#6B7280]">— {job.company || "Unknown"}</span>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {job.lane_key && (
+            <span className="rounded-full bg-[#6AD7A3]/10 px-2 py-0.5 text-[10px] font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20">
+              {job.lane_key.replace(/_/g, " ")}
+            </span>
+          )}
+          {job.source && (
+            <span className={`text-[10px] font-medium ${sourceBadge[job.source] ?? "text-[#6B7280]"}`}>
+              {job.source.replace(/_email$/, "")}
+            </span>
+          )}
+          <span className="text-[10px] text-[#4B5563]">{timeAgo(job.created_at)}</span>
+          <button onClick={onToggleExpand} className="p-1 text-[#4B5563] hover:text-[#9CA3AF]">
+            <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="border-t border-[#2A3544]/50 px-4 py-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Title</label>
+              <input value={title} onChange={(e) => { setTitle(e.target.value); markDirty(); }} className={inputClass} />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Company</label>
+              <input value={company} onChange={(e) => { setCompany(e.target.value); markDirty(); }} className={inputClass} />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Location</label>
+              <input value={location} onChange={(e) => { setLocation(e.target.value); markDirty(); }} className={inputClass} />
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Work Mode</label>
+              <select value={workMode} onChange={(e) => { setWorkMode(e.target.value); markDirty(); }} className={inputClass}>
+                <option value="">—</option>
+                <option value="remote">Remote</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="onsite">Onsite</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Lane</label>
+              <select value={laneKey} onChange={(e) => { setLaneKey(e.target.value); markDirty(); }} className={inputClass}>
+                <option value="">Unassigned</option>
+                {lanes.map((l) => (<option key={l} value={l}>{l.replace(/_/g, " ")}</option>))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">URL</label>
+              <div className="flex gap-2">
+                <input value={url} onChange={(e) => { setUrl(e.target.value); markDirty(); }} className={inputClass} />
+                {url && (
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="flex shrink-0 items-center rounded-lg border border-[#2A3544] px-2 text-[#38BDF8] hover:border-[#38BDF8]/50">
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
+                    </svg>
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3">
+            <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Notes</label>
+            <textarea value={notes} onChange={(e) => { setNotes(e.target.value); markDirty(); }} rows={2} className={inputClass} placeholder="Optional notes..." />
+          </div>
+          {dirty && (
+            <div className="mt-3 flex gap-2">
+              <button onClick={handleSave} className="rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-4 py-1.5 text-[11px] font-semibold text-[#0C1016]">Save</button>
+              <button onClick={handleCancel} className="rounded-full border border-[#2A3544] px-4 py-1.5 text-[11px] text-[#9CA3AF]">Cancel</button>
+            </div>
+          )}
         </div>
       )}
     </div>
