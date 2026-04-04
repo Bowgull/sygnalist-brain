@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import AdminNav from "@/components/layout/admin-nav";
+import AdminSubTabs from "@/components/layout/admin-sub-tabs";
 
 export default async function AdminLayout({
   children,
@@ -16,7 +16,7 @@ export default async function AdminLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, display_name")
+    .select("role")
     .eq("auth_user_id", user.id)
     .single();
 
@@ -25,9 +25,9 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <AdminNav displayName={profile.display_name} />
-      <main className="flex-1 px-4 py-4 pb-20 lg:px-8">{children}</main>
+    <div>
+      <AdminSubTabs />
+      <div className="px-4 py-4 lg:px-6">{children}</div>
     </div>
   );
 }
