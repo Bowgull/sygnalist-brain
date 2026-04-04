@@ -73,6 +73,25 @@ export async function PATCH(request: Request) {
 
   const service = getServiceClient();
 
+  // Auto-create lane if it's new
+  if (safePatch.lane_key && typeof safePatch.lane_key === "string") {
+    const laneKey = safePatch.lane_key as string;
+    const { data: existing } = await service
+      .from("lane_role_bank")
+      .select("id")
+      .eq("lane_key", laneKey)
+      .limit(1);
+
+    if (!existing || existing.length === 0) {
+      await service.from("lane_role_bank").insert({
+        lane_key: laneKey,
+        role_name: laneKey.replace(/_/g, " "),
+        aliases: [],
+        source: "review_auto",
+      });
+    }
+  }
+
   const { data, error: updateErr } = await service
     .from("jobs_inbox")
     .update(safePatch)
@@ -204,7 +223,7 @@ export async function POST(request: Request) {
             location: job.location,
             work_mode: job.work_mode,
             job_family: job.lane_key,
-            description_snippet: job.description_snippet,
+            description_snippet: job.notes || job.description_snippet,
           },
           { onConflict: "url" },
         );
@@ -218,7 +237,7 @@ export async function POST(request: Request) {
       if (!job.url) continue;
       try {
         const summary = await enrichBankJob(
-          { url: job.url, title: job.title, company: job.company, location: job.location, work_mode: job.work_mode, description_snippet: job.description_snippet },
+          { url: job.url, title: job.title, company: job.company, location: job.location, work_mode: job.work_mode, description_snippet: job.notes || job.description_snippet },
           service,
         );
         if (summary) {

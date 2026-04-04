@@ -283,20 +283,34 @@ function ReviewCard({
   const [workMode, setWorkMode] = useState(job.work_mode ?? "");
   const [laneKey, setLaneKey] = useState(job.lane_key ?? "");
   const [url, setUrl] = useState(job.url ?? "");
-  const [notes, setNotes] = useState(job.notes ?? "");
+  const [description, setDescription] = useState(job.notes ?? "");
   const [dirty, setDirty] = useState(false);
+  const [laneSearch, setLaneSearch] = useState("");
+  const [laneOpen, setLaneOpen] = useState(false);
 
   useEffect(() => {
     setTitle(job.title ?? ""); setCompany(job.company ?? "");
     setLocation(job.location ?? ""); setWorkMode(job.work_mode ?? "");
     setLaneKey(job.lane_key ?? ""); setUrl(job.url ?? "");
-    setNotes(job.notes ?? ""); setDirty(false);
+    setDescription(job.notes ?? ""); setDirty(false);
   }, [job.title, job.company, job.location, job.work_mode, job.lane_key, job.url, job.notes]);
 
   function markDirty() { setDirty(true); }
 
+  const filteredLanes = laneSearch
+    ? lanes.filter((l) => l.toLowerCase().includes(laneSearch.toLowerCase()))
+    : lanes;
+  const showCreateOption = laneSearch && !lanes.some((l) => l.toLowerCase() === laneSearch.toLowerCase());
+
+  function selectLane(value: string) {
+    setLaneKey(value);
+    setLaneSearch("");
+    setLaneOpen(false);
+    markDirty();
+  }
+
   function handleSave() {
-    onSave({ title: title || null, company: company || null, location: location || null, work_mode: workMode || null, lane_key: laneKey || null, url: url || null, notes: notes || null });
+    onSave({ title: title || null, company: company || null, location: location || null, work_mode: workMode || null, lane_key: laneKey || null, url: url || null, notes: description || null });
     setDirty(false);
   }
 
@@ -304,7 +318,7 @@ function ReviewCard({
     setTitle(job.title ?? ""); setCompany(job.company ?? "");
     setLocation(job.location ?? ""); setWorkMode(job.work_mode ?? "");
     setLaneKey(job.lane_key ?? ""); setUrl(job.url ?? "");
-    setNotes(job.notes ?? ""); setDirty(false);
+    setDescription(job.notes ?? ""); setDirty(false);
   }
 
   const sourceBadge: Record<string, string> = {
@@ -371,12 +385,52 @@ function ReviewCard({
                 <option value="onsite">Onsite</option>
               </select>
             </div>
-            <div>
+            <div className="relative">
               <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Lane</label>
-              <select value={laneKey} onChange={(e) => { setLaneKey(e.target.value); markDirty(); }} className={inputClass}>
-                <option value="">Unassigned</option>
-                {lanes.map((l) => (<option key={l} value={l}>{l.replace(/_/g, " ")}</option>))}
-              </select>
+              <div
+                onClick={() => setLaneOpen(!laneOpen)}
+                className={`${inputClass} cursor-pointer flex items-center justify-between`}
+              >
+                <span className={laneKey ? "text-white" : "text-[#4B5563]"}>
+                  {laneKey ? laneKey.replace(/_/g, " ") : "Select or type lane..."}
+                </span>
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#4B5563]" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </div>
+              {laneOpen && (
+                <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border border-[#2A3544] bg-[#0C1016] shadow-lg">
+                  <input
+                    autoFocus
+                    value={laneSearch}
+                    onChange={(e) => setLaneSearch(e.target.value)}
+                    placeholder="Type to search or create..."
+                    className="w-full border-b border-[#2A3544] bg-transparent px-3 py-2 text-[12px] text-white placeholder-[#4B5563] outline-none"
+                  />
+                  <div className="max-h-40 overflow-y-auto">
+                    {filteredLanes.map((l) => (
+                      <button
+                        key={l}
+                        onClick={() => selectLane(l)}
+                        className={`w-full px-3 py-2 text-left text-[12px] hover:bg-[#171F28] ${laneKey === l ? "text-[#6AD7A3]" : "text-[#B8BFC8]"}`}
+                      >
+                        {l.replace(/_/g, " ")}
+                      </button>
+                    ))}
+                    {showCreateOption && (
+                      <button
+                        onClick={() => selectLane(laneSearch.toLowerCase().replace(/\s+/g, "_"))}
+                        className="w-full px-3 py-2 text-left text-[12px] text-[#FAD76A] hover:bg-[#171F28]"
+                      >
+                        + Create &ldquo;{laneSearch}&rdquo;
+                      </button>
+                    )}
+                    {filteredLanes.length === 0 && !showCreateOption && (
+                      <div className="px-3 py-2 text-[11px] text-[#4B5563]">No lanes found</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">URL</label>
@@ -393,8 +447,8 @@ function ReviewCard({
             </div>
           </div>
           <div className="mt-3">
-            <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Notes</label>
-            <textarea value={notes} onChange={(e) => { setNotes(e.target.value); markDirty(); }} rows={2} className={inputClass} placeholder="Optional notes..." />
+            <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Job Description</label>
+            <textarea value={description} onChange={(e) => { setDescription(e.target.value); markDirty(); }} rows={4} className={inputClass} placeholder="Paste the job description here — used for AI enrichment on approval" />
           </div>
           {dirty && (
             <div className="mt-3 flex gap-2">
