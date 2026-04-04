@@ -120,7 +120,7 @@ export async function POST() {
         trigger_event: s.trigger_event,
         template_id: s.template_id,
         tracker_entry_id: s.tracker_entry_id,
-        context_snapshot: s.context_snapshot,
+        context_snapshot: s.context_snapshot as import("@/types/database").Json,
       });
 
     // If the unique index rejects it (duplicate pending), that's expected — skip silently
