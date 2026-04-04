@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import JobCard from "@/components/inbox/job-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
+import LoadingMessages from "@/components/ui/loading-messages";
 import type { Database } from "@/types/database";
 
 type InboxJob = Database["public"]["Tables"]["inbox_jobs"]["Row"];

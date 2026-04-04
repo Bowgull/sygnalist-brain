@@ -8,7 +8,7 @@ export default function Header({
   role?: string;
 }) {
   return (
-    <header className="sticky top-0 z-40 bg-[#0C1016]/95 backdrop-blur-md">
+    <header className="header-scanlines sticky top-0 z-40 bg-[#0C1016]/95 backdrop-blur-md">
       <div className="mx-auto flex min-h-[56px] md:min-h-[var(--header-height)] max-w-[var(--layout-max-width)] items-center justify-between gap-3 md:gap-4 px-4 md:px-6 py-2 md:py-3">
         {/* Zone 1: Brand */}
         <div className="flex items-center gap-2 md:gap-3 shrink-0">

@@ -39,7 +39,7 @@ export default async function DashboardLayout({
           {/* Content bay */}
           <div className="min-w-0">
             <TopTabs isAdmin={isAdmin} />
-            <div className="md:mt-1 rounded-[var(--radius-md)] md:rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] md:border-[rgba(255,255,255,0.08)] bg-gradient-to-b from-[#151C24] to-[#11181F] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] overflow-hidden">
+            <div className="content-bay-texture md:mt-1 rounded-[var(--radius-md)] md:rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] md:border-[rgba(255,255,255,0.08)] bg-gradient-to-b from-[#151C24] to-[#11181F] shadow-[inset_0_1px_0_rgba(255,255,255,0.03),var(--shadow-card)] overflow-hidden">
               {children}
             </div>
           </div>
