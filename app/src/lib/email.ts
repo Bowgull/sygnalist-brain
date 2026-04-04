@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { randomUUID } from "crypto";
+import path from "path";
 
 const GMAIL_USER = process.env.GMAIL_SMTP_USER;
 const GMAIL_PASS = process.env.GMAIL_SMTP_PASS;
@@ -25,12 +26,6 @@ export interface SendEmailResult {
   messageId?: string;
 }
 
-/**
- * Send a branded Sygnalist email.
- *
- * Generates a deterministic Message-ID so replies can be threaded.
- * The messageId returned is the one set in the email headers.
- */
 export async function sendEmail(
   to: string,
   subject: string,
@@ -41,7 +36,6 @@ export async function sendEmail(
     return { success: false, error: "Gmail SMTP not configured (set GMAIL_SMTP_USER and GMAIL_SMTP_PASS in Vercel env vars)" };
   }
 
-  // Generate a deterministic Message-ID we control
   const messageId = `<${randomUUID()}@sygnalist.app>`;
 
   try {
@@ -51,6 +45,13 @@ export async function sendEmail(
       subject,
       messageId,
       html: wrapInTemplate(htmlBody),
+      attachments: [
+        {
+          filename: "logo.png",
+          path: path.join(process.cwd(), "public", "email-logo.png"),
+          cid: "sygnalist-logo",
+        },
+      ],
     });
 
     return { success: true, messageId };
@@ -62,9 +63,6 @@ export async function sendEmail(
   }
 }
 
-/**
- * Escape HTML entities in user/AI content to prevent rendering issues.
- */
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -72,20 +70,9 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
-/**
- * Branded Sygnalist email template.
- *
- * Design: Clean light background, table-based layout, Outlook-safe.
- * Uses hosted PNG logo + solid color brand text fallback.
- */
 function wrapInTemplate(body: string): string {
   const escaped = escapeHtml(body);
   const htmlBody = escaped.replace(/\n/g, "<br>");
-
-  // Use production deployment URL for logo
-  const logoUrl = process.env.NEXT_PUBLIC_APP_URL
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/email-logo.png`
-    : "https://sygnalist-brain-bu9uul4gn-bowgulls-projects.vercel.app/email-logo.png";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -94,41 +81,52 @@ function wrapInTemplate(body: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sygnalist</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<body style="margin:0;padding:0;background-color:#f0f2f5;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
   <!--[if mso]><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center"><![endif]-->
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f5f7;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f2f5;">
     <tr>
-      <td align="center" style="padding:32px 16px;">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
-          <!-- Logo -->
+      <td align="center" style="padding:40px 16px 32px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
+
+          <!-- Header bar -->
           <tr>
-            <td align="center" style="padding-bottom:24px;">
+            <td style="background-color:#0C1016;border-radius:12px 12px 0 0;padding:20px 28px;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td style="vertical-align:middle;padding-right:10px;">
-                    <img src="${logoUrl}" alt="" width="32" height="32" style="display:block;border:0;outline:none;width:32px;height:32px;border-radius:6px;">
+                  <td style="vertical-align:middle;padding-right:12px;">
+                    <img src="cid:sygnalist-logo" alt="S" width="28" height="28" style="display:block;border:0;outline:none;width:28px;height:28px;border-radius:6px;">
                   </td>
                   <td style="vertical-align:middle;">
-                    <span style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:#1a1a1a;letter-spacing:2px;">SYGNALIST</span>
+                    <span style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:#6AD7A3;letter-spacing:3px;">SYGNALIST</span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
+
+          <!-- Green accent line -->
+          <tr>
+            <td style="background-color:#6AD7A3;height:3px;font-size:0;line-height:0;">&nbsp;</td>
+          </tr>
+
           <!-- Body -->
           <tr>
-            <td style="background-color:#ffffff;border-radius:8px;padding:32px 28px;border:1px solid #e5e7eb;">
-              <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.7;color:#1a1a1a;">
+            <td style="background-color:#ffffff;padding:32px 28px;">
+              <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.75;color:#1a1a1a;">
                 ${htmlBody}
               </div>
             </td>
           </tr>
+
           <!-- Footer -->
           <tr>
-            <td align="center" style="padding-top:20px;">
-              <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;">Sent via Sygnalist &mdash; Your Job Hunt Coach</span>
+            <td style="background-color:#fafafa;border-radius:0 0 12px 12px;border-top:1px solid #e8e8e8;padding:16px 28px;text-align:center;">
+              <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;">Sent via </span>
+              <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6AD7A3;font-weight:bold;">Sygnalist</span>
+              <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;"> &mdash; Find the Signal</span>
             </td>
           </tr>
+
         </table>
       </td>
     </tr>

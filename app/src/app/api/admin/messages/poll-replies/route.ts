@@ -159,32 +159,30 @@ export async function POST() {
           const nameMatch = fromRaw.match(/^"?([^"<]+)"?\s*</);
           const fromName = nameMatch ? nameMatch[1].trim() : null;
 
-          // Resolve client_id: try profile email, then In-Reply-To match
-          let clientId = emailToProfileId.get(fromEmail) ?? null;
-
-          if (!clientId && inReplyTo) {
-            const normalized = inReplyTo.replace(/^<|>$/g, "");
-            const match = sentByMessageId.get(normalized);
-            if (match) clientId = match.client_id;
-          }
-
-          if (!clientId) {
+          // PRIMARY GATE: In-Reply-To must match a stored smtp_message_id
+          // This ensures only true replies to Sygnalist-sent emails are accepted
+          if (!inReplyTo) {
             skippedNotContact++;
-            debug.push(`skip: ${fromEmail} (not a contact)`);
             continue;
           }
+
+          const normalizedReplyTo = inReplyTo.replace(/^<|>$/g, "");
+          const sentMatch = sentByMessageId.get(normalizedReplyTo);
+
+          if (!sentMatch) {
+            skippedNotContact++;
+            continue;
+          }
+
+          // Reply is verified — resolve client_id from the sent message, then enrich with profile
+          const clientId = sentMatch.client_id;
 
           // Extract body
           const bodyText = extractBody(msgData.payload, "text/plain");
           const bodyHtml = extractBody(msgData.payload, "text/html");
 
-          // Match to sent message for thread linking
-          let matchedSentId: string | null = null;
-          if (inReplyTo) {
-            const normalized = inReplyTo.replace(/^<|>$/g, "");
-            const match = sentByMessageId.get(normalized);
-            if (match) matchedSentId = match.id;
-          }
+          // Thread linking — we already matched above
+          const matchedSentId = sentMatch.id;
 
           const receivedAt = dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString();
 
@@ -210,12 +208,10 @@ export async function POST() {
             newReplies++;
             debug.push(`matched: ${fromEmail} → ${clientId}`);
 
-            if (matchedSentId) {
-              await service
-                .from("sent_messages")
-                .update({ gmail_thread_id: threadId })
-                .eq("id", matchedSentId);
-            }
+            await service
+              .from("sent_messages")
+              .update({ gmail_thread_id: threadId })
+              .eq("id", matchedSentId);
           }
         } catch (err) {
           debug.push(`process_err: ${err instanceof Error ? err.message : "unknown"}`);
