@@ -52,6 +52,14 @@ export default function AdminHealthPage() {
 
   return (
     <div className="space-y-4">
+      {/* Key Metrics */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MetricCard label="Active Clients" value={analytics?.profiles.active_clients ?? 0} color="#6AD7A3" />
+        <MetricCard label="Total Pipeline" value={pipelineTotal} color="#38BDF8" />
+        <MetricCard label="Fetches (7d)" value={analytics?.fetches.week ?? 0} color="#FAD76A" />
+        <MetricCard label="Errors" value={analytics?.errors.unresolved ?? 0} color={(analytics?.errors.unresolved ?? 0) > 0 ? "#DC2626" : "#6AD7A3"} />
+      </div>
+
       {/* System Health */}
       <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
@@ -98,6 +106,17 @@ export default function AdminHealthPage() {
       {/* Pipeline */}
       <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
         <h2 className="mb-3 text-sm font-semibold">Pipeline ({pipelineTotal} total)</h2>
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 mb-4">
+          {pipelineStages.map((stage) => {
+            const count = analytics?.pipeline[stage] ?? 0;
+            return (
+              <div key={`grid-${stage}`} className="text-center">
+                <p className="text-2xl font-bold text-white">{count}</p>
+                <p className="text-[11px] text-[#9CA3AF]">{stage}</p>
+              </div>
+            );
+          })}
+        </div>
         <div className="space-y-2">
           {pipelineStages.map((stage) => {
             const count = analytics?.pipeline[stage] ?? 0;
@@ -126,6 +145,17 @@ export default function AdminHealthPage() {
           <StatBox label="This Month" value={String(analytics?.fetches.month ?? 0)} color="default" />
         </div>
       </div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 text-center">
+      <p className="text-3xl font-bold" style={{ color }}>
+        {value}
+      </p>
+      <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">{label}</p>
     </div>
   );
 }

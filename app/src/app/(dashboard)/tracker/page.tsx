@@ -30,6 +30,8 @@ export default function TrackerPage() {
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const touchStartX = useRef(0);
+  const pillContainerRef = useRef<HTMLDivElement>(null);
+  const pillRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -44,6 +46,20 @@ export default function TrackerPage() {
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
+
+  // Scroll active pill into view when stage changes
+  useEffect(() => {
+    const pill = pillRefs.current[activeStage];
+    const container = pillContainerRef.current;
+    if (!pill || !container) return;
+
+    const pillLeft = pill.offsetLeft;
+    const pillWidth = pill.offsetWidth;
+    const containerWidth = container.offsetWidth;
+    const scrollTarget = pillLeft - containerWidth / 2 + pillWidth / 2;
+
+    container.scrollTo({ left: scrollTarget, behavior: "smooth" });
+  }, [activeStage]);
 
   const stageCounts = STAGES.map(
     (s) => entries.filter((e) => e.status === s.label).length
@@ -128,10 +144,11 @@ export default function TrackerPage() {
       {/* Controls bar */}
       <div className="sticky top-0 z-10 border-b border-[#2A3544] bg-[#151C24] px-4 md:px-6 py-3 space-y-2">
         {/* Stage pills + controls */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <div ref={pillContainerRef} className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           {STAGES.map((stage, i) => (
             <button
               key={stage.label}
+              ref={(el) => { pillRefs.current[i] = el; }}
               type="button"
               onClick={() => setActiveStage(i)}
               className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-all ${

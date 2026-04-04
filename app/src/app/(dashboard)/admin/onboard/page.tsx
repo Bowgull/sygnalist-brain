@@ -967,37 +967,36 @@ function buildWelcomeEmail(name: string, appUrl: string): string {
 
   return `Hey ${firstName},
 
-Welcome to Sygnalist! Your job hunt portal is ready to go.
+Welcome aboard. I've set up your Sygnalist profile and your inbox is already working — fresh job matches tailored to your skills, goals, and preferences are on the way.
 
-<strong style="font-size:16px;">Your Portal</strong>
-<a href="${appUrl}" style="display:inline-block;margin:12px 0;padding:12px 24px;background:linear-gradient(135deg,#A9FFB5,#5EF2C7,#39D6FF);color:#0C1016;font-weight:700;text-decoration:none;border-radius:12px;">Open Sygnalist</a>
+<a href="${appUrl}" style="display:inline-block;margin:16px 0;padding:14px 32px;background:linear-gradient(135deg,#A9FFB5,#5EF2C7,#39D6FF);color:#0C1016;font-weight:700;font-size:16px;text-decoration:none;border-radius:12px;">Open Sygnalist</a>
 
-Log in with Google using this email address.
+Sign in with Google using this email address. That's it — no passwords to remember.
 
-<strong style="font-size:16px;">Save to Your Phone</strong>
-Get the full app experience by adding Sygnalist to your home screen:
+<strong style="font-size:16px;">Make It Feel Like an App</strong>
+Sygnalist is built for your phone. Add it to your home screen and it works just like a native app — full screen, fast, and always one tap away.
 
-<strong>iPhone (Safari):</strong>
-1. Open the link above in Safari
-2. Tap the Share button (square with arrow at bottom)
-3. Scroll down and tap "Add to Home Screen"
-4. Tap "Add" — done!
+<strong>iPhone:</strong>
+1. Open the link above in <strong>Safari</strong>
+2. Tap the <strong>Share</strong> button (square with an arrow)
+3. Tap <strong>"Add to Home Screen"</strong>
+4. Done — you'll see the Sygnalist radar icon on your home screen
 
-<strong>Android (Chrome):</strong>
-1. Open the link above in Chrome
-2. Tap the three-dot menu (top right)
-3. Tap "Add to Home screen"
-4. Tap "Add" — done!
+<strong>Android:</strong>
+1. Open the link above in <strong>Chrome</strong>
+2. Tap the <strong>three-dot menu</strong> (top right)
+3. Tap <strong>"Add to Home screen"</strong>
+4. Done — same thing, one tap to open
 
-It'll look and feel like a native app on your phone, with our radar icon on your home screen.
+<strong style="font-size:16px;">How It Works</strong>
+- Your inbox fills with jobs matched to you — no searching required
+- Swipe right on anything worth pursuing, left to pass
+- Jobs you save go into your tracker where you can manage your pipeline from prospect all the way to offer
+- I'm watching behind the scenes and I'll jump in when I see signal
 
-<strong style="font-size:16px;">What to Expect</strong>
-- Fresh job matches delivered to your inbox
-- Swipe right to save, left to dismiss
-- Track your pipeline from prospect to offer
-- Your coach reviews everything behind the scenes
+You don't need to do anything else right now. Just open the app, scroll through your matches, and save what catches your eye. We'll go from there.
 
-Questions? Just reply to this email.
+Questions? Reply to this email anytime.
 
-— Josh, Sygnalist`;
+— Josh`;
 }
