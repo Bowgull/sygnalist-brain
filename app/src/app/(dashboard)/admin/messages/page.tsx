@@ -242,6 +242,7 @@ function OutreachView({
   }
 
   async function sendBulk(triggerEvent: string, ids: string[], templateId: string | null) {
+    if (sendingAll) return;
     setSendingAll(triggerEvent);
     const recipients = suggestions
       .filter((s) => ids.includes(s.id))
@@ -294,7 +295,7 @@ function OutreachView({
   }
 
   async function sendEdited() {
-    if (!editingSuggestion || !editSubject || !editBody) return;
+    if (!editingSuggestion || !editSubject || !editBody || editSending) return;
     setEditSending(true);
 
     const res = await fetch("/api/admin/messages", {
@@ -669,8 +670,8 @@ function ComposeView({
     }, 0);
   }
 
-  async function handleGenerateAI() {
-    if (selectedClients.length !== 1) return;
+  async function handleRefineWithAI() {
+    if (selectedClients.length !== 1 || !body) return;
     setDrafting(true);
 
     const res = await fetch("/api/admin/messages/draft", {
@@ -678,21 +679,19 @@ function ComposeView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         client_id: selectedClients[0].id,
-        template_id: selectedTemplate?.id,
-        context: "Write a personalized check-in email based on their current pipeline status and activity.",
+        refine_body: body,
       }),
     });
 
     if (res.ok) {
       const draft = await res.json();
       if (draft.body) setBody(draft.body);
-      if (draft.subject && !subject) setSubject(draft.subject);
     }
     setDrafting(false);
   }
 
   async function handleSend() {
-    if (!subject || !body || selectedClients.length === 0) return;
+    if (!subject || !body || selectedClients.length === 0 || sending) return;
     setSending(true);
 
     if (selectedClients.length === 1) {
@@ -976,11 +975,11 @@ function ComposeView({
               <div className="flex gap-2">
                 {selectedClients.length === 1 && (
                   <button
-                    onClick={handleGenerateAI}
-                    disabled={drafting}
-                    className="rounded-full border border-[#6AD7A3]/30 px-4 py-2 text-sm text-[#6AD7A3] transition hover:bg-[#6AD7A3]/10"
+                    onClick={handleRefineWithAI}
+                    disabled={drafting || !body}
+                    className="rounded-full border border-[#6AD7A3]/30 px-4 py-2 text-sm text-[#6AD7A3] transition hover:bg-[#6AD7A3]/10 disabled:opacity-40"
                   >
-                    Generate AI Content
+                    {drafting ? "Refining..." : "Refine with AI"}
                   </button>
                 )}
 
@@ -1096,7 +1095,7 @@ function ConversationsView({
   }
 
   async function sendReply() {
-    if (!selectedClientId || !replySubject || !replyBody) return;
+    if (!selectedClientId || !replySubject || !replyBody || replySending) return;
     setReplySending(true);
 
     const res = await fetch("/api/admin/messages", {

@@ -1,10 +1,13 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
-import { buildMergeFields, resolveMergeFields, generateAiDraft } from "@/lib/merge-fields";
+import { buildMergeFields, resolveMergeFields, refineWithAi } from "@/lib/merge-fields";
 
 /**
- * POST /api/admin/messages/draft — Generate AI-assisted email draft
+ * POST /api/admin/messages/draft — Resolve template merge fields or refine custom content
  *
- * Body: { client_id, template_id?, context?: string }
+ * Body: { client_id, template_id?, refine_body?: string }
+ *   - template_id: resolves merge fields in the template (no AI generation)
+ *   - refine_body: user-written content to refine with AI to match Sygnalist voice
+ *
  * Returns: { subject, body, merge_fields }
  */
 export async function POST(request: Request) {
@@ -12,7 +15,7 @@ export async function POST(request: Request) {
   if (response) return response;
 
   const body = await request.json();
-  const { client_id, template_id, context } = body;
+  const { client_id, template_id, refine_body } = body;
 
   if (!client_id) return error("client_id is required");
 
@@ -22,8 +25,8 @@ export async function POST(request: Request) {
 
   let subject = "";
   let emailBody = "";
-  let aiPromptHint = context || "";
 
+  // If template selected, resolve merge fields only — no AI
   if (template_id) {
     const { data: template } = await service
       .from("message_templates")
@@ -34,14 +37,14 @@ export async function POST(request: Request) {
     if (template) {
       subject = resolveMergeFields(template.subject, mergeFields);
       emailBody = resolveMergeFields(template.body, mergeFields);
-      aiPromptHint = template.ai_prompt_hint || aiPromptHint;
     }
   }
 
-  if (aiPromptHint) {
-    const aiContent = await generateAiDraft(mergeFields, aiPromptHint);
-    if (aiContent) {
-      emailBody = emailBody ? `${emailBody}\n\n${aiContent}` : aiContent;
+  // If user wants to refine custom content with AI
+  if (refine_body) {
+    const refined = await refineWithAi(mergeFields, refine_body);
+    if (refined) {
+      emailBody = refined;
     }
   }
 

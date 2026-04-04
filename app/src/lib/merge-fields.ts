@@ -50,9 +50,9 @@ export async function buildMergeFields(
     "{pipelineCount}": String(pipelineCount ?? 0),
     "{appliedCount}": String(appliedCount ?? 0),
     "{interviewCount}": String(interviewCount ?? 0),
-    "{daysSinceLastFetch}": daysSinceLastFetch >= 0 ? String(daysSinceLastFetch) : "N/A",
-    "{topSkills}": (client.top_skills ?? []).join(", ") || "Not specified",
-    "{assignedLanes}": tracks.join(", ") || "Not assigned",
+    "{daysSinceLastFetch}": daysSinceLastFetch >= 0 ? String(daysSinceLastFetch) : "a while",
+    "{topSkills}": (client.top_skills ?? []).join(", ") || "your strengths",
+    "{assignedLanes}": tracks.join(", ") || "your target roles",
   };
 }
 
@@ -68,14 +68,15 @@ export function resolveMergeFields(text: string, fields: Record<string, string>)
 }
 
 /**
- * Generate AI draft content using OpenAI.
+ * Refine a user-written email to match the Sygnalist/GoodFit voice.
+ * This does NOT generate a new email — it polishes what the user wrote.
  */
-export async function generateAiDraft(
+export async function refineWithAi(
   mergeFields: Record<string, string>,
-  promptHint: string,
+  userContent: string,
 ): Promise<string | null> {
   const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey || !promptHint) return null;
+  if (!openaiKey || !userContent) return null;
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -89,21 +90,29 @@ export async function generateAiDraft(
         messages: [
           {
             role: "system",
-            content: `You are a job-hunt coach named Josh writing an email to a client. Be warm, direct, and encouraging. No corporate-speak. Use their name. Keep it under 200 words.
+            content: `You are an editor refining an email written by a job-hunt coach named Josh. Your job is to take the draft below and improve it to match this voice:
 
-Client info:
+Voice rules:
+- Warm, direct, encouraging. Never corporate or generic.
+- Short sentences. Conversational. Like texting a friend who you also coach.
+- Use the client's first name naturally.
+- No "I hope this email finds you well" or similar filler.
+- Sign off as "Josh" — no "Best regards" or "Take care".
+- Keep it concise. Under 150 words.
+
+Client context:
 - Name: ${mergeFields["{clientName}"]}
 - Target roles: ${mergeFields["{assignedLanes}"]}
-- Top skills: ${mergeFields["{topSkills}"]}
-- Pipeline: ${mergeFields["{pipelineCount}"]} jobs tracked, ${mergeFields["{appliedCount}"]} applied, ${mergeFields["{interviewCount}"]} interviewing
-- Days since last scan: ${mergeFields["{daysSinceLastFetch}"]}`,
+- Pipeline: ${mergeFields["{pipelineCount}"]} tracked, ${mergeFields["{appliedCount}"]} applied, ${mergeFields["{interviewCount}"]} interviewing
+
+Return ONLY the refined email body. No subject line. No preamble. Just the email text.`,
           },
           {
             role: "user",
-            content: promptHint,
+            content: `Here is the draft to refine:\n\n${userContent}`,
           },
         ],
-        temperature: 0.7,
+        temperature: 0.4,
         max_tokens: 400,
       }),
       signal: AbortSignal.timeout(20000),

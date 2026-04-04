@@ -1,6 +1,6 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { sendEmail } from "@/lib/email";
-import { buildMergeFields, resolveMergeFields, generateAiDraft } from "@/lib/merge-fields";
+import { buildMergeFields, resolveMergeFields } from "@/lib/merge-fields";
 import { logEvent, logError } from "@/lib/logger";
 
 /**
@@ -58,18 +58,10 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Resolve merge fields for this client
+      // Resolve merge fields for this client — no AI, template is the message
       const mergeFields = await buildMergeFields(client_id, service);
-      let subject = resolveMergeFields(template.subject, mergeFields);
-      let emailBody = resolveMergeFields(template.body, mergeFields);
-
-      // Generate AI content if template has hint
-      if (template.ai_prompt_hint) {
-        const aiContent = await generateAiDraft(mergeFields, template.ai_prompt_hint);
-        if (aiContent) {
-          emailBody = emailBody ? `${emailBody}\n\n${aiContent}` : aiContent;
-        }
-      }
+      const subject = resolveMergeFields(template.subject, mergeFields);
+      const emailBody = resolveMergeFields(template.body, mergeFields);
 
       // Send
       const result = await sendEmail(client.email, subject, emailBody);
