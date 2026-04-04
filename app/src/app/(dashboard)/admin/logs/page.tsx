@@ -86,7 +86,7 @@ function previewMeta(meta: Record<string, unknown> | null): string {
 
 // ── Main Component ─────────────────────────────────────────────────────
 export default function AdminLogsPage() {
-  const [logType, setLogType] = useState<LogType>("fetches");
+  const [logType, setLogType] = useState<LogType>("events");
   const [logs, setLogs] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -139,7 +139,7 @@ export default function AdminLogsPage() {
     <div className="space-y-4">
       {/* Type tabs */}
       <div className="flex items-center gap-2">
-        {(["fetches", "errors", "events"] as LogType[]).map((t) => (
+        {(["events", "errors", "fetches"] as LogType[]).map((t) => (
           <button
             key={t}
             type="button"
