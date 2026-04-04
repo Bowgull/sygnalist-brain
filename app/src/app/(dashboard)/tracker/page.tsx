@@ -10,8 +10,8 @@ type TrackerEntry = Database["public"]["Tables"]["tracker_entries"]["Row"];
 const STAGES = [
   { label: "Prospect", color: "#1DD3B0" },
   { label: "Applied", color: "#3B82F6" },
-  { label: "Interview 1", color: "#8B5CF6" },
-  { label: "Interview 2", color: "#8B5CF6" },
+  { label: "Interview 1", display: "1st Interview", color: "#8B5CF6" },
+  { label: "Interview 2", display: "2nd Interview", color: "#8B5CF6" },
   { label: "Final", color: "#F59E0B" },
   { label: "Offer", color: "#22C55E" },
 ];
@@ -107,7 +107,7 @@ export default function TrackerPage() {
               }}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: stage.color }} />
-              <span>{stage.label}</span>
+              <span>{(stage as { display?: string }).display ?? stage.label}</span>
               {stageCounts[i] > 0 && (
                 <span className="ml-0.5 opacity-70">{stageCounts[i]}</span>
               )}

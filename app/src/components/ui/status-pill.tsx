@@ -10,12 +10,18 @@ const statusColors: Record<string, string> = {
   Withdrawn: "bg-[#6B7280]/12 text-[#6B7280] border-[#6B7280]/25",
 };
 
+const displayNames: Record<string, string> = {
+  "Interview 1": "1st Interview",
+  "Interview 2": "2nd Interview",
+};
+
 export default function StatusPill({ status }: { status: string }) {
   const color = statusColors[status] ?? statusColors.Prospect;
+  const label = displayNames[status] ?? status;
   return (
     <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] ${color}`}>
       <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
-      {status}
+      {label}
     </span>
   );
 }

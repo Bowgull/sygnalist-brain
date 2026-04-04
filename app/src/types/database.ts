@@ -279,6 +279,7 @@ export interface Database {
           title: string | null;
           source: string | null;
           location: string | null;
+          salary: string | null;
           work_mode: string | null;
           job_family: string | null;
           description_snippet: string | null;
@@ -294,6 +295,7 @@ export interface Database {
           title?: string | null;
           source?: string | null;
           location?: string | null;
+          salary?: string | null;
           work_mode?: string | null;
           job_family?: string | null;
           description_snippet?: string | null;
@@ -307,6 +309,7 @@ export interface Database {
           title?: string | null;
           source?: string | null;
           location?: string | null;
+          salary?: string | null;
           work_mode?: string | null;
           job_family?: string | null;
           description_snippet?: string | null;
