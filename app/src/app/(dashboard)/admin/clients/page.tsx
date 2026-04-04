@@ -13,6 +13,8 @@ export default function AdminClientsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [fetchingId, setFetchingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; step: 1 | 2 } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -68,6 +70,20 @@ export default function AdminClientsPage() {
     navigator.clipboard.writeText(url).then(() => showToast("Portal link copied"));
   }
 
+  async function handleDelete(id: string) {
+    setDeleting(true);
+    const res = await fetch(`/api/admin/profiles/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setProfiles((prev) => prev.filter((p) => p.id !== id));
+      showToast("Profile permanently deleted");
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error ?? "Failed to delete");
+    }
+    setDeleting(false);
+    setDeleteConfirm(null);
+  }
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -84,6 +100,72 @@ export default function AdminClientsPage() {
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-[0.8125rem] font-semibold text-[#0C1016] shadow-lg">
           {toast}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-[#DC2626]/30 bg-[#171F28] p-6 shadow-2xl">
+            {deleteConfirm.step === 1 ? (
+              <>
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#DC2626]/10">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#DC2626]" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M12 9v4M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <h3 className="text-center text-[15px] font-semibold text-white">Delete {deleteConfirm.name}?</h3>
+                <p className="mt-2 text-center text-[13px] leading-relaxed text-[#9CA3AF]">
+                  This will permanently delete this profile and all their data including inbox items and tracker entries. This cannot be undone.
+                </p>
+                <div className="mt-5 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(null)}
+                    className="flex-1 rounded-full border border-[#2A3544] py-2 text-[13px] font-medium text-[#9CA3AF] hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm({ ...deleteConfirm, step: 2 })}
+                    className="flex-1 rounded-full border border-[#DC2626]/40 py-2 text-[13px] font-medium text-[#DC2626] hover:bg-[#DC2626]/10"
+                  >
+                    Yes, Delete
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#DC2626]/20">
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#DC2626]" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path d="M12 9v4M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <h3 className="text-center text-[15px] font-semibold text-[#DC2626]">Are you absolutely sure?</h3>
+                <p className="mt-2 text-center text-[13px] leading-relaxed text-[#9CA3AF]">
+                  This is permanent. All data for <span className="text-white font-medium">{deleteConfirm.name}</span> will be gone forever. There is no undo.
+                </p>
+                <div className="mt-5 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(null)}
+                    className="flex-1 rounded-full border border-[#2A3544] py-2 text-[13px] font-medium text-[#9CA3AF] hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(deleteConfirm.id)}
+                    disabled={deleting}
+                    className="flex-1 rounded-full bg-[#DC2626] py-2 text-[13px] font-semibold text-white hover:bg-[#B91C1C] disabled:opacity-50"
+                  >
+                    {deleting ? "Deleting..." : "Permanently Delete"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -200,23 +282,35 @@ export default function AdminClientsPage() {
               >
                 Get Link
               </button>
-              {p.status === "active" ? (
+              <div className="ml-auto flex items-center gap-2">
+                {p.status === "active" ? (
+                  <button
+                    type="button"
+                    onClick={() => handleUpdate(p.id, { status: "inactive_soft_locked", status_reason: "Locked by admin" })}
+                    className="rounded-full border border-[#DC2626]/30 px-3 py-1 text-[11px] font-medium text-[#DC2626] hover:bg-[#DC2626]/10"
+                  >
+                    Lock
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleUpdate(p.id, { status: "active", status_reason: "" })}
+                    className="rounded-full border border-[#6AD7A3]/30 px-3 py-1 text-[11px] font-medium text-[#6AD7A3] hover:bg-[#6AD7A3]/10"
+                  >
+                    Unlock
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => handleUpdate(p.id, { status: "inactive_soft_locked", status_reason: "Locked by admin" })}
-                  className="ml-auto rounded-full border border-[#DC2626]/30 px-3 py-1 text-[11px] font-medium text-[#DC2626] hover:bg-[#DC2626]/10"
+                  onClick={() => setDeleteConfirm({ id: p.id, name: p.display_name, step: 1 })}
+                  className="rounded-full border border-[#DC2626]/20 px-2 py-1 text-[11px] text-[#6B7280] hover:border-[#DC2626]/40 hover:text-[#DC2626]"
+                  title="Delete profile"
                 >
-                  Lock
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => handleUpdate(p.id, { status: "active", status_reason: "" })}
-                  className="ml-auto rounded-full border border-[#6AD7A3]/30 px-3 py-1 text-[11px] font-medium text-[#6AD7A3] hover:bg-[#6AD7A3]/10"
-                >
-                  Unlock
-                </button>
-              )}
+              </div>
             </div>
 
             {editingId === p.id && (

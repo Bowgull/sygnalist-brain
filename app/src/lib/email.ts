@@ -71,8 +71,12 @@ function escapeHtml(text: string): string {
 }
 
 function wrapInTemplate(body: string): string {
-  const escaped = escapeHtml(body);
-  const htmlBody = escaped.replace(/\n/g, "<br>");
+  // If body already contains HTML tags, use it directly (just convert newlines).
+  // Otherwise escape plain text bodies for safe rendering.
+  const hasHtml = /<[a-z][\s\S]*>/i.test(body);
+  const htmlBody = hasHtml
+    ? body.replace(/\n/g, "<br>")
+    : escapeHtml(body).replace(/\n/g, "<br>");
 
   return `<!DOCTYPE html>
 <html lang="en">

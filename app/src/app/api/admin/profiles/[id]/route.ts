@@ -91,3 +91,46 @@ export async function PATCH(
   logEvent("admin.profile_update", { userId: admin?.id, metadata: { target_profile_id: id, changed_fields: Object.keys(patch) } });
   return json(data);
 }
+
+/** DELETE /api/admin/profiles/:id — permanently delete a profile (admin) */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const { profile: admin, response } = await requireAdmin();
+  if (response) return response;
+
+  // Prevent admin from deleting themselves
+  if (admin?.id === id) {
+    return error("Cannot delete your own profile", 400);
+  }
+
+  const service = getServiceClient();
+
+  // Fetch profile first for logging
+  const { data: target } = await service
+    .from("profiles")
+    .select("display_name, email")
+    .eq("id", id)
+    .single();
+
+  if (!target) return error("Profile not found", 404);
+
+  // Delete related data first (tracker entries, inbox items), then profile
+  await service.from("tracker_entries").delete().eq("profile_id", id);
+  await service.from("inbox_items").delete().eq("profile_id", id);
+
+  const { error: dbError } = await service
+    .from("profiles")
+    .delete()
+    .eq("id", id);
+
+  if (dbError) {
+    logError(dbError.message, { sourceSystem: "api.admin.profile_delete", userId: admin?.id, metadata: { target_profile_id: id } });
+    return error(dbError.message, 500);
+  }
+
+  logEvent("admin.profile_delete", { userId: admin?.id, metadata: { target_profile_id: id, deleted_name: target.display_name, deleted_email: target.email } });
+  return json({ deleted: true });
+}
