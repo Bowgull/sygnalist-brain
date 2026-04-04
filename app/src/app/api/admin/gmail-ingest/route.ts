@@ -97,7 +97,8 @@ export async function POST() {
       }
     }
 
-    // Insert into jobs_inbox staging table
+    // Insert into global_job_bank (dedupe by URL)
+    let inserted = 0;
     if (jobs.length > 0) {
       const rows = jobs.map((j) => ({
         title: j.title || null,
@@ -106,22 +107,40 @@ export async function POST() {
         source: j.source,
         location: j.location,
         work_mode: j.work_mode,
-        enrichment_status: "pending",
       }));
 
-      await service.from("jobs_inbox").insert(rows);
+      // Filter to only jobs with URLs (required for upsert)
+      const withUrl = rows.filter((r) => r.url);
+      const withoutUrl = rows.filter((r) => !r.url);
+
+      if (withUrl.length > 0) {
+        const { data } = await service
+          .from("global_job_bank")
+          .upsert(withUrl, { onConflict: "url" })
+          .select("id");
+        inserted += data?.length ?? 0;
+      }
+
+      if (withoutUrl.length > 0) {
+        const { data } = await service
+          .from("global_job_bank")
+          .insert(withoutUrl)
+          .select("id");
+        inserted += data?.length ?? 0;
+      }
     }
 
     // Log the ingest
     await service.from("user_events").insert({
       user_id: profile.id,
       event_type: "gmail_ingest",
-      metadata: { messages_processed: messageIds.length, jobs_found: jobs.length },
+      metadata: { messages_processed: messageIds.length, jobs_found: jobs.length, jobs_inserted: inserted },
     });
 
     return json({
-      message: `Processed ${messageIds.length} emails, found ${jobs.length} jobs`,
-      jobs_ingested: jobs.length,
+      message: `Processed ${messageIds.length} emails, found ${jobs.length} jobs, ${inserted} added to job bank`,
+      jobs_ingested: inserted,
+      jobs_found: jobs.length,
     });
   } catch (err) {
     await service.from("error_logs").insert({

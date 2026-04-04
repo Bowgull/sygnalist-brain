@@ -66,7 +66,11 @@ export async function POST(
         title: job.title,
         company: job.company,
         location: job.location,
+        salary: job.salary,
+        work_mode: job.role_type,
         source: job.source,
+        job_summary: job.job_summary,
+        why_fit: job.why_fit,
       },
       { onConflict: "url" }
     );
