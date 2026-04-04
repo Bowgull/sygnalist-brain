@@ -21,8 +21,8 @@ export async function GET() {
 
   // Enrich with client + template + tracker data
   const clientIds = [...new Set((suggestions ?? []).map((s) => s.client_id))];
-  const templateIds = [...new Set((suggestions ?? []).map((s) => s.template_id).filter(Boolean))];
-  const trackerIds = [...new Set((suggestions ?? []).map((s) => s.tracker_entry_id).filter(Boolean))];
+  const templateIds = [...new Set((suggestions ?? []).map((s) => s.template_id).filter((id): id is string => id != null))];
+  const trackerIds = [...new Set((suggestions ?? []).map((s) => s.tracker_entry_id).filter((id): id is string => id != null))];
 
   const [clientsRes, templatesRes, trackersRes] = await Promise.all([
     clientIds.length > 0
