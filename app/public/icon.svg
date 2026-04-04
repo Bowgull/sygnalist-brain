@@ -10,23 +10,18 @@
       <stop offset="100%" style="stop-color:#39D6FF"/>
     </linearGradient>
   </defs>
+  <!-- Background -->
   <rect width="512" height="512" rx="108" fill="url(#bg)"/>
   <!-- Radar circle outer -->
-  <circle cx="256" cy="246" r="120" fill="none" stroke="url(#glow)" stroke-width="4" opacity="0.2"/>
-  <!-- Radar circle mid -->
-  <circle cx="256" cy="246" r="80" fill="none" stroke="url(#glow)" stroke-width="3" opacity="0.35"/>
+  <circle cx="256" cy="256" r="130" fill="none" stroke="url(#glow)" stroke-width="14.5" opacity="0.25"/>
   <!-- Radar circle inner -->
-  <circle cx="256" cy="246" r="40" fill="none" stroke="url(#glow)" stroke-width="2.5" opacity="0.5"/>
+  <circle cx="256" cy="256" r="55" fill="none" stroke="url(#glow)" stroke-width="11.5" opacity="0.5"/>
   <!-- Center dot -->
-  <circle cx="256" cy="246" r="10" fill="url(#glow)"/>
+  <circle cx="256" cy="256" r="16" fill="url(#glow)"/>
   <!-- Radar sweep line -->
-  <line x1="256" y1="246" x2="340" y2="170" stroke="url(#glow)" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
-  <!-- Signal dot 1 -->
-  <circle cx="340" cy="170" r="8" fill="#6AD7A3" opacity="0.9"/>
-  <!-- Signal dot 2 -->
-  <circle cx="200" cy="190" r="6" fill="#39D6FF" opacity="0.7"/>
-  <!-- Signal dot 3 -->
-  <circle cx="310" cy="290" r="5" fill="#A9FFB5" opacity="0.6"/>
-  <!-- Wordmark -->
-  <text x="256" y="420" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="800" font-size="48" fill="url(#glow)" letter-spacing="-1">SYGNALIST</text>
+  <line x1="256" y1="256" x2="355" y2="175" stroke="url(#glow)" stroke-width="6" stroke-linecap="round" opacity="0.9"/>
+  <!-- Signal dot (sweep tip) -->
+  <circle cx="355" cy="175" r="12" fill="#A9FFB5" opacity="0.95"/>
+  <!-- Star sparkle -->
+  <path d="M370 152 l2.5 5 5 2.5-5 2.5-2.5 5-2.5-5-5-2.5 5-2.5z" fill="#FFD77A" opacity="0.9"/>
 </svg>

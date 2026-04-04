@@ -12,7 +12,9 @@ export const metadata: Metadata = {
     title: "Sygnalist",
   },
   icons: {
-    icon: "/icon.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
     apple: "/icon.svg",
   },
 };
