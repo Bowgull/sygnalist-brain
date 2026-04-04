@@ -87,8 +87,10 @@ export async function POST() {
     }
     debug.push(`sent_with_msgid: ${sentByMessageId.size}`);
 
-    // --- Step 3: Search Gmail inbox — simple, no label filtering ---
-    const query = `in:inbox newer_than:7d`;
+    // --- Step 3: Search Gmail for messages sent TO this account (replies) ---
+    // Using "to:me" filters to only replies, not outgoing or noise
+    const gmailUser = process.env.GMAIL_SMTP_USER || "me";
+    const query = `to:${gmailUser} newer_than:7d -from:${gmailUser}`;
     const searchRes = await fetch(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${MAX_MESSAGES}`,
       { headers: { Authorization: `Bearer ${access_token}` } },
