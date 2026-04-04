@@ -4,6 +4,14 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+function logAuth(event: string, method?: string, error?: string) {
+  fetch("/api/auth/log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event, method, error }),
+  }).catch(() => {});
+}
+
 export default function LoginPage() {
   return (
     <Suspense>
@@ -61,6 +69,7 @@ function LoginForm() {
         const { error: signUpErr } = await supabase.auth.signUp({ email, password });
         if (signUpErr) {
           setMessage(signUpErr.message);
+          logAuth("login_failed", "password", signUpErr.message);
           setLoading(false);
           return;
         }
@@ -68,11 +77,13 @@ function LoginForm() {
         const { error: retryErr } = await supabase.auth.signInWithPassword({ email, password });
         if (retryErr) {
           setMessage(retryErr.message);
+          logAuth("login_failed", "password", retryErr.message);
           setLoading(false);
           return;
         }
       } else {
         setMessage(error.message);
+        logAuth("login_failed", "password", error.message);
         setLoading(false);
         return;
       }
@@ -80,6 +91,7 @@ function LoginForm() {
 
     // Step 3: Link auth user to profile
     await fetch("/api/auth/profile-init", { method: "POST" });
+    logAuth("login", "password");
     window.location.href = "/inbox";
   }
 
@@ -102,6 +114,7 @@ function LoginForm() {
     });
     if (error) {
       setMessage(error.message);
+      logAuth("login_failed", "magic", error.message);
     } else {
       setMessage("Check your email for the login link.");
     }

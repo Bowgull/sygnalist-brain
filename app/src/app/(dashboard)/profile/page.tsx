@@ -25,6 +25,11 @@ export default function ProfilePage() {
   }, []);
 
   async function handleSignOut() {
+    fetch("/api/auth/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "logout" }),
+    }).catch(() => {});
     await supabase.auth.signOut();
     router.push("/login");
   }

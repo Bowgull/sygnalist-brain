@@ -1,4 +1,5 @@
-import { requireAuth, json, error, getServiceClient } from "@/lib/api-helpers";
+import { requireAuth, json, error } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /** GET /api/tracker/:id — get a single tracker entry */
 export async function GET(
@@ -79,20 +80,14 @@ export async function PATCH(
     .select()
     .single();
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { sourceSystem: "api.tracker.patch", userId: profile.id, metadata: { tracker_entry_id: id } });
+    return error(dbError.message, 500);
+  }
 
   // Log status change event
   if (patch.status && patch.status !== current.status) {
-    const service = getServiceClient();
-    await service.from("user_events").insert({
-      user_id: profile.id,
-      event_type: "status_change",
-      metadata: {
-        tracker_entry_id: id,
-        from: current.status,
-        to: String(patch.status),
-      },
-    });
+    logEvent("tracker.status_change", { userId: profile.id, metadata: { tracker_entry_id: id, from: current.status, to: String(patch.status) } });
   }
 
   return json(data);
@@ -114,15 +109,12 @@ export async function DELETE(
     .eq("id", id)
     .eq("profile_id", profile.id);
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { sourceSystem: "api.tracker.delete", userId: profile.id, metadata: { tracker_entry_id: id } });
+    return error(dbError.message, 500);
+  }
 
-  // Log event
-  const service = getServiceClient();
-  await service.from("user_events").insert({
-    user_id: profile.id,
-    event_type: "remove_from_tracker",
-    metadata: { tracker_entry_id: id },
-  });
+  logEvent("tracker.remove", { userId: profile.id, metadata: { tracker_entry_id: id } });
 
   return json({ ok: true });
 }

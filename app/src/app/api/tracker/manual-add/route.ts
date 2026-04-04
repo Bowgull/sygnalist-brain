@@ -1,7 +1,9 @@
-import { requireAuth, json, error, getServiceClient } from "@/lib/api-helpers";
+import { requireAuth, json, error, getServiceClient, getRequestId } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /** POST /api/tracker/manual-add — manually add a job to tracker */
 export async function POST(request: Request) {
+  const requestId = getRequestId(request);
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;
   if (!profile) return error("Profile not found", 404);
@@ -22,6 +24,7 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (existing && existing.length > 0) {
+      logEvent("tracker.manual_add", { userId: profile.id, requestId, success: false, metadata: { url: body.url, reason: "duplicate_url" } });
       return error("Job with this URL already in tracker", 409);
     }
   }
@@ -42,7 +45,10 @@ export async function POST(request: Request) {
     .select()
     .single();
 
-  if (insertErr) return error(insertErr.message, 500);
+  if (insertErr) {
+    logError(insertErr.message, { sourceSystem: "api.tracker.manual_add", userId: profile.id, requestId, metadata: { title: body.title, company: body.company } });
+    return error(insertErr.message, 500);
+  }
 
   // Also upsert to global job bank if URL provided
   if (body.url) {
@@ -59,13 +65,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Log event
-  const service = getServiceClient();
-  await service.from("user_events").insert({
-    user_id: profile.id,
-    event_type: "manual_add",
-    metadata: { tracker_entry_id: entry.id },
-  });
+  logEvent("tracker.manual_add", { userId: profile.id, requestId, metadata: { tracker_entry_id: entry.id } });
 
   return json(entry, 201);
 }

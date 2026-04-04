@@ -1,4 +1,5 @@
 import { requireAuth, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 import { runFetchPipeline } from "@/lib/sources/orchestrator";
 
 /**
@@ -19,11 +20,7 @@ export async function POST() {
   const service = getServiceClient();
 
   // Log the fetch event
-  await service.from("user_events").insert({
-    user_id: profile.id,
-    event_type: "fetch",
-    metadata: { triggered_by: "user" },
-  });
+  logEvent("fetch.started", { userId: profile.id, metadata: { triggered_by: "user" } });
 
   try {
     const result = await runFetchPipeline(profile, service);
@@ -39,14 +36,14 @@ export async function POST() {
       duration_ms: result.duration_ms,
     });
   } catch (err) {
-    // Log the error
-    await service.from("error_logs").insert({
-      severity: "error",
-      source_system: "fetch_pipeline",
-      message: err instanceof Error ? err.message : "Unknown fetch error",
-      stack_trace: err instanceof Error ? err.stack ?? null : null,
-      user_id: profile.id,
-    });
+    logError(
+      err instanceof Error ? err.message : "Unknown fetch error",
+      {
+        sourceSystem: "fetch_pipeline",
+        userId: profile.id,
+        stackTrace: err instanceof Error ? err.stack ?? undefined : undefined,
+      }
+    );
 
     return error("Fetch failed — please try again", 500);
   }

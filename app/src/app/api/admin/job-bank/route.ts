@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /** GET /api/admin/job-bank — get global job bank entries */
 export async function GET(request: Request) {
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
 
 /** POST /api/admin/job-bank — add a single job or array of jobs */
 export async function POST(request: Request) {
-  const { response } = await requireAdmin();
+  const { profile: admin, response } = await requireAdmin();
   if (response) return response;
 
   const body = await request.json();
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
     totalInserted += data?.length ?? 0;
   }
 
+  logEvent("admin.job_bank_upsert", { userId: admin?.id, metadata: { count: totalInserted } });
   return json({ upserted: totalInserted });
 }
 
@@ -119,7 +121,7 @@ export async function PATCH(request: Request) {
 
 /** DELETE /api/admin/job-bank — remove a job by ID or URL */
 export async function DELETE(request: Request) {
-  const { response } = await requireAdmin();
+  const { profile: admin, response } = await requireAdmin();
   if (response) return response;
 
   const { searchParams } = new URL(request.url);
@@ -133,6 +135,7 @@ export async function DELETE(request: Request) {
       .delete()
       .eq("id", id);
     if (dbError) return error(dbError.message, 500);
+    logEvent("admin.job_bank_delete", { userId: admin?.id, metadata: { job_id: id } });
     return json({ ok: true });
   }
 
@@ -147,6 +150,7 @@ export async function DELETE(request: Request) {
       .delete()
       .eq("url", body.url);
     if (dbError) return error(dbError.message, 500);
+    logEvent("admin.job_bank_delete", { userId: admin?.id, metadata: { url: body.url } });
     return json({ ok: true });
   } catch {
     return error("id query param or { url } body required");

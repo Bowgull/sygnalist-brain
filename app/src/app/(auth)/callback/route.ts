@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { logEvent } from "@/lib/logger";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -40,11 +41,14 @@ export async function GET(request: Request) {
             .eq("id", profile.id)
             .is("auth_user_id", null);
         }
+
+        await logEvent("auth.login", { userId: profile?.id, metadata: { method: "oauth_callback" } });
       }
 
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
 
+  await logEvent("auth.login_failed", { success: false, metadata: { method: "oauth_callback", error: "code_exchange_failed" } });
   return NextResponse.redirect(`${origin}/login?error=auth_failed`);
 }

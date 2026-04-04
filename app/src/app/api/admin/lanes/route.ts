@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /** GET /api/admin/lanes — get all lane-role bank entries */
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
 
 /** POST /api/admin/lanes — add a role to the lane bank */
 export async function POST(request: Request) {
-  const { response } = await requireAdmin();
+  const { profile: admin, response } = await requireAdmin();
   if (response) return response;
 
   const body = await request.json();
@@ -38,5 +39,7 @@ export async function POST(request: Request) {
     .single();
 
   if (dbError) return error(dbError.message, 500);
+
+  logEvent("admin.lane_add", { userId: admin?.id, metadata: { lane_key: body.lane_key, role_name: body.role_name } });
   return json(data, 201);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import JobCard from "@/components/inbox/job-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import LoadingMessages from "@/components/ui/loading-messages";
@@ -48,13 +49,28 @@ export default function InboxPage() {
   }, [activeLane, fetchJobs]);
 
   async function handlePromote(id: string) {
-    await fetch(`/api/inbox/${id}/promote`, { method: "POST" });
+    const res = await fetch(`/api/inbox/${id}/promote`, { method: "POST" });
+    const data = await res.json().catch(() => null);
+    if (res.ok) {
+      toast.success("Added to Tracker");
+    } else if (res.status === 409) {
+      toast.error("Already in Tracker");
+    } else {
+      toast.error(data?.error ?? "Failed to promote");
+    }
   }
 
   async function handleDismiss(id: string) {
+    const prevJobs = jobs;
+    const prevTotal = total;
     setJobs((prev) => prev.filter((j) => j.id !== id));
     setTotal((prev) => prev - 1);
-    await fetch(`/api/inbox/${id}/dismiss`, { method: "POST" });
+    const res = await fetch(`/api/inbox/${id}/dismiss`, { method: "POST" });
+    if (!res.ok) {
+      setJobs(prevJobs);
+      setTotal(prevTotal);
+      toast.error("Failed to dismiss");
+    }
   }
 
   return (

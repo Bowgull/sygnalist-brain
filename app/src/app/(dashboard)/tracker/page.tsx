@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import TrackerCard from "@/components/tracker/tracker-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import type { Database } from "@/types/database";
@@ -76,19 +77,30 @@ export default function TrackerPage() {
   }
 
   async function handleUpdate(id: string, patch: Record<string, unknown>) {
+    const prevEntries = entries;
     setEntries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...patch } as TrackerEntry : e))
     );
-    await fetch(`/api/tracker/${id}`, {
+    const res = await fetch(`/api/tracker/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
+    if (!res.ok) {
+      setEntries(prevEntries);
+      const data = await res.json().catch(() => null);
+      toast.error(data?.error ?? "Failed to update");
+    }
   }
 
   async function handleDelete(id: string) {
+    const prevEntries = entries;
     setEntries((prev) => prev.filter((e) => e.id !== id));
-    await fetch(`/api/tracker/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/tracker/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setEntries(prevEntries);
+      toast.error("Failed to remove");
+    }
   }
 
   async function handleManualAdd(data: { title: string; company: string; url?: string; location?: string; notes?: string }) {
@@ -101,6 +113,12 @@ export default function TrackerPage() {
       const entry = await res.json();
       setEntries((prev) => [entry, ...prev]);
       setShowManualAdd(false);
+      toast.success("Added to Tracker");
+    } else if (res.status === 409) {
+      toast.error("Job with this URL already tracked");
+    } else {
+      const err = await res.json().catch(() => null);
+      toast.error(err?.error ?? "Failed to add");
     }
   }
 
