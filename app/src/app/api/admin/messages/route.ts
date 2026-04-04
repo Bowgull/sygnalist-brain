@@ -64,31 +64,34 @@ export async function POST(request: Request) {
   const result = await sendEmail(client.email, subject, emailBody);
 
   // Always save the message (even if email delivery failed)
+  const validTemplateId = template_id && uuidRegex.test(template_id) ? template_id : null;
+  const validTrackerId = tracker_entry_id && uuidRegex.test(tracker_entry_id) ? tracker_entry_id : null;
+
   const { data: msg, error: insertErr } = await service
     .from("sent_messages")
     .insert({
       coach_id: profile.id,
       client_id,
-      template_id: template_id || null,
+      template_id: validTemplateId,
       subject,
       body: emailBody,
-      trigger_event: tracker_entry_id ? "manual_with_tracker" : "manual",
-      tracker_entry_id: tracker_entry_id || null,
+      trigger_event: validTrackerId ? "manual_with_tracker" : "manual",
+      tracker_entry_id: validTrackerId,
     })
     .select()
     .single();
 
-  if (insertErr) return error(insertErr.message, 500);
+  if (insertErr) return error(`Save failed: ${insertErr.message}`, 500);
 
   // Log to email_logs
   await service.from("email_logs").insert({
     recipient_email: client.email,
     recipient_id: client_id,
-    email_type: template_id ? "template" : "manual",
+    email_type: validTemplateId ? "template" : "manual",
     subject,
     success: result.success,
     error_message: result.error || null,
-    template_id: template_id || null,
+    template_id: validTemplateId,
   });
 
   return json({
