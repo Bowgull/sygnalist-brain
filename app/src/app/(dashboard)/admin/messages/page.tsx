@@ -1029,6 +1029,9 @@ function ConversationsView({
   const [replyBody, setReplyBody] = useState("");
   const [replySending, setReplySending] = useState(false);
 
+  // Thread expansion state
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     loadConversations();
   }, []);
@@ -1092,7 +1095,8 @@ function ConversationsView({
     setThread([]);
     setReplySubject("");
     setReplyBody("");
-    loadConversations(); // Refresh unread counts
+    setExpandedThreads(new Set());
+    loadConversations();
   }
 
   async function sendReply() {
@@ -1120,8 +1124,69 @@ function ConversationsView({
     setReplySending(false);
   }
 
+  // Group messages by subject thread, newest thread first
+  function groupByThread(messages: ThreadMessage[]) {
+    const groups = new Map<string, ThreadMessage[]>();
+    for (const msg of messages) {
+      // Normalize subject: strip "Re: " prefixes for grouping
+      const baseSubject = (msg.subject || "(no subject)")
+        .replace(/^(Re:\s*)+/i, "")
+        .trim() || "(no subject)";
+      const existing = groups.get(baseSubject) ?? [];
+      existing.push(msg);
+      groups.set(baseSubject, existing);
+    }
+    // Sort messages within each group: newest first
+    for (const msgs of groups.values()) {
+      msgs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+    // Sort groups by their newest message: newest thread first
+    const sorted = [...groups.entries()].sort((a, b) => {
+      const aNewest = new Date(a[1][0].timestamp).getTime();
+      const bNewest = new Date(b[1][0].timestamp).getTime();
+      return bNewest - aNewest;
+    });
+    return sorted;
+  }
+
+  // Strip quoted email text from reply body
+  function stripQuotedText(body: string): string {
+    const lines = body.split("\n");
+    const cleaned: string[] = [];
+    for (const line of lines) {
+      // Stop at quoted content markers
+      if (/^On .+ wrote:$/i.test(line.trim())) break;
+      if (/^>/.test(line.trim())) break;
+      if (/^-{3,}/.test(line.trim()) && cleaned.length > 0) break;
+      if (/^_{3,}/.test(line.trim()) && cleaned.length > 0) break;
+      cleaned.push(line);
+    }
+    // Trim trailing empty lines
+    while (cleaned.length > 0 && cleaned[cleaned.length - 1].trim() === "") {
+      cleaned.pop();
+    }
+    return cleaned.join("\n") || body;
+  }
+
   /* -- Thread view -- */
   if (selectedClientId) {
+    const threadGroups = groupByThread(thread);
+
+    // Auto-expand all threads on first load
+    if (expandedThreads.size === 0 && threadGroups.length > 0) {
+      const allSubjects = new Set(threadGroups.map(([subject]) => subject));
+      if (allSubjects.size > 0) setExpandedThreads(allSubjects);
+    }
+
+    function toggleThread(subject: string) {
+      setExpandedThreads((prev) => {
+        const next = new Set(prev);
+        if (next.has(subject)) next.delete(subject);
+        else next.add(subject);
+        return next;
+      });
+    }
+
     return (
       <div className="flex flex-col space-y-3">
         <div className="flex items-center gap-2">
@@ -1142,32 +1207,92 @@ function ConversationsView({
             No messages in this conversation yet
           </div>
         ) : (
-          <div className="max-h-[500px] space-y-2 overflow-y-auto">
-            {thread.map((msg, i) => {
-              const prevSubject = i > 0 ? thread[i - 1].subject : null;
-              const showSubject = msg.subject && msg.subject !== prevSubject;
+          <div className="space-y-4">
+            {threadGroups.map(([subject, messages]) => {
+              const isExpanded = expandedThreads.has(subject);
+              const hasReply = messages.some((m) => m.direction === "received");
+              const newestMsg = messages[0];
 
               return (
-                <div
-                  key={msg.id}
-                  className={`rounded-xl p-3 ${
-                    msg.direction === "sent"
-                      ? "ml-8 bg-[#171F28] border border-[rgba(255,255,255,0.08)]"
-                      : "mr-8 bg-[#151C24] border-l-2 border-[#6AD7A3]/40"
-                  }`}
-                >
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
-                      {msg.direction === "sent" ? "You" : selectedClientName}
-                    </span>
-                    <span className="text-[10px] text-[#6B7280]">
-                      {formatTimeAgo(new Date(msg.timestamp))}
-                    </span>
-                  </div>
-                  {showSubject && (
-                    <p className="mb-1 text-[12px] font-semibold text-[#B8BFC8]">{msg.subject}</p>
+                <div key={subject} className="rounded-2xl border border-[#2A3544]/60 bg-[#0C1016] overflow-hidden">
+                  {/* Thread header — gold accent */}
+                  <button
+                    onClick={() => toggleThread(subject)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[#151C24]"
+                  >
+                    <div
+                      className="h-6 w-1 rounded-full shrink-0"
+                      style={{ background: "linear-gradient(180deg, #FAD76A, #FAD76A80)" }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-semibold text-white truncate">{subject}</span>
+                        {hasReply && (
+                          <span className="shrink-0 rounded-full bg-[#6AD7A3]/10 px-1.5 py-0.5 text-[9px] font-bold text-[#6AD7A3]">
+                            REPLY
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-[#6B7280]">
+                        {messages.length} message{messages.length !== 1 ? "s" : ""} &middot; {formatTimeAgo(new Date(newestMsg.timestamp))}
+                      </span>
+                    </div>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`h-4 w-4 text-[#6B7280] transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+
+                  {/* Messages — newest first */}
+                  {isExpanded && (
+                    <div className="border-t border-[#2A3544]/40 px-3 pb-3 pt-2 space-y-2">
+                      {messages.map((msg) => {
+                        const isSent = msg.direction === "sent";
+                        const displayBody = isSent ? msg.body : stripQuotedText(msg.body);
+
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`rounded-xl p-3 ${
+                              isSent
+                                ? "bg-[#171F28]/60 border border-[rgba(255,255,255,0.04)]"
+                                : "bg-[#151C24] border-l-[3px]"
+                            }`}
+                            style={
+                              !isSent
+                                ? { borderImage: "linear-gradient(180deg, #A9FFB5, #5EF2C7, #39D6FF) 1" }
+                                : undefined
+                            }
+                          >
+                            <div className="mb-1.5 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {isSent ? (
+                                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#6B7280]">You</span>
+                                ) : (
+                                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[#6AD7A3]">
+                                    {selectedClientName}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-[#4B5563]">
+                                {formatTimeAgo(new Date(msg.timestamp))}
+                              </span>
+                            </div>
+                            <p className={`whitespace-pre-wrap text-[13px] leading-relaxed ${
+                              isSent ? "text-[#B8BFC8]" : "text-white"
+                            }`}>
+                              {displayBody}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
-                  <p className="whitespace-pre-wrap text-[13px] text-white">{msg.body}</p>
                 </div>
               );
             })}
