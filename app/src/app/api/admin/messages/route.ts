@@ -1,5 +1,6 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { sendEmail } from "@/lib/email";
+import { logEvent, logError } from "@/lib/logger";
 
 /**
  * GET /api/admin/messages — List sent messages with optional client filter
@@ -63,6 +64,15 @@ export async function POST(request: Request) {
   // Send via Gmail SMTP
   const result = await sendEmail(client.email, subject, emailBody);
 
+  if (!result.success) {
+    await logError(result.error ?? "Email send failed", {
+      severity: "error",
+      sourceSystem: "smtp.send",
+      userId: profile.id,
+      metadata: { client_id, subject },
+    });
+  }
+
   // Always save the message (even if email delivery failed)
   const validTemplateId = template_id && uuidRegex.test(template_id) ? template_id : null;
   const validTrackerId = tracker_entry_id && uuidRegex.test(tracker_entry_id) ? tracker_entry_id : null;
@@ -84,15 +94,26 @@ export async function POST(request: Request) {
   if (insertErr) return error(`Save failed: ${insertErr.message}`, 500);
 
   // Log to email_logs
-  await service.from("email_logs").insert({
-    recipient_email: client.email,
-    recipient_id: client_id,
-    email_type: validTemplateId ? "template" : "manual",
-    subject,
-    success: result.success,
-    error_message: result.error || null,
-    template_id: validTemplateId,
-  });
+  try {
+    await service.from("email_logs").insert({
+      recipient_email: client.email,
+      recipient_id: client_id,
+      email_type: validTemplateId ? "template" : "manual",
+      subject,
+      success: result.success,
+      error_message: result.error || null,
+      template_id: validTemplateId,
+    });
+  } catch {
+    // email_logs insert must not break the response
+  }
+
+  if (result.success) {
+    await logEvent("message.sent", {
+      userId: profile.id,
+      metadata: { client_id, template_id: validTemplateId, message_id: msg.id },
+    });
+  }
 
   return json({
     sent: result.success,

@@ -1,5 +1,6 @@
 import type { RawJob, SourceResult, FetchContext } from "./types";
-import type { Database, Json } from "@/types/database";
+import type { Database } from "@/types/database";
+import { logError } from "@/lib/logger";
 import { fetchAdzuna } from "./adzuna";
 import { fetchJooble } from "./jooble";
 import { fetchJSearch } from "./jsearch";
@@ -159,11 +160,21 @@ export async function runFetchPipeline(
     fetchHimalayas(ctx),
   ];
 
+  const sourceNames = ["adzuna", "jooble", "jsearch", "linkedin", "arbeitnow", "himalayas"];
   const results = await Promise.allSettled(sourcePromises);
   const sourceResults: SourceResult[] = [];
-  for (const r of results) {
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
     if (r.status === "fulfilled") {
       sourceResults.push(r.value);
+    } else {
+      // Log rejected source fetches
+      await logError(`Source ${sourceNames[i]} crashed: ${r.reason}`, {
+        severity: "warning",
+        sourceSystem: `fetch.${sourceNames[i]}`,
+        userId: profile.id,
+        metadata: { request_id: requestId },
+      });
     }
   }
 
@@ -212,10 +223,19 @@ export async function runFetchPipeline(
       category: job.category || null,
     }));
 
-    await service.from("inbox_jobs").insert(rows);
+    const { error: insertErr } = await service.from("inbox_jobs").insert(rows);
+    if (insertErr) {
+      await logError(`Inbox insert failed: ${insertErr.message}`, {
+        sourceSystem: "fetch.orchestrator",
+        userId: profile.id,
+        metadata: { request_id: requestId, jobs_attempted: rows.length },
+      });
+    }
   }
 
-  // Log each source result
+  const pipelineDuration = Date.now() - pipelineStart;
+
+  // Log each source result + summary row (batch receipt)
   const logRows = sourceResults.map((sr) => ({
     profile_id: profile.id,
     batch_id: requestId,
@@ -228,13 +248,34 @@ export async function runFetchPipeline(
     request_id: requestId,
   }));
 
-  await service.from("job_fetch_logs").insert(logRows);
+  // Summary row — the batch receipt
+  logRows.push({
+    profile_id: profile.id,
+    batch_id: requestId,
+    source_name: "summary",
+    jobs_returned: totalRaw,
+    jobs_after_dedupe: afterDedupe,
+    success: enriched.length > 0 || totalRaw === 0,
+    error_message: null,
+    duration_ms: pipelineDuration,
+    request_id: requestId,
+  });
+
+  try {
+    await service.from("job_fetch_logs").insert(logRows);
+  } catch {
+    // Fetch log insert must not break the pipeline
+  }
 
   // Update last_fetch_at on profile
-  await service
-    .from("profiles")
-    .update({ last_fetch_at: new Date().toISOString() })
-    .eq("id", profile.id);
+  try {
+    await service
+      .from("profiles")
+      .update({ last_fetch_at: new Date().toISOString() })
+      .eq("id", profile.id);
+  } catch {
+    // Profile update must not break the pipeline
+  }
 
   return {
     requestId,
@@ -249,7 +290,7 @@ export async function runFetchPipeline(
     afterDedupe,
     afterFilter,
     jobsDelivered: enriched.length,
-    duration_ms: Date.now() - pipelineStart,
+    duration_ms: pipelineDuration,
   };
 }
 

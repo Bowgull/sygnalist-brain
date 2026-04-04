@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { logEvent } from "@/lib/logger";
 
 /**
  * POST /api/auth/check-access
@@ -15,19 +16,26 @@ export async function POST(request: Request) {
   }
 
   const service = createServiceClient();
-  const { data } = await service
+  const { data, error: dbErr } = await service
     .from("profiles")
     .select("id, status")
     .ilike("email", email)
     .limit(1)
     .single();
 
-  if (!data) {
+  if (dbErr || !data) {
+    await logEvent("auth.access_denied", {
+      success: false,
+      metadata: { email, reason: "no_profile" },
+    });
     return NextResponse.json({ allowed: false });
   }
 
-  // Also block locked profiles
   if (data.status === "inactive_soft_locked") {
+    await logEvent("auth.access_denied", {
+      success: false,
+      metadata: { email, reason: "locked" },
+    });
     return NextResponse.json({ allowed: false, reason: "locked" });
   }
 

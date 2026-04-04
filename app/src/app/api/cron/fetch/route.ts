@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { json, error, getServiceClient } from "@/lib/api-helpers";
 import { runFetchPipeline } from "@/lib/sources/orchestrator";
+import { logEvent, logError } from "@/lib/logger";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -48,21 +49,22 @@ export async function GET(request: NextRequest) {
         error: msg,
       });
 
-      await service.from("error_logs").insert({
-        severity: "error",
-        source_system: "cron_fetch",
-        message: `Cron fetch failed for ${profile.display_name}: ${msg}`,
-        user_id: profile.id,
+      await logError(`Cron fetch failed for ${profile.display_name}: ${msg}`, {
+        sourceSystem: "cron.fetch",
+        userId: profile.id,
+        metadata: { profile_id: profile.profile_id },
       });
     }
   }
 
-  // Log the cron run
-  await service.from("user_events").insert({
-    event_type: "cron_fetch",
+  const totalJobs = results.reduce((sum, r) => sum + r.jobs, 0);
+  const failedCount = results.filter((r) => r.error).length;
+
+  await logEvent("cron.fetch_completed", {
     metadata: {
       profiles_processed: profiles.length,
-      total_jobs: results.reduce((sum, r) => sum + r.jobs, 0),
+      profiles_failed: failedCount,
+      total_jobs: totalJobs,
     },
   });
 

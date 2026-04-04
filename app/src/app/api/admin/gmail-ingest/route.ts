@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logEvent, logError } from "@/lib/logger";
 
 /**
  * POST /api/admin/gmail-ingest — trigger Gmail ingest.
@@ -62,6 +63,9 @@ export async function POST() {
 
     const jobs: Array<{ title: string; company: string; url: string; location: string | null; work_mode: string | null; source: string }> = [];
 
+    let skippedFetch = 0;
+    let skippedNoHtml = 0;
+
     // Process each message
     for (const msgId of messageIds) {
       const msgRes = await fetch(
@@ -69,7 +73,7 @@ export async function POST() {
         { headers: { Authorization: `Bearer ${access_token}` } },
       );
 
-      if (!msgRes.ok) continue;
+      if (!msgRes.ok) { skippedFetch++; continue; }
       const msg = await msgRes.json();
 
       // Get sender from headers
@@ -80,7 +84,7 @@ export async function POST() {
 
       // Get HTML body
       const html = extractHtmlBody(msg.payload);
-      if (!html) continue;
+      if (!html) { skippedNoHtml++; continue; }
 
       // Route to appropriate parser based on sender
       if (from.includes("ziprecruiter")) {
@@ -130,11 +134,15 @@ export async function POST() {
       }
     }
 
-    // Log the ingest
-    await service.from("user_events").insert({
-      user_id: profile.id,
-      event_type: "gmail_ingest",
-      metadata: { messages_processed: messageIds.length, jobs_found: jobs.length, jobs_inserted: inserted },
+    await logEvent("gmail.ingest_completed", {
+      userId: profile.id,
+      metadata: {
+        messages_total: messageIds.length,
+        messages_skipped_fetch: skippedFetch,
+        messages_skipped_no_html: skippedNoHtml,
+        jobs_found: jobs.length,
+        jobs_inserted: inserted,
+      },
     });
 
     return json({
@@ -143,11 +151,10 @@ export async function POST() {
       jobs_found: jobs.length,
     });
   } catch (err) {
-    await service.from("error_logs").insert({
-      severity: "error",
-      source_system: "gmail_ingest",
-      message: err instanceof Error ? err.message : "Unknown gmail ingest error",
-      user_id: profile.id,
+    const msg = err instanceof Error ? err.message : "Unknown gmail ingest error";
+    await logError(msg, {
+      sourceSystem: "gmail.ingest",
+      userId: profile.id,
     });
     return error("Gmail ingest failed", 500);
   }

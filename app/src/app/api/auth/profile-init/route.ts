@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase, createServiceClient } from "@/lib/supabase/server";
+import { logEvent, logError } from "@/lib/logger";
 
 /**
  * POST /api/auth/profile-init
@@ -39,14 +40,32 @@ export async function POST() {
       .single();
 
     if (profile) {
-      await service
+      const { error: updateErr } = await service
         .from("profiles")
         .update({ auth_user_id: user.id })
         .eq("id", profile.id);
 
+      if (updateErr) {
+        await logError(updateErr.message, {
+          sourceSystem: "auth.profile_init",
+          metadata: { email: user.email, profile_id: profile.id },
+        });
+        return NextResponse.json({ ok: false, linked: false, reason: "link_failed" });
+      }
+
+      await logEvent("auth.profile_linked", {
+        userId: profile.id,
+        metadata: { email: user.email },
+      });
+
       return NextResponse.json({ ok: true, linked: true });
     }
   }
+
+  await logEvent("auth.access_denied", {
+    success: false,
+    metadata: { email: user.email, reason: "no_profile" },
+  });
 
   return NextResponse.json({ ok: false, linked: false, reason: "no_profile" });
 }

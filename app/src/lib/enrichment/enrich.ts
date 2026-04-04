@@ -1,6 +1,7 @@
 import type { ScoredJob } from "@/lib/scoring/score";
 import type { Database, Json } from "@/types/database";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logError } from "@/lib/logger";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -24,15 +25,25 @@ export async function enrichJobs(
   }
 
   const enriched: EnrichedJob[] = [];
+  let failedCount = 0;
 
   for (const job of jobs) {
     try {
       const result = await enrichOne(job, profile, service);
       enriched.push(result);
     } catch {
-      // If enrichment fails, keep the job without enrichment
+      failedCount++;
       enriched.push(job);
     }
+  }
+
+  if (failedCount > 0) {
+    await logError(`Enrichment failed for ${failedCount}/${jobs.length} jobs`, {
+      severity: "warning",
+      sourceSystem: "openai.enrich",
+      userId: profile.id,
+      metadata: { failed_count: failedCount, total_count: jobs.length },
+    });
   }
 
   return enriched;
