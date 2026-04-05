@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil, Radar, Eye, Columns3, Link2, Lock, Unlock, Trash2, X, Plus, Check } from "lucide-react";
+import { ActionButton } from "@/components/ui/action-button";
+import { IconButton } from "@/components/ui/icon-button";
 import type { Database } from "@/types/database";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -178,20 +181,22 @@ export default function AdminClientsPage() {
             onClick={() => router.push("/admin/onboard")}
             className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-3 py-1.5 text-[12px] font-semibold text-[#0C1016]"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+            <Plus size={16} strokeWidth={2.5} />
             Onboard
           </button>
         </div>
       </div>
 
       {/* Client cards */}
-      {profiles.map((p) => (
+      {profiles.map((p) => {
+          const isLocked = p.status !== "active";
+          const isStale = !isLocked && p.last_fetch_at && (Date.now() - new Date(p.last_fetch_at).getTime()) > 7 * 24 * 60 * 60 * 1000;
+          const borderColor = isLocked ? "#DC2626" : isStale ? "#F59E0B" : "#6AD7A3";
+          return (
           <div
             key={p.id}
-            className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4"
+            className="rounded-2xl border border-[rgba(255,255,255,0.12)] border-t-2 bg-[#171F28] p-4"
+            style={{ borderTopColor: borderColor }}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -245,71 +250,62 @@ export default function AdminClientsPage() {
             </div>
 
             {/* Action buttons */}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <ActionButton
+                icon={editingId === p.id ? X : Pencil}
+                label={editingId === p.id ? "Close" : "Edit"}
+                variant="navigate"
                 onClick={() => setEditingId(editingId === p.id ? null : p.id)}
-                className="rounded-full border border-[#2A3544] px-3 py-1 text-[11px] font-medium text-[#B8BFC8] hover:border-[#6AD7A3]/50"
-              >
-                {editingId === p.id ? "Close" : "Edit"}
-              </button>
-              <button
-                type="button"
+              />
+              <ActionButton
+                icon={Radar}
+                label={fetchingId === p.id ? "Fetching..." : "Fetch"}
+                variant="operate"
                 onClick={() => handleFetch(p.id, p.display_name)}
                 disabled={fetchingId === p.id || p.status !== "active"}
-                className="rounded-full border border-[#6AD7A3]/30 px-3 py-1 text-[11px] font-medium text-[#6AD7A3] hover:bg-[#6AD7A3]/10 disabled:opacity-40"
-              >
-                {fetchingId === p.id ? "Fetching..." : "Fetch"}
-              </button>
-              <button
-                type="button"
+              />
+              <ActionButton
+                icon={Eye}
+                label="View As"
+                variant="view"
                 onClick={() => window.open(`/inbox?view_as=${p.id}`, '_blank')}
-                className="rounded-full border border-[#38BDF8]/30 px-3 py-1 text-[11px] font-medium text-[#38BDF8] hover:bg-[#38BDF8]/10"
-              >
-                View As
-              </button>
-              <button
-                type="button"
+              />
+              <ActionButton
+                icon={Columns3}
+                label="Lanes"
+                variant="navigate"
+                className="border-[#8B5CF6]/30 text-[#8B5CF6] hover:bg-[#8B5CF6]/10 hover:text-[#8B5CF6]"
                 onClick={() => router.push(`/admin/lanes?profile=${p.id}`)}
-                className="rounded-full border border-[#8B5CF6]/30 px-3 py-1 text-[11px] font-medium text-[#8B5CF6] hover:bg-[#8B5CF6]/10"
-              >
-                Lanes
-              </button>
-              <button
-                type="button"
+              />
+              <ActionButton
+                icon={Link2}
+                label="Get Link"
+                variant="view"
                 onClick={() => copyLink(p.id)}
-                className="rounded-full border border-[#2A3544] px-3 py-1 text-[11px] font-medium text-[#9CA3AF] hover:text-[#B8BFC8]"
-              >
-                Get Link
-              </button>
+              />
               <div className="ml-auto flex items-center gap-2">
                 {p.status === "active" ? (
-                  <button
-                    type="button"
+                  <ActionButton
+                    icon={Lock}
+                    label="Lock"
+                    variant="destructive"
                     onClick={() => handleUpdate(p.id, { status: "inactive_soft_locked", status_reason: "Locked by admin" })}
-                    className="rounded-full border border-[#DC2626]/30 px-3 py-1 text-[11px] font-medium text-[#DC2626] hover:bg-[#DC2626]/10"
-                  >
-                    Lock
-                  </button>
+                  />
                 ) : (
-                  <button
-                    type="button"
+                  <ActionButton
+                    icon={Unlock}
+                    label="Unlock"
+                    variant="operate"
                     onClick={() => handleUpdate(p.id, { status: "active", status_reason: "" })}
-                    className="rounded-full border border-[#6AD7A3]/30 px-3 py-1 text-[11px] font-medium text-[#6AD7A3] hover:bg-[#6AD7A3]/10"
-                  >
-                    Unlock
-                  </button>
+                  />
                 )}
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirm({ id: p.id, name: p.display_name, step: 1 })}
-                  className="rounded-full border border-[#DC2626]/20 px-2 py-1 text-[11px] text-[#6B7280] hover:border-[#DC2626]/40 hover:text-[#DC2626]"
+                <IconButton
+                  icon={Trash2}
+                  variant="destructive"
+                  size="sm"
                   title="Delete profile"
-                >
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
+                  onClick={() => setDeleteConfirm({ id: p.id, name: p.display_name, step: 1 })}
+                />
               </div>
             </div>
 
@@ -317,7 +313,8 @@ export default function AdminClientsPage() {
               <ProfileEditor profile={p} onSave={(patch) => handleUpdate(p.id, patch)} />
             )}
           </div>
-        ))}
+        );
+        })}
     </div>
   );
 }

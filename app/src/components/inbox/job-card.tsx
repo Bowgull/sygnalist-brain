@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { ExternalLink, Plus, Check, X } from "lucide-react";
 import TierBadge from "@/components/ui/tier-badge";
 import type { Database } from "@/types/database";
 
@@ -83,17 +84,12 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
       {/* Mobile swipe indicators */}
       {swipeX > 30 && (
         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6AD7A3] md:hidden">
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
+          <Check size={24} strokeWidth={2.5} />
         </div>
       )}
       {swipeX < -30 && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#DC2626] md:hidden">
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <X size={24} strokeWidth={2.5} />
         </div>
       )}
 
@@ -182,10 +178,7 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
                   rel="noopener noreferrer"
                   className="inline-flex h-[34px] items-center gap-1.5 rounded-full border border-[#2A3544] px-4 text-[0.8125rem] font-medium text-[#B8BFC8] transition-all hover:border-[#6AD7A3]/40 hover:text-white hover:-translate-y-px"
                 >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
+                  <ExternalLink size={16} strokeWidth={2} />
                   View Full
                 </a>
               )}
@@ -200,17 +193,12 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
               >
                 {promoted ? (
                   <>
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
+                    <Check size={16} strokeWidth={2.5} />
                     In Tracker
                   </>
                 ) : (
                   <>
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
+                    <Plus size={16} strokeWidth={2} />
                     Add to Tracker
                   </>
                 )}
@@ -223,6 +211,7 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
                 }}
                 className="inline-flex h-[34px] items-center gap-1.5 rounded-full border border-[#2A3544] px-4 text-[0.8125rem] font-medium text-[#9CA3AF] transition-all hover:border-[#DC2626]/40 hover:text-[#DC2626] hover:-translate-y-px"
               >
+                <X size={16} strokeWidth={2} />
                 Not Interested
               </button>
             </div>

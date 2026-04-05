@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Zap, Send, Eye, X, Pencil } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -402,8 +403,9 @@ function OutreachView({
               <button
                 onClick={sendEdited}
                 disabled={editSending || !editSubject || !editBody}
-                className="rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-6 py-2 text-sm font-semibold text-[#0C1016] transition disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-6 py-2 text-sm font-semibold text-[#0C1016] transition disabled:opacity-40"
               >
+                <Send size={16} strokeWidth={2} />
                 {editSending ? "Sending..." : "Send"}
               </button>
             </div>
@@ -420,8 +422,9 @@ function OutreachView({
         <button
           onClick={generateSuggestions}
           disabled={generating}
-          className="rounded-full border border-[#6AD7A3]/30 px-4 py-1.5 text-sm text-[#6AD7A3] transition hover:bg-[#6AD7A3]/10 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 rounded-full border-l-2 border-[#C4CDD8] bg-[rgba(196,205,216,0.03)] px-4 py-1.5 text-sm font-semibold text-white ring-1 ring-[#C4CDD8]/10 transition hover:bg-[rgba(196,205,216,0.06)] hover:ring-[#C4CDD8]/20 disabled:opacity-40"
         >
+          <Zap size={16} strokeWidth={2} className="text-[#C4CDD8]" />
           {generating ? "Scanning..." : "Generate Suggestions"}
         </button>
       </div>
@@ -469,16 +472,18 @@ function OutreachView({
                   <div className="flex gap-2">
                     <button
                       onClick={() => setExpanded(isExpanded ? null : trigger)}
-                      className="rounded-full border border-[rgba(255,255,255,0.12)] px-3 py-1 text-[11px] text-[#B8BFC8] transition hover:bg-[#222D3D]"
+                      className="inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.12)] px-3 py-1 text-[11px] text-[#B8BFC8] transition hover:bg-[#222D3D]"
                     >
+                      <Eye size={14} strokeWidth={2} />
                       {isExpanded ? "Collapse" : "Review Individually"}
                     </button>
                     <button
                       onClick={() => sendBulk(trigger, items.map((i) => i.id), templateId)}
                       disabled={sendingAll === trigger}
-                      className="rounded-full px-3 py-1 text-[11px] font-medium text-[#0C1016] transition"
+                      className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium text-[#0C1016] transition"
                       style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}
                     >
+                      <Send size={14} strokeWidth={2} />
                       {sendingAll === trigger ? "Sending..." : `Send All (${items.length})`}
                     </button>
                   </div>
@@ -559,15 +564,17 @@ function SuggestionCard({
       <div className="flex gap-2">
         <button
           onClick={onDismiss}
-          className="rounded-full border border-[rgba(255,255,255,0.12)] px-3 py-1 text-[11px] text-[#9CA3AF] transition hover:bg-[#222D3D] hover:text-white"
+          className="inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.12)] px-3 py-1 text-[11px] text-[#9CA3AF] transition hover:bg-[#222D3D] hover:text-white"
         >
+          <X size={14} strokeWidth={2} />
           Dismiss
         </button>
         <button
           onClick={onEditSend}
-          className="rounded-full px-3 py-1 text-[11px] font-medium text-[#0C1016]"
+          className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium text-[#0C1016]"
           style={{ background: `linear-gradient(135deg, ${color}, ${color}CC)` }}
         >
+          <Pencil size={14} strokeWidth={2} />
           Edit & Send
         </button>
       </div>
@@ -986,8 +993,9 @@ function ComposeView({
                 <button
                   onClick={handleSend}
                   disabled={sending || !subject || !body}
-                  className="ml-auto rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-6 py-2 text-sm font-semibold text-[#0C1016] transition disabled:opacity-40"
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-6 py-2 text-sm font-semibold text-[#0C1016] transition disabled:opacity-40"
                 >
+                  <Send size={16} strokeWidth={2} />
                   {sending
                     ? "Sending..."
                     : selectedClients.length > 1

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Pencil, Check, Trash2, X, ExternalLink, Zap } from "lucide-react";
 import StatusPill from "@/components/ui/status-pill";
 import type { Database } from "@/types/database";
 
@@ -142,10 +143,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                 onClick={() => { setSpotlight(false); setEditing(false); }}
                 className="rounded-lg p-1.5 text-[#9CA3AF] hover:bg-[#222D3D] hover:text-white"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X size={20} strokeWidth={2} />
               </button>
             </div>
           </div>
@@ -170,9 +168,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                 className="inline-flex h-[26px] items-center gap-1 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/8 px-3 text-[0.6875rem] font-medium text-[#38BDF8]"
               >
                 View Listing
-                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
-                </svg>
+                <ExternalLink size={12} strokeWidth={2} />
               </a>
             )}
           </div>
@@ -198,15 +194,15 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                 type="button"
                 onClick={handleGenerateGoodFit}
                 disabled={generatingFit}
-                className="w-full rounded-lg border border-dashed border-[#6AD7A3]/30 bg-[#6AD7A3]/5 p-4 text-center transition-colors hover:bg-[#6AD7A3]/10 disabled:opacity-50"
+                className="w-full rounded-lg border-l-2 border-[#C4CDD8] bg-[rgba(196,205,216,0.03)] p-4 ring-1 ring-[#C4CDD8]/10 transition-all hover:bg-[rgba(196,205,216,0.06)] hover:ring-[#C4CDD8]/20 disabled:opacity-50"
               >
                 {generatingFit ? (
-                  <span className="text-[0.8125rem] text-[#6AD7A3]">Generating GoodFit...</span>
+                  <span className="text-[0.8125rem] font-semibold text-white">Generating GoodFit...</span>
                 ) : (
-                  <>
-                    <p className="text-[0.8125rem] font-medium text-[#6AD7A3]">Generate GoodFit</p>
-                    <p className="mt-0.5 text-[0.6875rem] text-[#9CA3AF]">AI analysis of how you match this role</p>
-                  </>
+                  <div className="flex items-center justify-center gap-2">
+                    <Zap size={16} strokeWidth={2} className="text-[#C4CDD8]" />
+                    <p className="text-[0.8125rem] font-semibold text-white">Generate GoodFit</p>
+                  </div>
                 )}
               </button>
             )}
@@ -256,9 +252,15 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={handleSave} className="inline-flex h-[34px] items-center rounded-full border border-[rgba(169,255,181,0.35)] bg-gradient-to-r from-[rgba(14,18,24,0.6)] to-[rgba(21,28,36,0.60)] px-4 text-[0.8125rem] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_20px_rgba(106,215,163,0.1)]">Save</button>
+                  <button type="button" onClick={handleSave} className="inline-flex h-[34px] items-center gap-1.5 rounded-full border border-[rgba(169,255,181,0.35)] bg-gradient-to-r from-[rgba(14,18,24,0.6)] to-[rgba(21,28,36,0.60)] px-4 text-[0.8125rem] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_20px_rgba(106,215,163,0.1)]">
+                    <Check size={16} strokeWidth={2} />
+                    Save
+                  </button>
                   <button type="button" onClick={() => { setEditing(false); setStatus(entry.status); setNotes(entry.notes); }} className="inline-flex h-[34px] items-center rounded-full border border-[#2A3544] px-4 text-[0.8125rem] text-[#9CA3AF]">Cancel</button>
-                  <button type="button" onClick={() => onDelete(entry.id)} className="ml-auto inline-flex h-[34px] items-center rounded-full border border-[#DC2626]/25 px-4 text-[0.8125rem] text-[#DC2626] hover:bg-[#DC2626]/10">Remove</button>
+                  <button type="button" onClick={() => onDelete(entry.id)} className="ml-auto inline-flex h-[34px] items-center gap-1.5 rounded-full border border-[#DC2626]/25 px-4 text-[0.8125rem] text-[#DC2626] hover:bg-[#DC2626]/10">
+                    <Trash2 size={16} strokeWidth={2} />
+                    Remove
+                  </button>
                 </div>
               </div>
             ) : (
@@ -268,9 +270,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                   onClick={() => setEditing(true)}
                   className="inline-flex h-[34px] items-center gap-1.5 rounded-full border border-[#2A3544] px-4 text-[0.8125rem] font-medium text-[#B8BFC8] hover:border-[#6AD7A3]/40 hover:text-white"
                 >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                  </svg>
+                  <Pencil size={16} strokeWidth={2} />
                   Edit
                 </button>
               </div>

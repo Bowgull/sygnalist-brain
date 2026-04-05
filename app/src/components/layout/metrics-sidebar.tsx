@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Radar, Target, Send, Mic, Plus, Users, AlertTriangle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface DashboardStats {
   inbox_count: number;
@@ -28,24 +30,24 @@ interface MetricDef {
   label: string;
   key: string;
   color: string;
-  icon: string;
+  icon: LucideIcon;
   href: string;
 }
 
 const CLIENT_METRICS: MetricDef[] = [
-  { label: "Open Signals", key: "inbox_count", color: "#6AD7A3", icon: "radar", href: "/inbox" },
-  { label: "In Tracker", key: "tracker_total", color: "#1DD3B0", icon: "target", href: "/tracker" },
-  { label: "Applied", key: "applied", color: "#3B82F6", icon: "send", href: "/tracker" },
-  { label: "Interviewing", key: "interviewing", color: "#8B5CF6", icon: "mic", href: "/tracker" },
-  { label: "Added This Week", key: "added_7d", color: "#FFFFFF", icon: "plus", href: "/inbox" },
+  { label: "Open Signals", key: "inbox_count", color: "#6AD7A3", icon: Radar, href: "/inbox" },
+  { label: "In Tracker", key: "tracker_total", color: "#1DD3B0", icon: Target, href: "/tracker" },
+  { label: "Applied", key: "applied", color: "#3B82F6", icon: Send, href: "/tracker" },
+  { label: "Interviewing", key: "interviewing", color: "#8B5CF6", icon: Mic, href: "/tracker" },
+  { label: "Added This Week", key: "added_7d", color: "#FFFFFF", icon: Plus, href: "/inbox" },
 ];
 
 const ADMIN_METRICS: MetricDef[] = [
-  { label: "Profiles", key: "total_profiles", color: "#B8BFC8", icon: "users", href: "/admin/clients" },
-  { label: "Errors", key: "unresolved_errors", color: "#DC2626", icon: "alert", href: "/admin/logs" },
+  { label: "Profiles", key: "total_profiles", color: "#B8BFC8", icon: Users, href: "/admin/clients" },
+  { label: "Errors", key: "unresolved_errors", color: "#DC2626", icon: AlertTriangle, href: "/admin/logs" },
 ];
 
-function MetricIcon({ icon, color }: { icon: string; color: string }) {
+function MetricIcon({ icon: Icon, color }: { icon: LucideIcon; color: string }) {
   const style = {
     color,
     backgroundColor: `${color}15`,
@@ -55,15 +57,7 @@ function MetricIcon({ icon, color }: { icon: string; color: string }) {
 
   return (
     <div className="flex h-6 w-6 items-center justify-center rounded" style={style}>
-      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
-        {icon === "radar" && (<><circle cx="8" cy="8" r="5.5" /><path d="M8 8L12 5" strokeLinecap="round" /><circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" /></>)}
-        {icon === "target" && (<><circle cx="8" cy="8" r="5.5" /><circle cx="8" cy="8" r="2.5" /><circle cx="8" cy="8" r="0.8" fill="currentColor" stroke="none" /></>)}
-        {icon === "send" && <path d="M3 8h10M10 5l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />}
-        {icon === "mic" && <><path d="M8 2v8M5 7a3 3 0 006 0" strokeLinecap="round" /><path d="M6 13h4" strokeLinecap="round" /></>}
-        {icon === "plus" && <path d="M8 3v10M3 8h10" strokeLinecap="round" />}
-        {icon === "users" && <><circle cx="6" cy="5" r="2" /><circle cx="11" cy="5" r="1.5" opacity="0.5" /><path d="M2 12c0-2 2-3 4-3s4 1 4 3" strokeLinecap="round" /></>}
-        {icon === "alert" && <><circle cx="8" cy="8" r="5.5" /><path d="M8 5v3" strokeLinecap="round" /><circle cx="8" cy="10.5" r="0.5" fill="currentColor" stroke="none" /></>}
-      </svg>
+      <Icon size={14} strokeWidth={2} />
     </div>
   );
 }

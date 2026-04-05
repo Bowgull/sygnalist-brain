@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
+import { Plus, Trash2, Search } from "lucide-react";
 import TrackerCard from "@/components/tracker/tracker-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import ManualAddDialog from "@/components/ui/manual-add-dialog";
@@ -184,9 +185,7 @@ export default function TrackerPage() {
               onClick={() => setShowManualAdd(true)}
               className="flex items-center gap-1 rounded-full bg-[#171F28] px-3 py-1.5 text-[0.6875rem] font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20 hover:bg-[#6AD7A3]/10"
             >
-              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8 3v10M3 8h10" strokeLinecap="round" />
-              </svg>
+              <Plus size={14} strokeWidth={2} />
               Add
             </button>
           </div>
@@ -195,10 +194,7 @@ export default function TrackerPage() {
         {/* Search + sort row */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <svg viewBox="0 0 24 24" className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="11" cy="11" r="7" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
+            <Search size={14} strokeWidth={2} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -305,7 +301,8 @@ function OpsTable({
                 </td>
                 <td className={`px-4 py-2 tabular-nums font-semibold ${daysColor}`}>{days}d</td>
                 <td className="px-4 py-2">
-                  <button type="button" onClick={() => onDelete(e.id)} className="rounded px-2 py-0.5 text-[0.6875rem] text-[#DC2626] hover:bg-[#DC2626]/10">
+                  <button type="button" onClick={() => onDelete(e.id)} className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-[0.6875rem] text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors">
+                    <Trash2 size={14} strokeWidth={2} />
                     Remove
                   </button>
                 </td>

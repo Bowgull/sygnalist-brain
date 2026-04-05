@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { Radar, RefreshCw, Plus } from "lucide-react";
 import JobCard from "@/components/inbox/job-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import ManualAddDialog from "@/components/ui/manual-add-dialog";
@@ -132,11 +133,7 @@ export default function InboxPage() {
       <div className="sticky top-0 z-10 border-b border-[#2A3544] bg-[#151C24] px-4 md:px-6 py-2.5">
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
-            <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="12" cy="12" r="9" />
-              <circle cx="12" cy="12" r="4" opacity={0.4} />
-              <path d="M12 12L18 8" strokeLinecap="round" />
-            </svg>
+            <Radar size={16} strokeWidth={2} className="text-[#6AD7A3]" />
             <span className="text-[#9CA3AF]">Open Sygnals</span>
             <span className="font-semibold text-white">{total}</span>
           </div>
@@ -176,11 +173,7 @@ export default function InboxPage() {
                     : "text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30 hover:bg-[#6AD7A3]/10"
               }`}
             >
-              <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 ${scanning ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}>
-                <circle cx="12" cy="12" r="8.5" opacity={0.35} />
-                <circle cx="12" cy="12" r="4.5" opacity={0.55} />
-                <path d="M12 12L19 9" strokeLinecap="round" opacity={0.9} />
-              </svg>
+              <Radar size={14} strokeWidth={2} className={scanning ? "animate-spin" : ""} />
               {scanning ? "Scanning..." : "Scan"}
             </button>
 
@@ -190,10 +183,7 @@ export default function InboxPage() {
               title="Refresh inbox"
               className="flex items-center justify-center rounded-full p-1.5 text-[#9CA3AF] ring-1 ring-[#2A3544] hover:text-[#B8BFC8] hover:bg-[#171F28]"
             >
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M21 12a9 9 0 11-2.2-5.9" strokeLinecap="round" />
-                <path d="M21 3v5h-5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <RefreshCw size={14} strokeWidth={2} />
             </button>
 
             <button
@@ -201,9 +191,7 @@ export default function InboxPage() {
               onClick={() => setShowManualAdd(true)}
               className="flex items-center gap-1 rounded-full bg-[#171F28] px-3 py-1.5 text-[0.6875rem] font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20 hover:bg-[#6AD7A3]/10"
             >
-              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8 3v10M3 8h10" strokeLinecap="round" />
-              </svg>
+              <Plus size={14} strokeWidth={2} />
               Add
             </button>
           </div>
@@ -236,11 +224,7 @@ export default function InboxPage() {
                 disabled={scanning}
                 className="mt-4 flex items-center gap-2 rounded-full border border-[#6AD7A3]/30 bg-[#6AD7A3]/10 px-5 py-2 text-sm font-semibold text-[#6AD7A3] transition-all hover:bg-[#6AD7A3]/15"
               >
-                <svg viewBox="0 0 24 24" className={`h-4 w-4 ${scanning ? "animate-spin" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}>
-                  <circle cx="12" cy="12" r="8.5" opacity={0.35} />
-                  <circle cx="12" cy="12" r="4.5" opacity={0.55} />
-                  <path d="M12 12L19 9" strokeLinecap="round" opacity={0.9} />
-                </svg>
+                <Radar size={16} strokeWidth={2} className={scanning ? "animate-spin" : ""} />
                 {scanning ? "Scanning..." : "Scan Now"}
               </button>
             )}

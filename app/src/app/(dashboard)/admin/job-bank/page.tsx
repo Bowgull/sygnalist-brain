@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Plus, Pencil, Trash2, ExternalLink, Search, Check } from "lucide-react";
 
 interface JobBankEntry {
   id: string;
@@ -110,20 +111,14 @@ export default function AdminJobBankPage() {
           onClick={() => setShowAdd(!showAdd)}
           className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-3 py-1.5 text-[12px] font-semibold text-[#0C1016]"
         >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <Plus size={16} strokeWidth={2.5} />
           Add Job
         </button>
       </div>
 
       {/* Search */}
       <div className="relative">
-        <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" fill="none" stroke="currentColor" strokeWidth={2}>
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
+        <Search size={16} strokeWidth={2} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -242,14 +237,16 @@ function JobBankCard({
                 description_snippet: descSnippet || null,
               })
             }
-            className="rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-4 py-1.5 text-[12px] font-semibold text-[#0C1016]"
+            className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-4 py-1.5 text-[12px] font-semibold text-[#0C1016]"
           >
+            <Check size={14} strokeWidth={2} />
             Save
           </button>
           <button type="button" onClick={onCancel} className="rounded-full border border-[#2A3544] px-4 py-1.5 text-[12px] text-[#9CA3AF]">
             Cancel
           </button>
-          <button type="button" onClick={onDelete} className="ml-auto rounded-full border border-[#DC2626]/30 px-3 py-1.5 text-[12px] text-[#DC2626] hover:bg-[#DC2626]/10">
+          <button type="button" onClick={onDelete} className="ml-auto inline-flex items-center gap-1 rounded-full border border-[#DC2626]/30 px-3 py-1.5 text-[12px] text-[#DC2626] hover:bg-[#DC2626]/10">
+            <Trash2 size={14} strokeWidth={2} />
             Delete
           </button>
         </div>
@@ -270,19 +267,14 @@ function JobBankCard({
             className="rounded-lg p-1.5 text-[#6B7280] transition hover:bg-[#6AD7A3]/10 hover:text-[#6AD7A3]"
             title="Edit"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-            </svg>
+            <Pencil size={16} strokeWidth={2} />
           </button>
           <button
             onClick={onDelete}
             className="rounded-lg p-1.5 text-[#6B7280] transition hover:bg-[#DC2626]/10 hover:text-[#DC2626]"
             title="Delete"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
+            <Trash2 size={16} strokeWidth={2} />
           </button>
         </div>
       </div>
@@ -329,9 +321,7 @@ function JobBankCard({
           className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-[#38BDF8] hover:underline"
         >
           View Listing
-          <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
-          </svg>
+          <ExternalLink size={12} strokeWidth={2} />
         </a>
       )}
     </div>

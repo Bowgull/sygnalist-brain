@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Check, ChevronDown } from "lucide-react";
 
 type LogType = "fetches" | "errors" | "events";
 
@@ -122,16 +123,21 @@ export default function AdminLogsPage() {
       .catch(() => {});
   }, [logType]);
 
-  async function handleResolve(errorId: string) {
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolveNote, setResolveNote] = useState("");
+
+  async function handleResolve(errorId: string, note?: string) {
     const res = await fetch("/api/admin/logs", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error_id: errorId }),
+      body: JSON.stringify({ error_id: errorId, resolve_note: note || undefined }),
     });
     if (res.ok) {
       setLogs((prev) =>
-        prev.map((l) => (l.id === errorId ? { ...l, resolved: true } : l))
+        prev.map((l) => (l.id === errorId ? { ...l, resolved: true, resolve_note: note || null } : l))
       );
+      setResolvingId(null);
+      setResolveNote("");
     }
   }
 
@@ -230,15 +236,42 @@ export default function AdminLogsPage() {
                       ) : null}
                     </div>
                     {!(log.resolved as boolean) ? (
-                      <button
-                        type="button"
-                        onClick={() => handleResolve(id)}
-                        className="shrink-0 rounded-full border border-[#6AD7A3]/30 px-2.5 py-1 text-[0.6875rem] font-medium text-[#6AD7A3] hover:bg-[#6AD7A3]/10"
-                      >
-                        Resolve
-                      </button>
+                      resolvingId === id ? (
+                        <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            value={resolveNote}
+                            onChange={(e) => setResolveNote(e.target.value)}
+                            placeholder="Note (optional)"
+                            className="w-36 rounded-lg border border-[#2A3544] bg-[#0C1016] px-2 py-1 text-[0.6875rem] text-white placeholder-[#9CA3AF] outline-none focus:border-[#6AD7A3]"
+                            onKeyDown={(e) => { if (e.key === "Enter") handleResolve(id, resolveNote); }}
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleResolve(id, resolveNote)}
+                            className="shrink-0 rounded-full border border-[#6AD7A3]/30 p-1.5 text-[#6AD7A3] hover:bg-[#6AD7A3]/10"
+                            title="Confirm resolve"
+                          >
+                            <Check size={14} strokeWidth={2} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setResolvingId(id); setResolveNote(""); }}
+                          className="shrink-0 inline-flex items-center gap-1 rounded-full border border-[#6AD7A3]/30 px-2.5 py-1 text-[0.6875rem] font-medium text-[#6AD7A3] hover:bg-[#6AD7A3]/10"
+                        >
+                          <Check size={14} strokeWidth={2} />
+                          Resolve
+                        </button>
+                      )
                     ) : (
-                      <span className="shrink-0 text-[0.6875rem] text-[#6AD7A3]/50">Resolved</span>
+                      <div className="shrink-0 text-right">
+                        <span className="text-[0.6875rem] text-[#6AD7A3]/50">Resolved</span>
+                        {typeof log.resolve_note === "string" && log.resolve_note && (
+                          <p className="mt-0.5 text-[0.625rem] text-[#9CA3AF] italic max-w-[140px] truncate" title={log.resolve_note}>{log.resolve_note}</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -294,15 +327,7 @@ export default function AdminLogsPage() {
                   <span className="shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">{rel}</span>
 
                   {/* Expand chevron */}
-                  <svg
-                    viewBox="0 0 24 24"
-                    className={`h-3.5 w-3.5 shrink-0 text-[#9CA3AF] transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
+                  <ChevronDown size={14} strokeWidth={2} className={`shrink-0 text-[#9CA3AF] transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                 </div>
 
                 {/* Expanded detail panel */}

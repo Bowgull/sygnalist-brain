@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 
 interface Lane {
   id: string;
@@ -146,9 +147,7 @@ export default function AdminLanesPage() {
                 className="ml-1 hidden rounded-full p-0.5 text-[#4B5563] transition hover:bg-[#DC2626]/10 hover:text-[#DC2626] group-hover:inline-flex"
                 title="Remove lane"
               >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
+                <X size={14} strokeWidth={2} />
               </button>
             </div>
           ))}

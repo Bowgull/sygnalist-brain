@@ -70,19 +70,22 @@ export async function PATCH(request: Request) {
   if (!body.error_id) return error("error_id is required");
 
   const service = getServiceClient();
+  const updatePayload: Record<string, unknown> = {
+    resolved: true,
+    resolved_at: new Date().toISOString(),
+    resolved_by: profile!.id,
+  };
+  if (body.resolve_note) updatePayload.resolve_note = body.resolve_note;
+
   const { data, error: dbError } = await service
     .from("error_logs")
-    .update({
-      resolved: true,
-      resolved_at: new Date().toISOString(),
-      resolved_by: profile!.id,
-    })
+    .update(updatePayload)
     .eq("id", body.error_id)
     .select()
     .single();
 
   if (dbError) return error(dbError.message, 500);
 
-  logEvent("admin.error_resolve", { userId: profile!.id, metadata: { error_id: body.error_id } });
+  logEvent("admin.error_resolve", { userId: profile!.id, metadata: { error_id: body.error_id, resolve_note: body.resolve_note || null } });
   return json(data);
 }
