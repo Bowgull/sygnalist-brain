@@ -3,17 +3,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, ExternalLink, Zap, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, Search, ChevronDown, ChevronUp } from "lucide-react";
 import TrackerCard, {
-  parseNotes, relativeTime, STAGES as STAGE_LABELS,
-  statusBorderColor, stageDisplay,
+  statusBorderColor,
 } from "@/components/tracker/tracker-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import ManualAddDialog from "@/components/ui/manual-add-dialog";
 import type { Database } from "@/types/database";
 
 type TrackerEntry = Database["public"]["Tables"]["tracker_entries"]["Row"];
-type ViewMode = "cards" | "ops" | "all";
+type DisplayMode = "cards" | "ops";
+type Scope = number | "all"; // stage index or "all"
 
 const STAGES = [
   { label: "Prospect", display: "Prospect", color: "#1DD3B0" },
@@ -29,24 +29,17 @@ const ALL_STATUSES = [...STAGES.map((s) => s.label), "Rejected", "Ghosted", "Wit
 const STAGE_ORDER: Record<string, number> = {};
 ALL_STATUSES.forEach((s, i) => { STAGE_ORDER[s] = i; });
 
-const VIEW_PILLS: { value: ViewMode; label: string }[] = [
-  { value: "cards", label: "Cards" },
-  { value: "ops", label: "Ops" },
-  { value: "all", label: "All" },
-];
-
 export default function TrackerPage() {
   const searchParams = useSearchParams();
   const viewAsId = searchParams.get("view_as");
 
   const [entries, setEntries] = useState<TrackerEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeStage, setActiveStage] = useState(0);
+  const [scope, setScope] = useState<Scope>(0);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("cards");
   const [showManualAdd, setShowManualAdd] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
-  const touchStartX = useRef(0);
   const pillContainerRef = useRef<HTMLDivElement>(null);
   const pillRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -67,9 +60,10 @@ export default function TrackerPage() {
     fetchEntries();
   }, [fetchEntries]);
 
-  // Scroll active pill into view when stage changes
+  // Scroll active pill into view when scope changes
   useEffect(() => {
-    const pill = pillRefs.current[activeStage];
+    if (scope === "all") return;
+    const pill = pillRefs.current[scope];
     const container = pillContainerRef.current;
     if (!pill || !container) return;
 
@@ -79,50 +73,39 @@ export default function TrackerPage() {
     const scrollTarget = pillLeft - containerWidth / 2 + pillWidth / 2;
 
     container.scrollTo({ left: scrollTarget, behavior: "smooth" });
-  }, [activeStage]);
+  }, [scope]);
 
   const stageCounts = STAGES.map(
     (s) => entries.filter((e) => e.status === s.label).length
   );
+  const totalCount = entries.length;
 
-  const currentStage = STAGES[activeStage];
-
-  // Filter + search + sort for cards/ops view
-  let stageEntries = entries.filter((e) => e.status === currentStage.label);
-  if (search) {
+  // Search filter helper
+  function filterBySearch(list: TrackerEntry[]) {
+    if (!search) return list;
     const q = search.toLowerCase();
-    stageEntries = stageEntries.filter(
-      (e) =>
-        (e.title ?? "").toLowerCase().includes(q) ||
-        (e.company ?? "").toLowerCase().includes(q)
-    );
-  }
-  stageEntries.sort((a, b) => {
-    const aTime = new Date(a.added_at ?? a.updated_at).getTime();
-    const bTime = new Date(b.added_at ?? b.updated_at).getTime();
-    return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
-  });
-
-  // All entries for All View (with search filter)
-  let allEntries = [...entries];
-  if (search) {
-    const q = search.toLowerCase();
-    allEntries = allEntries.filter(
+    return list.filter(
       (e) =>
         (e.title ?? "").toLowerCase().includes(q) ||
         (e.company ?? "").toLowerCase().includes(q)
     );
   }
 
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartX.current = e.touches[0].clientX;
+  // Sort helper
+  function sortEntries(list: TrackerEntry[]) {
+    return [...list].sort((a, b) => {
+      const aTime = new Date(a.added_at ?? a.updated_at).getTime();
+      const bTime = new Date(b.added_at ?? b.updated_at).getTime();
+      return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+    });
   }
 
-  function handleTouchEnd(e: React.TouchEvent) {
-    const diff = e.changedTouches[0].clientX - touchStartX.current;
-    if (diff > 60 && activeStage > 0) setActiveStage((prev) => prev - 1);
-    else if (diff < -60 && activeStage < STAGES.length - 1) setActiveStage((prev) => prev + 1);
+  // Get entries for current scope
+  function getStageEntries(stageLabel: string) {
+    return sortEntries(filterBySearch(entries.filter((e) => e.status === stageLabel)));
   }
+
+  const currentStage = scope !== "all" ? STAGES[scope] : null;
 
   async function handleUpdate(id: string, patch: Record<string, unknown>) {
     const prevEntries = entries;
@@ -176,27 +159,40 @@ export default function TrackerPage() {
     }
   }
 
-  const showStagePills = viewMode !== "all";
-
   return (
     <div>
       {/* Controls bar */}
       <div className="sticky top-0 z-10 border-b border-[#2A3544] bg-[#151C24] px-4 md:px-6 py-3 space-y-2">
         {/* Stage pills + controls */}
         <div ref={pillContainerRef} className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-          {showStagePills && STAGES.map((stage, i) => (
+          {/* "All" pill */}
+          <button
+            type="button"
+            onClick={() => setScope("all")}
+            className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-all ${
+              scope === "all"
+                ? "bg-[#FAD76A]/15 text-[#FAD76A] ring-1 ring-[#FAD76A]/40"
+                : "text-[#9CA3AF] opacity-60 hover:opacity-80"
+            }`}
+          >
+            All
+            {totalCount > 0 && <span className="ml-0.5 opacity-70">{totalCount}</span>}
+          </button>
+
+          {/* Stage pills */}
+          {STAGES.map((stage, i) => (
             <button
               key={stage.label}
               ref={(el) => { pillRefs.current[i] = el; }}
               type="button"
-              onClick={() => setActiveStage(i)}
+              onClick={() => setScope(i)}
               className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-all ${
-                i === activeStage ? "ring-1" : "opacity-60 hover:opacity-80"
+                scope === i ? "ring-1" : "opacity-60 hover:opacity-80"
               }`}
               style={{
                 color: stage.color,
-                backgroundColor: i === activeStage ? `${stage.color}15` : "transparent",
-                ...(i === activeStage ? { boxShadow: `inset 0 0 0 1px ${stage.color}40` } : {}),
+                backgroundColor: scope === i ? `${stage.color}15` : "transparent",
+                ...(scope === i ? { boxShadow: `inset 0 0 0 1px ${stage.color}40` } : {}),
               }}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: stage.color }} />
@@ -205,33 +201,42 @@ export default function TrackerPage() {
             </button>
           ))}
 
-          {!showStagePills && (
-            <span className="text-[0.75rem] font-semibold text-[#B8BFC8]">
-              All Entries ({entries.length})
-            </span>
-          )}
+          {/* Closed count indicator */}
+          {(() => {
+            const closedCount = entries.filter((e) => ["Rejected", "Ghosted", "Withdrawn"].includes(e.status)).length;
+            if (closedCount === 0) return null;
+            return (
+              <span className="whitespace-nowrap text-[0.6875rem] text-[#4B5563] opacity-50 pl-1">
+                Closed {closedCount}
+              </span>
+            );
+          })()}
 
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
-            {/* View mode pills */}
+            {/* Display mode toggle: Cards | Ops */}
             <div className="flex rounded-full ring-1 ring-[#2A3544] overflow-hidden">
-              {VIEW_PILLS.map((vp) => (
-                <button
-                  key={vp.value}
-                  type="button"
-                  onClick={() => setViewMode(vp.value)}
-                  className={`px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-colors ${
-                    viewMode === vp.value
-                      ? vp.value === "all"
-                        ? "bg-[#FAD76A]/15 text-[#FAD76A]"
-                        : vp.value === "ops"
-                          ? "bg-[#38BDF8]/15 text-[#38BDF8]"
-                          : "bg-[#6AD7A3]/15 text-[#6AD7A3]"
-                      : "text-[#9CA3AF] hover:text-[#B8BFC8]"
-                  }`}
-                >
-                  {vp.label}
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => setDisplayMode("cards")}
+                className={`px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-colors ${
+                  displayMode === "cards"
+                    ? "bg-[#6AD7A3]/15 text-[#6AD7A3]"
+                    : "text-[#9CA3AF] hover:text-[#B8BFC8]"
+                }`}
+              >
+                Cards
+              </button>
+              <button
+                type="button"
+                onClick={() => setDisplayMode("ops")}
+                className={`px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-colors ${
+                  displayMode === "ops"
+                    ? "bg-[#38BDF8]/15 text-[#38BDF8]"
+                    : "text-[#9CA3AF] hover:text-[#B8BFC8]"
+                }`}
+              >
+                Ops
+              </button>
             </div>
             <button
               type="button"
@@ -267,39 +272,180 @@ export default function TrackerPage() {
       </div>
 
       {/* Content */}
-      {viewMode === "all" ? (
-        <AllViewTable entries={allEntries} loading={loading} sortOrder={sortOrder} onUpdate={handleUpdate} onDelete={handleDelete} />
-      ) : viewMode === "ops" ? (
-        <OpsTable entries={stageEntries} loading={loading} onUpdate={handleUpdate} onDelete={handleDelete} />
+      {scope === "all" ? (
+        // All stages — grouped by stage in current display mode
+        displayMode === "cards" ? (
+          <AllCardsView
+            stages={STAGES}
+            entries={entries}
+            loading={loading}
+            search={search}
+            sortOrder={sortOrder}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+          />
+        ) : (
+          <AllOpsTable
+            entries={filterBySearch(entries)}
+            loading={loading}
+            sortOrder={sortOrder}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+          />
+        )
+      ) : displayMode === "ops" ? (
+        <OpsTable entries={getStageEntries(currentStage!.label)} loading={loading} onUpdate={handleUpdate} onDelete={handleDelete} />
       ) : (
-        <div
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          className="min-h-[40vh]"
-        >
-          <div className="space-y-3 md:space-y-4 p-3 md:p-6">
-            {loading ? (
-              <><SkeletonCard /><SkeletonCard /></>
-            ) : stageEntries.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: `${currentStage.color}15` }}>
-                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: currentStage.color }} />
-                </div>
-                <p className="text-sm font-medium text-[#B8BFC8]">No jobs in {currentStage.display} yet</p>
-                <p className="mt-1 text-xs text-[#9CA3AF]">
-                  {activeStage === 0 ? "Add jobs from the inbox or manually" : `Move prospects here when you've ${currentStage.label.toLowerCase()}`}
-                </p>
-              </div>
-            ) : (
-              stageEntries.map((entry) => (
-                <TrackerCard key={entry.id} entry={entry} onUpdate={handleUpdate} onDelete={handleDelete} />
-              ))
-            )}
-          </div>
-        </div>
+        <SingleStageCardsView
+          stageEntries={getStageEntries(currentStage!.label)}
+          currentStage={currentStage!}
+          activeStage={scope as number}
+          loading={loading}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+        />
       )}
 
       {showManualAdd && <ManualAddDialog onClose={() => setShowManualAdd(false)} onSubmit={handleManualAdd} />}
+    </div>
+  );
+}
+
+/* ── Single Stage Cards View ── */
+
+function SingleStageCardsView({
+  stageEntries,
+  currentStage,
+  activeStage,
+  loading,
+  onUpdate,
+  onDelete,
+}: {
+  stageEntries: TrackerEntry[];
+  currentStage: { label: string; display: string; color: string };
+  activeStage: number;
+  loading: boolean;
+  onUpdate: (id: string, patch: Record<string, unknown>) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div className="min-h-[40vh]">
+      <div className="space-y-3 md:space-y-4 p-3 md:p-6">
+        {loading ? (
+          <><SkeletonCard /><SkeletonCard /></>
+        ) : stageEntries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: `${currentStage.color}15` }}>
+              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: currentStage.color }} />
+            </div>
+            <p className="text-sm font-medium text-[#B8BFC8]">No jobs in {currentStage.display} yet</p>
+            <p className="mt-1 text-xs text-[#9CA3AF]">
+              {activeStage === 0 ? "Add jobs from the inbox or manually" : `Move prospects here when you've ${currentStage.label.toLowerCase()}`}
+            </p>
+          </div>
+        ) : (
+          stageEntries.map((entry) => (
+            <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── All Stages Cards View (grouped by stage) ── */
+
+function AllCardsView({
+  stages,
+  entries,
+  loading,
+  search,
+  sortOrder,
+  onUpdate,
+  onDelete,
+}: {
+  stages: typeof STAGES;
+  entries: TrackerEntry[];
+  loading: boolean;
+  search: string;
+  sortOrder: "newest" | "oldest";
+  onUpdate: (id: string, patch: Record<string, unknown>) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (loading) {
+    return <div className="p-3 md:p-6 space-y-3"><SkeletonCard /><SkeletonCard /></div>;
+  }
+
+  const q = search.toLowerCase();
+
+  return (
+    <div className="p-3 md:p-6 space-y-6">
+      {stages.map((stage) => {
+        let stageEntries = entries.filter((e) => e.status === stage.label);
+        if (q) {
+          stageEntries = stageEntries.filter(
+            (e) =>
+              (e.title ?? "").toLowerCase().includes(q) ||
+              (e.company ?? "").toLowerCase().includes(q)
+          );
+        }
+        stageEntries.sort((a, b) => {
+          const aTime = new Date(a.added_at ?? a.updated_at).getTime();
+          const bTime = new Date(b.added_at ?? b.updated_at).getTime();
+          return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+        });
+
+        if (stageEntries.length === 0) return null;
+
+        return (
+          <div key={stage.label}>
+            {/* Stage section header */}
+            <div className="flex items-center gap-2 mb-3">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.color }} />
+              <h3 className="text-[0.75rem] font-semibold uppercase tracking-[0.06em]" style={{ color: stage.color }}>
+                {stage.display}
+              </h3>
+              <span className="text-[0.6875rem] text-[#9CA3AF]">{stageEntries.length}</span>
+              <div className="flex-1 h-px bg-[#2A3544]" />
+            </div>
+            <div className="space-y-3">
+              {stageEntries.map((entry) => (
+                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Closed/terminal entries */}
+      {(() => {
+        const closedEntries = entries.filter((e) => ["Rejected", "Ghosted", "Withdrawn"].includes(e.status));
+        if (closedEntries.length === 0) return null;
+        let filtered = closedEntries;
+        if (q) {
+          filtered = filtered.filter(
+            (e) =>
+              (e.title ?? "").toLowerCase().includes(q) ||
+              (e.company ?? "").toLowerCase().includes(q)
+          );
+        }
+        if (filtered.length === 0) return null;
+        return (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="h-2 w-2 rounded-full bg-[#4B5563]" />
+              <h3 className="text-[0.75rem] font-semibold uppercase tracking-[0.06em] text-[#4B5563]">Closed</h3>
+              <span className="text-[0.6875rem] text-[#9CA3AF]">{filtered.length}</span>
+              <div className="flex-1 h-px bg-[#2A3544]" />
+            </div>
+            <div className="space-y-3">
+              {filtered.map((entry) => (
+                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -371,11 +517,11 @@ function OpsTable({
   );
 }
 
-/* ── All View: flat table across all stages with expandable rows ── */
+/* ── All Stages Ops Table (flat table with stage column, sorted by stage) ── */
 
 type AllSortKey = "stage" | "days" | "company" | "title";
 
-function AllViewTable({
+function AllOpsTable({
   entries,
   loading,
   sortOrder,
@@ -388,10 +534,8 @@ function AllViewTable({
   onUpdate: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
 }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<AllSortKey>("stage");
   const [sortAsc, setSortAsc] = useState(true);
-  const [generatingFitFor, setGeneratingFitFor] = useState<string | null>(null);
 
   function handleSort(key: AllSortKey) {
     if (sortKey === key) {
@@ -402,7 +546,6 @@ function AllViewTable({
     }
   }
 
-  // Sort entries
   const sorted = [...entries].sort((a, b) => {
     let cmp = 0;
     switch (sortKey) {
@@ -423,25 +566,12 @@ function AllViewTable({
         break;
     }
     if (cmp === 0) {
-      // Secondary sort by added_at
       const aTime = new Date(a.added_at ?? a.updated_at).getTime();
       const bTime = new Date(b.added_at ?? b.updated_at).getTime();
       cmp = sortOrder === "newest" ? bTime - aTime : aTime - bTime;
     }
     return sortAsc ? cmp : -cmp;
   });
-
-  async function handleGenerateGoodFit(id: string) {
-    setGeneratingFitFor(id);
-    const res = await fetch(`/api/tracker/${id}/goodfit`, { method: "POST" });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.good_fit) {
-        onUpdate(id, { good_fit: data.good_fit });
-      }
-    }
-    setGeneratingFitFor(null);
-  }
 
   if (loading) return <div className="p-4 space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-lg" />)}</div>;
   if (sorted.length === 0) return <p className="py-12 text-center text-[0.8125rem] text-[#9CA3AF]">No tracked entries yet</p>;
@@ -479,159 +609,39 @@ function AllViewTable({
             const days = Math.floor((Date.now() - new Date(e.stage_changed_at).getTime()) / 86400000);
             const daysColor = days < 3 ? "text-[#6AD7A3]" : days < 7 ? "text-[#F59E0B]" : "text-[#DC2626]";
             const stageColor = statusBorderColor[e.status] ?? "#9CA3AF";
-            const isExpanded = expandedId === e.id;
-            const notes = parseNotes(e.notes, e.added_at ?? e.updated_at);
-
             return (
-              <AllViewRow
-                key={e.id}
-                entry={e}
-                days={days}
-                daysColor={daysColor}
-                stageColor={stageColor}
-                isExpanded={isExpanded}
-                notes={notes}
-                generatingFit={generatingFitFor === e.id}
-                onToggle={() => setExpandedId(isExpanded ? null : e.id)}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-                onGenerateGoodFit={() => handleGenerateGoodFit(e.id)}
-              />
+              <tr key={e.id} className="border-b border-[#2A3544]/40 hover:bg-[#222D3D]/30 transition-colors">
+                <td className="px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: stageColor }} />
+                    <select
+                      value={e.status}
+                      onChange={(ev) => onUpdate(e.id, { status: ev.target.value })}
+                      className="rounded border border-[#2A3544] bg-[#151C24] px-2 py-1 text-[0.6875rem] text-white outline-none focus:border-[#6AD7A3]"
+                    >
+                      {ALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </td>
+                <td className="px-4 py-2 font-medium text-white">
+                  {e.url ? (
+                    <a href={e.url} target="_blank" rel="noopener noreferrer" className="hover:text-[#6AD7A3]">{e.title}</a>
+                  ) : e.title}
+                </td>
+                <td className="px-4 py-2 text-[#B8BFC8]">{e.company}</td>
+                <td className="px-4 py-2 text-[#B8BFC8]">{e.salary ?? "-"}</td>
+                <td className={`px-4 py-2 tabular-nums font-semibold ${daysColor}`}>{days}d</td>
+                <td className="px-4 py-2 text-[0.6875rem] text-[#6AD7A3]">{e.lane_label ?? "-"}</td>
+                <td className="px-4 py-2">
+                  <button type="button" onClick={() => onDelete(e.id)} className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-[0.6875rem] text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors">
+                    <Trash2 size={14} strokeWidth={2} />
+                  </button>
+                </td>
+              </tr>
             );
           })}
         </tbody>
       </table>
     </div>
-  );
-}
-
-function AllViewRow({
-  entry: e,
-  days,
-  daysColor,
-  stageColor,
-  isExpanded,
-  notes,
-  generatingFit,
-  onToggle,
-  onUpdate,
-  onDelete,
-  onGenerateGoodFit,
-}: {
-  entry: TrackerEntry;
-  days: number;
-  daysColor: string;
-  stageColor: string;
-  isExpanded: boolean;
-  notes: ReturnType<typeof parseNotes>;
-  generatingFit: boolean;
-  onToggle: () => void;
-  onUpdate: (id: string, patch: Record<string, unknown>) => void;
-  onDelete: (id: string) => void;
-  onGenerateGoodFit: () => void;
-}) {
-  return (
-    <>
-      <tr
-        className={`border-b border-[#2A3544]/40 hover:bg-[#222D3D]/30 transition-colors cursor-pointer ${isExpanded ? "bg-[#222D3D]/20" : ""}`}
-        onClick={onToggle}
-      >
-        <td className="px-4 py-2">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: stageColor }} />
-            <select
-              value={e.status}
-              onClick={(ev) => ev.stopPropagation()}
-              onChange={(ev) => { ev.stopPropagation(); onUpdate(e.id, { status: ev.target.value }); }}
-              className="rounded border border-[#2A3544] bg-[#151C24] px-2 py-1 text-[0.6875rem] text-white outline-none focus:border-[#6AD7A3]"
-            >
-              {ALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-        </td>
-        <td className="px-4 py-2 font-medium text-white">{e.title}</td>
-        <td className="px-4 py-2 text-[#B8BFC8]">{e.company}</td>
-        <td className="px-4 py-2 text-[#B8BFC8]">{e.salary ?? "-"}</td>
-        <td className={`px-4 py-2 tabular-nums font-semibold ${daysColor}`}>{days}d</td>
-        <td className="px-4 py-2 text-[0.6875rem] text-[#6AD7A3]">{e.lane_label ?? "-"}</td>
-        <td className="px-4 py-2">
-          <button
-            type="button"
-            onClick={(ev) => { ev.stopPropagation(); onDelete(e.id); }}
-            className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-[0.6875rem] text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors"
-          >
-            <Trash2 size={14} strokeWidth={2} />
-          </button>
-        </td>
-      </tr>
-
-      {/* Expanded detail row */}
-      {isExpanded && (
-        <tr className="bg-[#151C24]/60">
-          <td colSpan={7} className="px-6 py-4">
-            <div className="max-w-3xl space-y-3">
-              {/* Job summary */}
-              {e.job_summary && (
-                <p className="text-[0.8125rem] leading-relaxed text-[#B8BFC8] italic">{e.job_summary}</p>
-              )}
-
-              {/* GoodFit */}
-              {e.good_fit ? (
-                <div className="rounded-lg border-l-[3px] border-l-[#2F8A63] bg-[#6AD7A3]/5 p-3">
-                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-[#6AD7A3]">GOOD FIT</p>
-                  <p className="mt-1 text-[0.8125rem] leading-relaxed text-[#B8BFC8] whitespace-pre-line">{e.good_fit}</p>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={(ev) => { ev.stopPropagation(); onGenerateGoodFit(); }}
-                  disabled={generatingFit}
-                  className="rounded-lg bg-gradient-to-r from-[#0A2E1F] to-[#1A3D2E] px-4 py-2.5 ring-1 ring-[#6AD7A3]/40 shadow-[0_0_20px_rgba(106,215,163,0.15)] transition-all hover:ring-[#6AD7A3]/60 hover:shadow-[0_0_30px_rgba(106,215,163,0.25)] disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-2">
-                    <Zap size={16} strokeWidth={2} className={`text-[#FAD76A] ${generatingFit ? "animate-pulse" : ""}`} />
-                    <span className="text-[0.8125rem] font-bold text-white">{generatingFit ? "Generating..." : "Generate GoodFit"}</span>
-                  </div>
-                </button>
-              )}
-
-              {/* Notes preview */}
-              {notes.length > 0 && (
-                <div className="rounded-lg bg-[#0C1016] p-3">
-                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-1.5">Notes</p>
-                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
-                    {notes.slice(0, 5).map((note) => (
-                      <div key={note.id} className="flex items-start gap-2">
-                        <p className="text-[0.8125rem] text-[#B8BFC8] flex-1">{note.text}</p>
-                        <span className="text-[0.6875rem] text-[#9CA3AF] shrink-0">{relativeTime(note.timestamp)}</span>
-                      </div>
-                    ))}
-                    {notes.length > 5 && (
-                      <p className="text-[0.6875rem] text-[#9CA3AF]">+{notes.length - 5} more</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Links */}
-              <div className="flex gap-2">
-                {e.url && (
-                  <a
-                    href={e.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(ev) => ev.stopPropagation()}
-                    className="inline-flex h-[30px] items-center gap-1 rounded-full border border-[#38BDF8]/20 bg-[#38BDF8]/8 px-3 text-[0.6875rem] font-medium text-[#38BDF8]"
-                  >
-                    View Listing
-                    <ExternalLink size={12} strokeWidth={2} />
-                  </a>
-                )}
-              </div>
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
   );
 }

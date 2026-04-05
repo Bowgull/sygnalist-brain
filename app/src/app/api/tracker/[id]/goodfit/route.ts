@@ -1,8 +1,9 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
-import { stripDashes } from "@/lib/text/strip-dashes";
+import { sanitizeGoodFitVoice, parseGoodFitResponse } from "@/lib/text/sanitize-goodfit";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
+const MAX_RETRIES = 3;
 
 /** POST /api/tracker/:id/goodfit - generate or retrieve GoodFit assessment */
 export async function POST(
@@ -79,37 +80,68 @@ ${entry.why_fit ?? "(Not available)"}
 
 Output only the 3 paragraph blocks, each separated by a single blank line. Nothing else.`;
 
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a sharp ops/account person. Write GoodFit assessments in plain language. No corporate tone, no coaching tone, no resume summary style. Short sentences. Plain verbs.",
-          },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.5,
-        max_tokens: 600,
-      }),
-      signal: AbortSignal.timeout(25000),
-    });
+  // Retry loop with exponential backoff (ported from legacy)
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: "You are a sharp ops/account person. Write GoodFit assessments in plain language. No corporate tone, no coaching tone, no resume summary style. Short sentences. Plain verbs.",
+            },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 1500,
+        }),
+        signal: AbortSignal.timeout(25000),
+      });
 
-    if (!res.ok) {
-      return json({ good_fit: null, cached: false, message: "AI generation failed" });
-    }
+      if (!res.ok) {
+        logError(`GoodFit API returned ${res.status}`, { severity: "warning", sourceSystem: "api.tracker.goodfit" });
+        if (attempt < MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+          continue;
+        }
+        return json({ good_fit: null, cached: false, message: "AI generation failed" });
+      }
 
-    const data = await res.json();
-    const rawFit = data.choices?.[0]?.message?.content ?? null;
-    const goodFit = rawFit ? stripDashes(rawFit) : null;
+      const data = await res.json();
+      const rawFit = data.choices?.[0]?.message?.content ?? null;
 
-    if (goodFit) {
+      if (!rawFit) {
+        logError("GoodFit response empty from AI", { severity: "warning", sourceSystem: "api.tracker.goodfit" });
+        if (attempt < MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+          continue;
+        }
+        return json({ good_fit: null, cached: false, message: "AI returned empty response" });
+      }
+
+      // Sanitize banned phrases (legacy parity)
+      const sanitized = sanitizeGoodFitVoice(rawFit);
+
+      // Validate 3-block structure
+      let goodFit: string;
+      try {
+        goodFit = parseGoodFitResponse(sanitized);
+      } catch (parseErr) {
+        logError(parseErr instanceof Error ? parseErr.message : "GoodFit parse failed", { severity: "warning", sourceSystem: "api.tracker.goodfit" });
+        if (attempt < MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+          continue;
+        }
+        // Fallback: use sanitized text even if not exactly 3 blocks
+        goodFit = sanitized;
+      }
+
       // Save to tracker entry
       await supabase
         .from("tracker_entries")
@@ -118,11 +150,21 @@ Output only the 3 paragraph blocks, each separated by a single blank line. Nothi
           good_fit_updated_at: new Date().toISOString(),
         })
         .eq("id", id);
-    }
 
-    return json({ good_fit: goodFit, cached: false });
-  } catch (err) {
-    logError(err instanceof Error ? err.message : "AI request failed", { severity: "warning", sourceSystem: "api.tracker.goodfit", stackTrace: err instanceof Error ? err.stack : undefined });
-    return json({ good_fit: null, cached: false, message: "AI request timed out" });
+      return json({ good_fit: goodFit, cached: false });
+    } catch (err) {
+      logError(err instanceof Error ? err.message : "AI request failed", {
+        severity: "warning",
+        sourceSystem: "api.tracker.goodfit",
+        stackTrace: err instanceof Error ? err.stack : undefined,
+      });
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+        continue;
+      }
+      return json({ good_fit: null, cached: false, message: "AI request timed out" });
+    }
   }
+
+  return json({ good_fit: null, cached: false, message: "AI generation failed after retries" });
 }

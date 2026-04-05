@@ -60,16 +60,36 @@ export async function PATCH(
   // Get current entry to detect status changes
   const { data: current } = await supabase
     .from("tracker_entries")
-    .select("status")
+    .select("status, notes")
     .eq("id", id)
     .eq("profile_id", profile.id)
     .single();
 
   if (!current) return error("Entry not found", 404);
 
-  // If status changed, update stage_changed_at
+  // If status changed, update stage_changed_at and auto-log transition
   if (patch.status && patch.status !== current.status) {
-    patch.stage_changed_at = new Date().toISOString();
+    const now = new Date().toISOString();
+    patch.stage_changed_at = now;
+
+    // If the client didn't send notes with this patch (e.g. ops table inline change),
+    // auto-append a transition note to the existing notes
+    if (!("notes" in patch)) {
+      let existingNotes: Array<{ id: string; text: string; timestamp: string }> = [];
+      try {
+        const parsed = JSON.parse(current.notes || "[]");
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].text !== undefined) {
+          existingNotes = parsed;
+        }
+      } catch { /* not JSON */ }
+
+      existingNotes.unshift({
+        id: crypto.randomUUID(),
+        text: `Moved to ${String(patch.status)}`,
+        timestamp: now,
+      });
+      patch.notes = JSON.stringify(existingNotes);
+    }
   }
 
   const { data, error: dbError } = await supabase

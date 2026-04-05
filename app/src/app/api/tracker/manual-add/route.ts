@@ -72,5 +72,12 @@ export async function POST(request: Request) {
 
   logEvent("tracker.manual_add", { userId: profile.id, requestId, metadata: { tracker_entry_id: entry.id } });
 
+  // Fire-and-forget: auto-generate GoodFit for the new tracker entry
+  const origin = new URL(request.url).origin;
+  fetch(`${origin}/api/tracker/${entry.id}/goodfit`, {
+    method: "POST",
+    headers: { cookie: request.headers.get("cookie") ?? "" },
+  }).catch(() => { /* non-critical */ });
+
   return json(entry, 201);
 }

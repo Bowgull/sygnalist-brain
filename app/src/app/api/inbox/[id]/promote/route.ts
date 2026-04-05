@@ -84,5 +84,12 @@ export async function POST(
 
   logEvent("inbox.promote", { userId: profile.id, requestId, metadata: { inbox_job_id: id, tracker_entry_id: entry.id } });
 
+  // Fire-and-forget: auto-generate GoodFit for the new tracker entry
+  const origin = new URL(request.url).origin;
+  fetch(`${origin}/api/tracker/${entry.id}/goodfit`, {
+    method: "POST",
+    headers: { cookie: request.headers.get("cookie") ?? "" },
+  }).catch(() => { /* non-critical */ });
+
   return json(entry, 201);
 }
