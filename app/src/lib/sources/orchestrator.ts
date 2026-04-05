@@ -203,28 +203,18 @@ export async function runFetchPipeline(
   const deduped = deduplicateJobs(allRaw);
   const afterDedupe = deduped.length;
 
-  logEvent("fetch.dedupe", { userId: profile.id, requestId, metadata: { total_raw: totalRaw, after_dedupe: afterDedupe, removed: totalRaw - afterDedupe } });
-
   // Filter out dismissed jobs and jobs already in tracker/inbox
   const filtered = await filterExistingJobs(deduped, profile.id, service);
   const afterFilter = filtered.length;
 
-  logEvent("fetch.filter", { userId: profile.id, requestId, metadata: { before: afterDedupe, after: afterFilter, filtered_out: afterDedupe - afterFilter } });
-
   // Phase 5: Score jobs
   const scored = scoreJobs(filtered, profile);
-
-  const tierCounts: Record<string, number> = {};
-  for (const j of scored) tierCounts[j.tier] = (tierCounts[j.tier] ?? 0) + 1;
-  logEvent("fetch.score", { userId: profile.id, requestId, metadata: { input: afterFilter, valid: scored.length, excluded: afterFilter - scored.length, top_score: scored[0]?.score ?? 0, tiers: tierCounts } });
 
   // Take top N
   const topJobs = scored.slice(0, MAX_INBOX_JOBS);
 
   // Phase 6: Enrich with AI (summaries + whyFit)
   const enriched = await enrichJobs(topJobs, profile, service);
-
-  logEvent("fetch.enrich", { userId: profile.id, requestId, metadata: { input: topJobs.length, enriched: enriched.length } });
 
   // Insert into inbox_jobs
   if (enriched.length > 0) {
@@ -259,8 +249,6 @@ export async function runFetchPipeline(
 
   const pipelineDuration = Date.now() - pipelineStart;
 
-  logEvent("fetch.deliver", { userId: profile.id, requestId, metadata: { delivered: enriched.length, duration_ms: pipelineDuration, sources_called: sourceNames.length } });
-
   // Log each source result + summary row (batch receipt)
   const logRows = sourceResults.map((sr) => ({
     profile_id: profile.id,
@@ -274,13 +262,15 @@ export async function runFetchPipeline(
     request_id: requestId,
   }));
 
-  // Summary row — the batch receipt
+  // Summary row — the batch receipt with full pipeline step data
   logRows.push({
     profile_id: profile.id,
     batch_id: requestId,
     source_name: "summary",
     jobs_returned: totalRaw,
     jobs_after_dedupe: afterDedupe,
+    jobs_scored: scored.length,
+    jobs_enriched: enriched.length,
     success: enriched.length > 0 || totalRaw === 0,
     error_message: null,
     duration_ms: pipelineDuration,
