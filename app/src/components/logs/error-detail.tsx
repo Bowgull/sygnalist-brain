@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { CheckCircleIcon, getSeverityIcon, getDomainIcon } from "./log-icons";
 import { getSeverityStyle, fullTime, relativeTime, domainFromEventType, getDomainStyle, actionLabel } from "./log-utils";
 
@@ -10,6 +10,16 @@ type Props = {
   onTraceRequest: (requestId: string) => void;
   onResolve: (errorId: string, note?: string) => void;
 };
+
+/** Resolve icon — shield with checkmark, Sygnalist-style */
+function ResolveIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .5-.87l7-4a1 1 0 0 1 1 0l7 4A1 1 0 0 1 20 6z" />
+      <polyline points="9 12 11.5 14.5 15.5 9.5" />
+    </svg>
+  );
+}
 
 export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve }: Props) {
   const id = log.id as string;
@@ -29,6 +39,28 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
   const [showStack, setShowStack] = useState(false);
   const [showResolveInput, setShowResolveInput] = useState(false);
   const [noteText, setNoteText] = useState("");
+
+  // Draggable stack trace height
+  const [traceHeight, setTraceHeight] = useState(160);
+  const dragRef = useRef<{ startY: number; startH: number } | null>(null);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = { startY: e.clientY, startH: traceHeight };
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const delta = ev.clientY - dragRef.current.startY;
+      setTraceHeight(Math.max(80, Math.min(600, dragRef.current.startH + delta)));
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [traceHeight]);
 
   // Fetch related events
   const [relatedEvents, setRelatedEvents] = useState<Record<string, unknown>[]>([]);
@@ -63,7 +95,7 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
             <p className="mt-0.5 text-[0.8125rem] text-white">{message}</p>
           </div>
 
-          {/* Stack trace */}
+          {/* Stack trace — soft green, draggable resize */}
           {stackTrace && (
             <div>
               <button
@@ -74,9 +106,21 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
                 {showStack ? "Hide stack trace" : "Show stack trace"}
               </button>
               {showStack && (
-                <pre className="mt-2 max-h-40 overflow-auto rounded bg-[#0C1016] p-2 text-[0.6875rem] text-[#9CA3AF]">
-                  {stackTrace}
-                </pre>
+                <div className="mt-2 relative">
+                  <pre
+                    className="overflow-auto rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#0C1016] p-3 font-mono text-[0.6875rem] leading-relaxed text-[#6AD7A3]/70"
+                    style={{ height: traceHeight }}
+                  >
+                    {stackTrace}
+                  </pre>
+                  {/* Drag handle */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 flex h-5 cursor-ns-resize items-center justify-center rounded-b-lg hover:bg-[rgba(255,255,255,0.04)]"
+                    onMouseDown={handleDragStart}
+                  >
+                    <div className="h-[3px] w-10 rounded-full bg-[#9CA3AF]/30" />
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -167,8 +211,8 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
         </div>
       )}
 
-      {/* Resolve action */}
-      <div className="mt-4 flex items-center gap-3">
+      {/* ── Resolve action — right-aligned, prominent ── */}
+      <div className="mt-5 flex items-center justify-end gap-3">
         {resolved ? (
           <div className="flex items-center gap-2">
             <CheckCircleIcon className="h-4 w-4 text-[#6AD7A3]/60" />
@@ -180,26 +224,28 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
             )}
           </div>
         ) : showResolveInput ? (
-          <div className="flex flex-1 items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex w-full items-center gap-2" onClick={(e) => e.stopPropagation()}>
             <input
               type="text"
-              placeholder="Optional note (what you did to fix it)"
+              placeholder="What was done to resolve this..."
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
-              className="min-w-0 flex-1 rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-[0.75rem] text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3]"
+              autoFocus
+              className="min-w-0 flex-1 rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2.5 text-[0.8125rem] text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3] transition-colors"
               onKeyDown={(e) => { if (e.key === "Enter") onResolve(id, noteText || undefined); }}
             />
             <button
               type="button"
               onClick={() => onResolve(id, noteText || undefined)}
-              className="shrink-0 rounded-full bg-[#6AD7A3]/15 px-3 py-2 text-[0.6875rem] font-semibold text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30 hover:bg-[#6AD7A3]/25"
+              className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#6AD7A3]/15 px-4 py-2.5 text-[0.8125rem] font-semibold text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30 hover:bg-[#6AD7A3]/25 transition-colors"
             >
+              <ResolveIcon className="h-4 w-4" />
               Confirm
             </button>
             <button
               type="button"
               onClick={() => { setShowResolveInput(false); setNoteText(""); }}
-              className="shrink-0 text-[0.6875rem] text-[#9CA3AF] hover:text-white"
+              className="shrink-0 text-[0.75rem] text-[#9CA3AF] hover:text-white transition-colors"
             >
               Cancel
             </button>
@@ -208,8 +254,9 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setShowResolveInput(true); }}
-            className="rounded-full border border-[#6AD7A3]/30 px-3 py-2 text-[0.6875rem] font-medium text-[#6AD7A3] hover:bg-[#6AD7A3]/10"
+            className="inline-flex items-center gap-2 rounded-full bg-[#6AD7A3]/10 px-5 py-2.5 text-[0.8125rem] font-semibold text-[#6AD7A3] ring-1 ring-[#6AD7A3]/25 hover:bg-[#6AD7A3]/20 hover:ring-[#6AD7A3]/40 transition-all"
           >
+            <ResolveIcon className="h-5 w-5" />
             Resolve
           </button>
         )}
