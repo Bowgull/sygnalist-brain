@@ -1,6 +1,6 @@
 import { json } from "@/lib/api-helpers";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { logEvent } from "@/lib/logger";
+import { logEvent, logFailure } from "@/lib/logger";
 
 /** POST /api/auth/log — log an auth event from the client. */
 export async function POST(request: Request) {
@@ -8,6 +8,7 @@ export async function POST(request: Request) {
   const event = body.event as string;
   const method = body.method as string | undefined;
   const errorMessage = body.error as string | undefined;
+  const email = body.email as string | undefined;
 
   let userId: string | null = null;
   try {
@@ -23,11 +24,28 @@ export async function POST(request: Request) {
     }
   } catch { /* Can't identify user — still log */ }
 
-  await logEvent(`auth.${event}`, {
-    userId,
-    success: event !== "login_failed",
-    metadata: { method, ...(errorMessage ? { error: errorMessage } : {}) },
-  });
+  if (event === "login_failed") {
+    await logFailure(`auth.${event}`, `Login failed${email ? ` for ${email}` : ""}: ${errorMessage ?? "unknown error"}`, {
+      severity: "error",
+      sourceSystem: "auth.magic_link",
+      userId,
+      metadata: {
+        method,
+        stage: "otp_request",
+        ...(email ? { email } : {}),
+        ...(errorMessage ? { error: errorMessage, cause: errorMessage } : {}),
+      },
+    });
+  } else {
+    await logEvent(`auth.${event}`, {
+      userId,
+      success: true,
+      metadata: {
+        method,
+        ...(email ? { email } : {}),
+      },
+    });
+  }
 
   return json({ ok: true });
 }

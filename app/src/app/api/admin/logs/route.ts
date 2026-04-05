@@ -13,6 +13,23 @@ export async function GET(request: Request) {
 
   const service = getServiceClient();
 
+  // ── Request ID cross-query: search all 3 tables ──────────────────────
+  const requestId = searchParams.get("request_id");
+  if (requestId) {
+    const [events, errors, fetches] = await Promise.all([
+      service.from("user_events").select("*").eq("request_id", requestId).order("created_at", { ascending: true }),
+      service.from("error_logs").select("*").eq("request_id", requestId).order("created_at", { ascending: true }),
+      service.from("job_fetch_logs").select("*").eq("request_id", requestId).order("created_at", { ascending: true }),
+    ]);
+    const unified = [
+      ...(events.data ?? []).map((e) => ({ ...e, _type: "event" as const })),
+      ...(errors.data ?? []).map((e) => ({ ...e, _type: "error" as const })),
+      ...(fetches.data ?? []).map((e) => ({ ...e, _type: "fetch" as const })),
+    ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    return json(unified);
+  }
+
+  // ── Errors ───────────────────────────────────────────────────────────
   if (type === "errors") {
     let query = service
       .from("error_logs")
@@ -25,11 +42,22 @@ export async function GET(request: Request) {
     const resolved = searchParams.get("resolved");
     if (resolved !== null) query = query.eq("resolved", resolved === "true");
 
+    const severity = searchParams.get("severity");
+    if (severity) query = query.eq("severity", severity);
+
     const { data, error: dbError } = await query;
     if (dbError) return error(dbError.message, 500);
-    return json(data);
+
+    // Get unresolved count
+    const { count } = await service
+      .from("error_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("resolved", false);
+
+    return json({ logs: data, unresolved_count: count ?? 0 });
   }
 
+  // ── Fetches ──────────────────────────────────────────────────────────
   if (type === "fetches") {
     let query = service
       .from("job_fetch_logs")
@@ -39,12 +67,15 @@ export async function GET(request: Request) {
 
     if (profileId) query = query.eq("profile_id", profileId);
 
+    const success = searchParams.get("success");
+    if (success !== null) query = query.eq("success", success === "true");
+
     const { data, error: dbError } = await query;
     if (dbError) return error(dbError.message, 500);
     return json(data);
   }
 
-  // Default: user events
+  // ── Events (default) ────────────────────────────────────────────────
   let query = service
     .from("user_events")
     .select("*")
@@ -55,6 +86,12 @@ export async function GET(request: Request) {
 
   const eventType = searchParams.get("event_type");
   if (eventType) query = query.eq("event_type", eventType);
+
+  const domain = searchParams.get("domain");
+  if (domain) query = query.ilike("event_type", `${domain}.%`);
+
+  const success = searchParams.get("success");
+  if (success !== null) query = query.eq("success", success === "true");
 
   const { data, error: dbError } = await query;
   if (dbError) return error(dbError.message, 500);
@@ -70,22 +107,39 @@ export async function PATCH(request: Request) {
   if (!body.error_id) return error("error_id is required");
 
   const service = getServiceClient();
-  const updatePayload: Record<string, unknown> = {
+
+  // Build update payload
+  const update: Record<string, unknown> = {
     resolved: true,
     resolved_at: new Date().toISOString(),
     resolved_by: profile!.id,
   };
-  if (body.resolve_note) updatePayload.resolve_note = body.resolve_note;
+
+  // Store resolve_note in metadata if provided
+  if (body.resolve_note) {
+    // Merge note into existing metadata
+    const { data: existing } = await service
+      .from("error_logs")
+      .select("metadata")
+      .eq("id", body.error_id)
+      .single();
+
+    const existingMeta = (existing?.metadata as Record<string, unknown>) ?? {};
+    update.metadata = { ...existingMeta, resolve_note: body.resolve_note };
+  }
 
   const { data, error: dbError } = await service
     .from("error_logs")
-    .update(updatePayload)
+    .update(update)
     .eq("id", body.error_id)
     .select()
     .single();
 
   if (dbError) return error(dbError.message, 500);
 
-  logEvent("admin.error_resolve", { userId: profile!.id, metadata: { error_id: body.error_id, resolve_note: body.resolve_note || null } });
+  logEvent("admin.error_resolve", {
+    userId: profile!.id,
+    metadata: { error_id: body.error_id, resolve_note: body.resolve_note ?? null },
+  });
   return json(data);
 }

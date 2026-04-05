@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 
 type Meta = Record<string, unknown>;
+type Severity = "info" | "warning" | "error" | "critical";
 
 /**
  * Log an auditable user/system event to user_events.
@@ -35,7 +36,7 @@ export async function logEvent(
 export async function logError(
   message: string,
   opts: {
-    severity?: "info" | "warning" | "error" | "critical";
+    severity?: Severity;
     sourceSystem?: string;
     userId?: string | null;
     requestId?: string;
@@ -62,6 +63,41 @@ export async function logError(
   if (severity === "error" || severity === "critical") {
     sendAlertEmail(message, severity, opts.sourceSystem ?? "api", opts.metadata).catch(() => {});
   }
+}
+
+/**
+ * Dual-log a failure: creates both an event (audit trail) and an error (operational),
+ * linked by request_id so they can be traced together.
+ */
+export async function logFailure(
+  eventType: string,
+  message: string,
+  opts: {
+    severity?: Severity;
+    sourceSystem?: string;
+    userId?: string | null;
+    requestId?: string;
+    stackTrace?: string;
+    metadata?: Meta;
+  } = {}
+) {
+  const requestId = opts.requestId ?? crypto.randomUUID();
+  await Promise.allSettled([
+    logEvent(eventType, {
+      userId: opts.userId,
+      requestId,
+      success: false,
+      metadata: opts.metadata,
+    }),
+    logError(message, {
+      severity: opts.severity ?? "error",
+      sourceSystem: opts.sourceSystem,
+      userId: opts.userId,
+      requestId,
+      stackTrace: opts.stackTrace,
+      metadata: opts.metadata,
+    }),
+  ]);
 }
 
 async function sendAlertEmail(errorMessage: string, severity: string, source: string, metadata?: Meta) {

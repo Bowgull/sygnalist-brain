@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { logEvent } from "@/lib/logger";
+import { logEvent, logFailure } from "@/lib/logger";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -30,6 +30,15 @@ export async function GET(request: Request) {
         if (!profile || profile.status === "inactive_soft_locked") {
           // Not allowed — sign them out and redirect to login with denied message
           await supabase.auth.signOut();
+          await logFailure("auth.login_failed", `Callback denied: ${!profile ? "no profile" : "profile locked"} for ${user.email}`, {
+            severity: "warning",
+            sourceSystem: "auth.callback",
+            metadata: {
+              email: user.email,
+              stage: "profile_lookup",
+              reason: !profile ? "no_profile" : "locked",
+            },
+          });
           return NextResponse.redirect(`${origin}/login?error=no_access`);
         }
 
@@ -42,13 +51,17 @@ export async function GET(request: Request) {
             .is("auth_user_id", null);
         }
 
-        await logEvent("auth.login", { userId: profile?.id, metadata: { method: "oauth_callback" } });
+        await logEvent("auth.login", { userId: profile?.id, metadata: { method: "magic_link", email: user.email } });
       }
 
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
 
-  await logEvent("auth.login_failed", { success: false, metadata: { method: "oauth_callback", error: "code_exchange_failed" } });
+  await logFailure("auth.login_failed", "Magic link callback failed: code exchange error", {
+    severity: "error",
+    sourceSystem: "auth.callback",
+    metadata: { stage: "code_exchange", cause: "code_exchange_failed" },
+  });
   return NextResponse.redirect(`${origin}/login?error=auth_failed`);
 }

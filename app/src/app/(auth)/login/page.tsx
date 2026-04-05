@@ -4,11 +4,11 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-function logAuth(event: string, method?: string, error?: string) {
+function logAuth(event: string, method?: string, error?: string, email?: string) {
   fetch("/api/auth/log", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event, method, error }),
+    body: JSON.stringify({ event, method, error, email }),
   }).catch(() => {});
 }
 
@@ -63,10 +63,10 @@ function LoginForm() {
     });
     if (error) {
       setMessage(error.message);
-      logAuth("login_failed", "magic", error.message);
+      logAuth("login_failed", "magic", error.message, email);
     } else {
       setMessage("Check your email — we just sent you a sign-in link.");
-      logAuth("magic_link_sent", "magic");
+      logAuth("magic_link_sent", "magic", undefined, email);
     }
     setLoading(false);
   }

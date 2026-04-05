@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { logEvent } from "@/lib/logger";
 
 export async function updateSession(request: NextRequest) {
   // Generate request ID for tracing
@@ -44,6 +45,12 @@ export async function updateSession(request: NextRequest) {
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
 
   if (!user && !isAuthPage && !isApiRoute) {
+    // Log session drop — fire and forget
+    logEvent("auth.session_expired", {
+      success: false,
+      metadata: { path: request.nextUrl.pathname, reason: "no_session" },
+    }).catch(() => {});
+
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
