@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useViewAs } from "@/components/view-as/view-as-context";
+import { Eye } from "lucide-react";
 
 function useRelativeTime(iso: string | null) {
   const [text, setText] = useState("");
@@ -31,6 +33,7 @@ export default function Header({
   displayName?: string;
   role?: string;
 }) {
+  const { active: viewAsActive, clientName, loading: viewAsLoading } = useViewAs();
   const [lastFetch, setLastFetch] = useState<string | null>(null);
   const lastScanText = useRelativeTime(lastFetch);
 
@@ -82,16 +85,30 @@ export default function Header({
 
         {/* Zone 2: Status cluster (desktop only) */}
         <div className="hidden md:flex items-center gap-3 text-xs">
-          {displayName && (
-            <span className="font-semibold uppercase tracking-wider text-[#6AD7A3]" style={{ textShadow: "0 0 12px rgba(106,215,163,0.3)" }}>
-              {displayName}
-            </span>
+          {viewAsActive ? (
+            <>
+              <Eye size={14} strokeWidth={2} className="text-[#FAD76A]" />
+              <span className="font-semibold uppercase tracking-wider text-[#FAD76A]" style={{ textShadow: "0 0 12px rgba(250,215,106,0.3)" }}>
+                {viewAsLoading ? "Loading..." : clientName}
+              </span>
+              <span className="h-2 w-2 rounded-full bg-[#FAD76A] animate-dot-pulse" />
+              <span className="h-4 w-px bg-[#2A3544]" />
+              <span className="font-mono text-[#9CA3AF]">viewing as client</span>
+            </>
+          ) : (
+            <>
+              {displayName && (
+                <span className="font-semibold uppercase tracking-wider text-[#6AD7A3]" style={{ textShadow: "0 0 12px rgba(106,215,163,0.3)" }}>
+                  {displayName}
+                </span>
+              )}
+              <span className="h-2 w-2 rounded-full bg-[#6AD7A3] animate-dot-pulse" />
+              <span className="h-4 w-px bg-[#2A3544]" />
+              <span className="font-mono text-[#9CA3AF] tabular-nums">
+                Last Scan: <span className="text-[#6AD7A3]">{lastScanText || "—"}</span>
+              </span>
+            </>
           )}
-          <span className="h-2 w-2 rounded-full bg-[#6AD7A3] animate-dot-pulse" />
-          <span className="h-4 w-px bg-[#2A3544]" />
-          <span className="font-mono text-[#9CA3AF] tabular-nums">
-            Last Scan: <span className="text-[#6AD7A3]">{lastScanText || "—"}</span>
-          </span>
         </div>
 
         {/* Zone 3: Controls */}
@@ -102,16 +119,26 @@ export default function Header({
             </span>
           )}
           <div className="flex md:hidden items-center gap-1.5">
-            {displayName && (
-              <span className="text-[0.6875rem] text-[#B8BFC8] max-w-[100px] truncate">{displayName}</span>
+            {viewAsActive ? (
+              <>
+                <Eye size={12} strokeWidth={2} className="text-[#FAD76A]" />
+                <span className="text-[0.6875rem] text-[#FAD76A] max-w-[100px] truncate">{viewAsLoading ? "..." : clientName}</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-[#FAD76A] animate-dot-pulse" />
+              </>
+            ) : (
+              <>
+                {displayName && (
+                  <span className="text-[0.6875rem] text-[#B8BFC8] max-w-[100px] truncate">{displayName}</span>
+                )}
+                <span className="h-1.5 w-1.5 rounded-full bg-[#6AD7A3] animate-dot-pulse" />
+              </>
             )}
-            <span className="h-1.5 w-1.5 rounded-full bg-[#6AD7A3] animate-dot-pulse" />
           </div>
         </div>
       </div>
 
       {/* Glow seam */}
-      <div className="h-px bg-gradient-to-r from-transparent via-[#00ffc3]/40 to-transparent animate-seam-glow" />
+      <div className={`h-px bg-gradient-to-r from-transparent ${viewAsActive ? "via-[#FAD76A]/40" : "via-[#00ffc3]/40"} to-transparent animate-seam-glow`} />
     </header>
   );
 }

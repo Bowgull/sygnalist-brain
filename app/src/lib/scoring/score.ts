@@ -146,8 +146,8 @@ function scoreOne(job: RawJob, profile: Profile): ScoredJob {
   }
 
   // --- Role track matching (lane assignment + score boost) ---
-  const tracks = (profile.role_tracks ?? []) as RoleTrack[];
-  const lanes = (profile.lane_controls ?? []) as LaneControl[];
+  const tracks = Array.isArray(profile.role_tracks) ? (profile.role_tracks as RoleTrack[]) : [];
+  const lanes = Array.isArray(profile.lane_controls) ? (profile.lane_controls as LaneControl[]) : [];
 
   let bestTrackWeight = 0;
   for (const track of tracks) {

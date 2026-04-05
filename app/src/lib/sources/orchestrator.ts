@@ -31,8 +31,8 @@ export function resolveSearchTerms(profile: Database["public"]["Tables"]["profil
   }
 
   // Auto-generate from role_tracks
-  const tracks = (profile.role_tracks ?? []) as RoleTrack[];
-  if (!Array.isArray(tracks) || tracks.length === 0) {
+  const tracks = Array.isArray(profile.role_tracks) ? (profile.role_tracks as RoleTrack[]) : [];
+  if (tracks.length === 0) {
     return [];
   }
 

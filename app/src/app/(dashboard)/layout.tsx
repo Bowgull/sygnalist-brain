@@ -7,7 +7,6 @@ import TopTabs from "@/components/layout/top-tabs";
 import MetricsSidebar from "@/components/layout/metrics-sidebar";
 import MobileMetrics from "@/components/layout/mobile-metrics";
 import { ViewAsProvider } from "@/components/view-as/view-as-context";
-import ImpersonationBanner from "@/components/view-as/impersonation-banner";
 
 export default async function DashboardLayout({
   children,
@@ -33,7 +32,6 @@ export default async function DashboardLayout({
     <Suspense>
       <ViewAsProvider>
         <div className="flex min-h-dvh flex-col">
-          <ImpersonationBanner />
           <Header displayName={profile?.display_name} role={profile?.role} />
 
           {/* Mobile metrics strip */}
