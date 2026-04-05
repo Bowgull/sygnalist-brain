@@ -1,7 +1,7 @@
 "use client";
 
 import { getDomainIcon } from "./log-icons";
-import { getDomainStyle, domainFromEventType, actionLabel, formatMetaPreview, relativeTime } from "./log-utils";
+import { getDomainStyle, domainFromEventType, actionLabel, relativeTime } from "./log-utils";
 
 type Props = {
   log: Record<string, unknown>;
@@ -20,11 +20,11 @@ export default function EventRow({ log, isExpanded, onToggle, profileMap }: Prop
   const userId = log.user_id as string | null;
   const userName = userId ? profileMap[userId] : null;
   const rel = relativeTime(log.created_at as string);
-  const previews = formatMetaPreview(meta);
+  const failReason = !success && meta?.reason ? String(meta.reason) : null;
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-2 px-4 py-2.5 cursor-pointer transition-colors hover:bg-[#222D3D]/20 md:flex-nowrap md:gap-3 ${
+      className={`flex flex-wrap items-center gap-2.5 px-5 py-3 cursor-pointer transition-colors hover:bg-[#222D3D]/20 md:flex-nowrap md:gap-3 ${
         !success ? "border-l-2 border-l-[#DC2626]/60" : "border-l-2 border-l-transparent"
       }`}
       onClick={onToggle}
@@ -45,24 +45,29 @@ export default function EventRow({ log, isExpanded, onToggle, profileMap }: Prop
       </span>
 
       {/* Action text */}
-      <span className="shrink-0 text-[0.75rem] font-medium capitalize text-white">
+      <span className="shrink-0 text-[0.8125rem] font-medium capitalize text-white">
         {actionLabel(eventType)}
       </span>
 
-      {/* Metadata preview (up to 3 items) */}
-      <span className="min-w-0 flex-1 truncate text-[0.75rem] text-[#9CA3AF]">
-        {previews.length > 0 ? previews.join(" · ") : ""}
-      </span>
+      {/* Failure reason inline (replaces metadata preview) */}
+      {failReason && (
+        <span className="min-w-0 truncate text-[0.8125rem] text-[#DC2626]">
+          {failReason}
+        </span>
+      )}
+
+      {/* Spacer */}
+      <span className="flex-1" />
 
       {/* Actor */}
       {userName ? (
-        <span className="shrink-0 text-[0.6875rem] text-[#9CA3AF]">{userName}</span>
+        <span className="shrink-0 text-[0.75rem] text-[#9CA3AF]">{userName}</span>
       ) : userId ? (
         <span className="shrink-0 rounded-full bg-[#9CA3AF]/10 px-2 py-0.5 text-[0.625rem] text-[#9CA3AF] ring-1 ring-[#9CA3AF]/20">Removed User</span>
       ) : null}
 
       {/* Relative time */}
-      <span className="shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">{rel}</span>
+      <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">{rel}</span>
 
       {/* Expand chevron */}
       <svg

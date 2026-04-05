@@ -45,7 +45,7 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
   }, [requestId]);
 
   return (
-    <div className="border-t border-[#2A3544]/40 bg-[#0C1016]/60 px-4 py-4">
+    <div className="border-t border-[#2A3544]/40 bg-[#0C1016]/60 px-5 py-5">
       {/* Summary line */}
       {meta?.cause != null && (
         <p className="mb-3 text-[0.8125rem] text-[#F59E0B]">

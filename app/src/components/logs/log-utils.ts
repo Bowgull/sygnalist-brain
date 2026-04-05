@@ -98,5 +98,43 @@ export function previewMeta(meta: Record<string, unknown> | null): string {
   return items.length > 0 ? items.join(" · ") : "";
 }
 
+// ── Batch status helpers ────────────────────────────────────────────────
+type FetchLog = Record<string, unknown>;
+
+export type BatchStatus = "success" | "warning" | "failed";
+
+/** Derive overall batch status from source rows (excludes summary row) */
+export function deriveBatchStatus(sourceLogs: FetchLog[]): BatchStatus {
+  const sources = sourceLogs.filter((l) => l.source_name !== "summary");
+  if (sources.length === 0) return "success";
+  if (sources.some((s) => !(s.success as boolean))) return "failed";
+  if (sources.some((s) => (s.success as boolean) && (s.jobs_returned as number) === 0)) return "warning";
+  return "success";
+}
+
+const batchStatusStyles = {
+  success: { text: "text-[#22C55E]", bg: "bg-[#22C55E]/10", border: "border-[#22C55E]/20", label: "SUCCESS" },
+  warning: { text: "text-[#F59E0B]", bg: "bg-[#F59E0B]/10", border: "border-[#F59E0B]/20", label: "WARNING" },
+  failed:  { text: "text-[#DC2626]", bg: "bg-[#DC2626]/10", border: "border-[#DC2626]/20", label: "FAILED" },
+};
+
+export function getBatchStatusStyle(status: BatchStatus) {
+  return batchStatusStyles[status];
+}
+
+/** Human-readable warning text for 0-result sources */
+export function getWarningText(sourceLogs: FetchLog[]): string | null {
+  const sources = sourceLogs.filter((l) => l.source_name !== "summary");
+  const zeroResult = sources.filter((s) => (s.success as boolean) && (s.jobs_returned as number) === 0);
+  if (zeroResult.length === 0) return null;
+  return `${zeroResult.length} source${zeroResult.length > 1 ? "s" : ""} returned 0 results`;
+}
+
+/** Short batch ID for display (last 8 chars) */
+export function shortBatchId(id: string): string {
+  if (!id || id.length <= 8) return id || "";
+  return id.slice(-8);
+}
+
 // ── Domain list for filters ─────────────────────────────────────────────
 export const allDomains = Object.keys(domainStyles);

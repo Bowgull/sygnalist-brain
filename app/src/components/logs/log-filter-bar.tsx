@@ -2,7 +2,7 @@
 
 import { allDomains } from "./log-utils";
 
-type LogType = "events" | "errors" | "fetches";
+type LogType = "activity" | "errors" | "fetches";
 
 type Filters = {
   domain?: string;
@@ -32,8 +32,8 @@ export default function LogFilterBar({ logType, filters, onFilterChange }: Props
         className={`${selectBase} w-44`}
       />
 
-      {/* Domain filter (events only) */}
-      {logType === "events" && (
+      {/* Domain filter (activity only) */}
+      {logType === "activity" && (
         <select
           value={filters.domain ?? ""}
           onChange={(e) => onFilterChange({ ...filters, domain: e.target.value || undefined })}
@@ -47,7 +47,7 @@ export default function LogFilterBar({ logType, filters, onFilterChange }: Props
       )}
 
       {/* Success/Failed filter (events + fetches) */}
-      {(logType === "events" || logType === "fetches") && (
+      {(logType === "activity" || logType === "fetches") && (
         <select
           value={filters.success ?? ""}
           onChange={(e) => onFilterChange({ ...filters, success: e.target.value || undefined })}
