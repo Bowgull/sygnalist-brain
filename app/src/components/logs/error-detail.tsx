@@ -40,18 +40,23 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
   const [showResolveInput, setShowResolveInput] = useState(false);
   const [noteText, setNoteText] = useState("");
 
-  // Draggable stack trace height
+  // Draggable stack trace — resizes both height and width
   const [traceHeight, setTraceHeight] = useState(160);
-  const dragRef = useRef<{ startY: number; startH: number } | null>(null);
+  const [traceWidth, setTraceWidth] = useState<number | null>(null);
+  const traceContainerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null);
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    dragRef.current = { startY: e.clientY, startH: traceHeight };
+    const containerW = traceContainerRef.current?.offsetWidth ?? 400;
+    dragRef.current = { startX: e.clientX, startY: e.clientY, startW: traceWidth ?? containerW, startH: traceHeight };
     const onMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
-      const delta = ev.clientY - dragRef.current.startY;
-      setTraceHeight(Math.max(80, Math.min(600, dragRef.current.startH + delta)));
+      const dy = ev.clientY - dragRef.current.startY;
+      const dx = ev.clientX - dragRef.current.startX;
+      setTraceHeight(Math.max(80, Math.min(1200, dragRef.current.startH + dy)));
+      setTraceWidth(Math.max(280, dragRef.current.startW + dx));
     };
     const onUp = () => {
       dragRef.current = null;
@@ -60,7 +65,7 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
-  }, [traceHeight]);
+  }, [traceHeight, traceWidth]);
 
   // Fetch related events
   const [relatedEvents, setRelatedEvents] = useState<Record<string, unknown>[]>([]);
@@ -106,19 +111,22 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
                 {showStack ? "Hide stack trace" : "Show stack trace"}
               </button>
               {showStack && (
-                <div className="mt-2 relative">
+                <div ref={traceContainerRef} className="mt-2 relative" style={{ width: traceWidth ?? "100%" }}>
                   <pre
                     className="overflow-auto rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#0C1016] p-3 font-mono text-[0.6875rem] leading-relaxed text-[#6AD7A3]/70"
                     style={{ height: traceHeight }}
                   >
                     {stackTrace}
                   </pre>
-                  {/* Drag handle */}
+                  {/* Corner resize handle — drag to resize both width and height */}
                   <div
-                    className="absolute bottom-0 left-0 right-0 flex h-5 cursor-ns-resize items-center justify-center rounded-b-lg hover:bg-[rgba(255,255,255,0.04)]"
+                    className="absolute bottom-0 right-0 flex h-6 w-6 cursor-nwse-resize items-end justify-end rounded-br-lg p-1 hover:bg-[rgba(255,255,255,0.06)]"
                     onMouseDown={handleDragStart}
                   >
-                    <div className="h-[3px] w-10 rounded-full bg-[#9CA3AF]/30" />
+                    <svg width="10" height="10" viewBox="0 0 10 10" className="text-[#9CA3AF]/40">
+                      <path d="M9 1v8H1" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      <path d="M9 5v4H5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
                   </div>
                 </div>
               )}
