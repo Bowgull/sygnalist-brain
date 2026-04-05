@@ -45,7 +45,7 @@ export async function updateSession(request: NextRequest) {
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
 
   if (!user && !isAuthPage && !isApiRoute) {
-    // Log session drop — fire and forget
+    // Log session drop - fire and forget
     logEvent("auth.session_expired", {
       success: false,
       metadata: { path: request.nextUrl.pathname, reason: "no_session" },

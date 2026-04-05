@@ -6,7 +6,7 @@ import { logEvent, logError } from "@/lib/logger";
 const CRON_SECRET = process.env.CRON_SECRET;
 
 /**
- * GET /api/cron/fetch — Scheduled job fetch for all active profiles.
+ * GET /api/cron/fetch - Scheduled job fetch for all active profiles.
  *
  * Triggered by Vercel Cron. Requires CRON_SECRET authorization header.
  * Runs the fetch pipeline for each active profile sequentially.

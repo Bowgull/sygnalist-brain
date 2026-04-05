@@ -1,7 +1,7 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 
-/** GET /api/tracker — get the user's tracker entries */
+/** GET /api/tracker - get the user's tracker entries */
 export async function GET(request: Request) {
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;

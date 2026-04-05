@@ -43,7 +43,7 @@ export default function MobileMetrics() {
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: m.color }} />
             <span className="text-[0.6875rem] text-[#9CA3AF]">{m.label}</span>
             <span className="text-[0.8125rem] font-bold tabular-nums" style={{ color: m.color }}>
-              {stats ? getValue(m.key) : "—"}
+              {stats ? getValue(m.key) : "-"}
             </span>
           </div>
         ))}

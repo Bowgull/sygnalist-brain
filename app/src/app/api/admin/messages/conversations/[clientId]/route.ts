@@ -2,7 +2,7 @@ import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { NextRequest } from "next/server";
 
 /**
- * GET /api/admin/messages/conversations/[clientId] — Full thread for a client
+ * GET /api/admin/messages/conversations/[clientId] - Full thread for a client
  */
 export async function GET(
   request: NextRequest,

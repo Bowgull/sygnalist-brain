@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sygnalist — Find the Signal",
+  title: "Sygnalist - Find the Signal",
   description: "Job hunt engine and coaching platform",
   manifest: "/manifest.json",
   themeColor: "#0C1016",

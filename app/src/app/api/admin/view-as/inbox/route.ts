@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 
-/** GET /api/admin/view-as/inbox?client_id=xxx — get a client's inbox jobs */
+/** GET /api/admin/view-as/inbox?client_id=xxx - get a client's inbox jobs */
 export async function GET(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;

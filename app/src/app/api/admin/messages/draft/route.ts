@@ -2,7 +2,7 @@ import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { buildMergeFields, resolveMergeFields, refineWithAi } from "@/lib/merge-fields";
 
 /**
- * POST /api/admin/messages/draft — Resolve template merge fields or refine custom content
+ * POST /api/admin/messages/draft - Resolve template merge fields or refine custom content
  *
  * Body: { client_id, template_id?, refine_body?: string }
  *   - template_id: resolves merge fields in the template (no AI generation)
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   let subject = "";
   let emailBody = "";
 
-  // If template selected, resolve merge fields only — no AI
+  // If template selected, resolve merge fields only - no AI
   if (template_id) {
     const { data: template } = await service
       .from("message_templates")

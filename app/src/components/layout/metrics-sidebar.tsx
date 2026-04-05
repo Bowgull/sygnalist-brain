@@ -99,7 +99,7 @@ export default function MetricsSidebar() {
             {m.label}
           </p>
           <p className="text-[2.25rem] font-bold leading-tight text-white">
-            {stats ? getValue(m.key) : "—"}
+            {stats ? getValue(m.key) : "-"}
           </p>
         </button>
       ))}

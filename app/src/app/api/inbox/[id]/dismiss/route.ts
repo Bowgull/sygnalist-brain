@@ -1,7 +1,7 @@
 import { requireAuth, json, error, getRequestId } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** POST /api/inbox/:id/dismiss — dismiss an inbox job (won't reappear) */
+/** POST /api/inbox/:id/dismiss - dismiss an inbox job (won't reappear) */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

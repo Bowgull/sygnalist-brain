@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 
-/** GET /api/admin/view-as/tracker?client_id=xxx — get a client's tracker entries */
+/** GET /api/admin/view-as/tracker?client_id=xxx - get a client's tracker entries */
 export async function GET(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;

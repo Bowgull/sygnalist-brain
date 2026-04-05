@@ -28,7 +28,7 @@ export async function GET(request: Request) {
           .single();
 
         if (!profile || profile.status === "inactive_soft_locked") {
-          // Not allowed — sign them out and redirect to login with denied message
+          // Not allowed - sign them out and redirect to login with denied message
           await supabase.auth.signOut();
           await logFailure("auth.login_failed", `Callback denied: ${!profile ? "no profile" : "profile locked"} for ${user.email}`, {
             severity: "warning",

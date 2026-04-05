@@ -2,7 +2,7 @@ import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent } from "@/lib/logger";
 
 /**
- * POST /api/admin/messages/suggestions/generate — Scan for trigger conditions and create suggestions
+ * POST /api/admin/messages/suggestions/generate - Scan for trigger conditions and create suggestions
  */
 export async function POST() {
   const { profile, response } = await requireAdmin();
@@ -36,7 +36,7 @@ export async function POST() {
 
   const suggestions: NewSuggestion[] = [];
 
-  // 1. Interview reached — tracker entries at Interview 1/2/Final, changed within 30 days
+  // 1. Interview reached - tracker entries at Interview 1/2/Final, changed within 30 days
   const { data: interviews } = await service
     .from("tracker_entries")
     .select("id, profile_id, company, title, status, stage_changed_at")
@@ -53,7 +53,7 @@ export async function POST() {
     });
   }
 
-  // 2. Offer reached — tracker entries at Offer, changed within 30 days
+  // 2. Offer reached - tracker entries at Offer, changed within 30 days
   const { data: offers } = await service
     .from("tracker_entries")
     .select("id, profile_id, company, title, stage_changed_at")
@@ -70,7 +70,7 @@ export async function POST() {
     });
   }
 
-  // 3. Inactive check-in — active clients with no activity for 7+ days
+  // 3. Inactive check-in - active clients with no activity for 7+ days
   const { data: inactive } = await service
     .from("profiles")
     .select("id, display_name, last_fetch_at")
@@ -91,7 +91,7 @@ export async function POST() {
     });
   }
 
-  // 4. Welcome — profiles created within last 48 hours
+  // 4. Welcome - profiles created within last 48 hours
   const { data: newClients } = await service
     .from("profiles")
     .select("id, display_name, created_at")
@@ -123,7 +123,7 @@ export async function POST() {
         context_snapshot: s.context_snapshot as import("@/types/database").Json,
       });
 
-    // If the unique index rejects it (duplicate pending), that's expected — skip silently
+    // If the unique index rejects it (duplicate pending), that's expected - skip silently
     if (!insertErr) {
       generated++;
       byTrigger[s.trigger_event] = (byTrigger[s.trigger_event] || 0) + 1;

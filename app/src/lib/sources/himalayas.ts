@@ -1,6 +1,6 @@
 import type { RawJob, SourceResult, FetchContext } from "./types";
 
-/** Himalayas.app — free remote job board API */
+/** Himalayas.app - free remote job board API */
 export async function fetchHimalayas(ctx: FetchContext): Promise<SourceResult> {
   const start = Date.now();
   const jobs: RawJob[] = [];

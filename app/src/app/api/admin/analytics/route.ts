@@ -1,6 +1,6 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 
-/** GET /api/admin/analytics — get analytics data */
+/** GET /api/admin/analytics - get analytics data */
 export async function GET() {
   const { response } = await requireAdmin();
   if (response) return response;

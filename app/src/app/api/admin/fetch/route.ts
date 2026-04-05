@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { runFetchPipeline } from "@/lib/sources/orchestrator";
 
-/** POST /api/admin/fetch — trigger a job fetch for a specific profile (admin only) */
+/** POST /api/admin/fetch - trigger a job fetch for a specific profile (admin only) */
 export async function POST(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   if (dbError || !profile) return error("Profile not found", 404);
 
   if (profile.status !== "active") {
-    return error("Profile is locked — unlock before fetching", 403);
+    return error("Profile is locked - unlock before fetching", 403);
   }
 
   // Log the admin-triggered fetch
@@ -54,6 +54,6 @@ export async function POST(request: Request) {
       stack_trace: err instanceof Error ? err.stack ?? null : null,
       user_id: profile.id,
     });
-    return error("Fetch failed — check logs", 500);
+    return error("Fetch failed - check logs", 500);
   }
 }

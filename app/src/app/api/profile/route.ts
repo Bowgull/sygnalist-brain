@@ -1,7 +1,7 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 
-/** GET /api/profile — get the authenticated user's profile */
+/** GET /api/profile - get the authenticated user's profile */
 export async function GET() {
   const { profile, response } = await requireAuth();
   if (response) return response;
@@ -13,7 +13,7 @@ export async function GET() {
   return json(profile);
 }
 
-/** PATCH /api/profile — update the authenticated user's profile */
+/** PATCH /api/profile - update the authenticated user's profile */
 export async function PATCH(request: Request) {
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;

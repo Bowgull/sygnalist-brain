@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** GET /api/admin/profiles/:id — get a single profile (admin view) */
+/** GET /api/admin/profiles/:id - get a single profile (admin view) */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -21,7 +21,7 @@ export async function GET(
   return json(data);
 }
 
-/** PATCH /api/admin/profiles/:id — update any profile field (admin) */
+/** PATCH /api/admin/profiles/:id - update any profile field (admin) */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -93,7 +93,7 @@ export async function PATCH(
   return json(data);
 }
 
-/** DELETE /api/admin/profiles/:id — permanently delete a profile (admin) */
+/** DELETE /api/admin/profiles/:id - permanently delete a profile (admin) */
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }

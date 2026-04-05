@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** GET /api/admin/lanes — get all lanes */
+/** GET /api/admin/lanes - get all lanes */
 export async function GET() {
   const { response } = await requireAdmin();
   if (response) return response;
@@ -19,7 +19,7 @@ export async function GET() {
   return json(data);
 }
 
-/** POST /api/admin/lanes — create a lane. Accepts { name: string } */
+/** POST /api/admin/lanes - create a lane. Accepts { name: string } */
 export async function POST(request: Request) {
   const { profile: admin, response } = await requireAdmin();
   if (response) return response;
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   return json(data, 201);
 }
 
-/** DELETE /api/admin/lanes — delete a lane by id */
+/** DELETE /api/admin/lanes - delete a lane by id */
 export async function DELETE(request: Request) {
   const { profile: admin, response } = await requireAdmin();
   if (response) return response;

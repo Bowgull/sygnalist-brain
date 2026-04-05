@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** PATCH /api/admin/view-as/tracker/:id?client_id=xxx — update a client's tracker entry */
+/** PATCH /api/admin/view-as/tracker/:id?client_id=xxx - update a client's tracker entry */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -64,7 +64,7 @@ export async function PATCH(
   return json(data);
 }
 
-/** DELETE /api/admin/view-as/tracker/:id?client_id=xxx — remove a client's tracker entry */
+/** DELETE /api/admin/view-as/tracker/:id?client_id=xxx - remove a client's tracker entry */
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

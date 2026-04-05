@@ -277,11 +277,11 @@ export default function ResumeTab({
                     <div className="mt-0.5 grid grid-cols-2 gap-2">
                       <div className="rounded-lg bg-[#0C1016] px-2 py-1">
                         <span className="text-[10px] text-[#6B7280] block">Current</span>
-                        <span className="text-[12px] text-[#9CA3AF] break-words">{currentFormatted || "—"}</span>
+                        <span className="text-[12px] text-[#9CA3AF] break-words">{currentFormatted || "-"}</span>
                       </div>
                       <div className="rounded-lg bg-[#6AD7A3]/5 border border-[#6AD7A3]/20 px-2 py-1">
                         <span className="text-[10px] text-[#6AD7A3]/60 block">New</span>
-                        <span className="text-[12px] text-[#6AD7A3] break-words">{newFormatted || "—"}</span>
+                        <span className="text-[12px] text-[#6AD7A3] break-words">{newFormatted || "-"}</span>
                       </div>
                     </div>
                   </div>

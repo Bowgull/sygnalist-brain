@@ -5,7 +5,7 @@ import { logEvent, logError } from "@/lib/logger";
 /**
  * POST /api/auth/profile-init
  * Links an auth user to their pre-existing profile (created by admin).
- * Does NOT create profiles — admin must add the user first.
+ * Does NOT create profiles - admin must add the user first.
  */
 export async function POST() {
   const supabase = await createServerSupabase();

@@ -3,7 +3,7 @@ import { extractText } from "@/lib/resume/extract-text";
 import { parseWithAI } from "@/lib/resume/parse";
 
 /**
- * POST /api/admin/resume-parse — Parse a resume with AI
+ * POST /api/admin/resume-parse - Parse a resume with AI
  *
  * Accepts either:
  * - multipart/form-data with a "file" field (Word .docx or .txt)

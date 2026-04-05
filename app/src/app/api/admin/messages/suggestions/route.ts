@@ -2,8 +2,8 @@ import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 
 /**
- * GET  /api/admin/messages/suggestions — List pending outreach suggestions
- * PATCH /api/admin/messages/suggestions — Dismiss a suggestion
+ * GET  /api/admin/messages/suggestions - List pending outreach suggestions
+ * PATCH /api/admin/messages/suggestions - Dismiss a suggestion
  */
 export async function GET() {
   const { response } = await requireAdmin();

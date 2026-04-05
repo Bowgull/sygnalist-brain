@@ -15,7 +15,7 @@ export default function ImpersonationBanner() {
         {loading ? "Loading client..." : `Viewing as ${clientName}`}
       </span>
       <span className="text-[0.6875rem] font-medium opacity-70">
-        — All actions affect this client's account
+         - All actions affect this client's account
       </span>
     </div>
   );

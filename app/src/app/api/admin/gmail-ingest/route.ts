@@ -2,7 +2,7 @@ import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
 /**
- * POST /api/admin/gmail-ingest — Safe Gmail ingest.
+ * POST /api/admin/gmail-ingest - Safe Gmail ingest.
  *
  * Pulls job URLs from labeled Gmail threads into the review queue (jobs_inbox).
  * Jobs require admin approval before entering the Job Bank.
@@ -168,7 +168,7 @@ export async function POST() {
       const html = extractHtmlBody(msg.payload);
       if (!html) {
         skippedNoHtml++;
-        // Still mark as processed — no point retrying a message with no HTML
+        // Still mark as processed - no point retrying a message with no HTML
         processedMessageIds.push(msgId);
         continue;
       }
@@ -259,7 +259,7 @@ export async function POST() {
             },
           );
         } catch {
-          // Label update failure is non-fatal — dedup prevents duplicate inserts
+          // Label update failure is non-fatal - dedup prevents duplicate inserts
         }
       }
     }

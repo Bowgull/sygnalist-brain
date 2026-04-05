@@ -3,7 +3,7 @@ import { logEvent, logError } from "@/lib/logger";
 import { runFetchPipeline } from "@/lib/sources/orchestrator";
 
 /**
- * POST /api/fetch — trigger a job fetch for the user's profile.
+ * POST /api/fetch - trigger a job fetch for the user's profile.
  *
  * Runs all 6 source adapters in parallel, deduplicates, scores, enriches with AI,
  * and delivers the top results to the user's inbox.
@@ -14,7 +14,7 @@ export async function POST() {
   if (!profile) return error("Profile not found", 404);
 
   if (profile.status === "inactive_soft_locked") {
-    return error("Profile is locked — contact your coach", 403);
+    return error("Profile is locked - contact your coach", 403);
   }
 
   const service = getServiceClient();
@@ -45,6 +45,6 @@ export async function POST() {
       }
     );
 
-    return error("Fetch failed — please try again", 500);
+    return error("Fetch failed - please try again", 500);
   }
 }

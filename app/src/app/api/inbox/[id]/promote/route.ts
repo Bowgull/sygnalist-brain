@@ -1,7 +1,7 @@
 import { requireAuth, json, error, getServiceClient, getRequestId } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** POST /api/inbox/:id/promote — move an inbox job to the tracker */
+/** POST /api/inbox/:id/promote - move an inbox job to the tracker */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

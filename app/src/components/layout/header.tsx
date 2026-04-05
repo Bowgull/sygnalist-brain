@@ -105,7 +105,7 @@ export default function Header({
               <span className="h-2 w-2 rounded-full bg-[#6AD7A3] animate-dot-pulse" />
               <span className="h-4 w-px bg-[#2A3544]" />
               <span className="font-mono text-[#9CA3AF] tabular-nums">
-                Last Scan: <span className="text-[#6AD7A3]">{lastScanText || "—"}</span>
+                Last Scan: <span className="text-[#6AD7A3]">{lastScanText || "-"}</span>
               </span>
             </>
           )}

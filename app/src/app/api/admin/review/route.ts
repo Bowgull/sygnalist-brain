@@ -3,7 +3,7 @@ import { logEvent, logError } from "@/lib/logger";
 import { enrichBankJob } from "@/lib/enrichment/enrich-bank";
 
 /**
- * GET /api/admin/review — Fetch the review queue.
+ * GET /api/admin/review - Fetch the review queue.
  * Returns jobs grouped by review_status (pending + ready) and available lanes.
  */
 export async function GET() {
@@ -45,7 +45,7 @@ export async function GET() {
 }
 
 /**
- * PATCH /api/admin/review — Inline edit a single review job.
+ * PATCH /api/admin/review - Inline edit a single review job.
  * Body: { id: string, patch: { title?, company?, location?, work_mode?, lane_key?, url?, notes? } }
  */
 export async function PATCH(request: Request) {
@@ -107,7 +107,7 @@ export async function PATCH(request: Request) {
 }
 
 /**
- * POST /api/admin/review — Stage transitions and batch actions.
+ * POST /api/admin/review - Stage transitions and batch actions.
  * Body: { action: "move_to_ready" | "reject" | "approve" | "back_to_review", job_ids: string[] }
  */
 export async function POST(request: Request) {

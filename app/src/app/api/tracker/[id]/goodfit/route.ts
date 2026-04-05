@@ -1,9 +1,10 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
+import { stripDashes } from "@/lib/text/strip-dashes";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
-/** POST /api/tracker/:id/goodfit — generate or retrieve GoodFit assessment */
+/** POST /api/tracker/:id/goodfit - generate or retrieve GoodFit assessment */
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -35,31 +36,48 @@ export async function POST(
   }
 
   // Generate GoodFit assessment
-  const tracks = Array.isArray(profile.role_tracks)
-    ? (profile.role_tracks as Array<{ label?: string }>).map((t) => t.label).filter(Boolean).join(", ")
-    : "";
+  const topSkills = profile.top_skills ?? [];
+  const signatureStories = profile.signature_stories ?? [];
+  const skillProfileText = profile.skill_profile_text ?? "";
 
-  const prompt = `You are a job-hunt coach. A client has this job in their tracker:
+  const prompt = `You are writing a "Good Fit" note for a job-search tool. Return only the GoodFit content. No JSON, no markdown, no labels (no "Why you fit:" or similar).
 
-Job: ${entry.title} at ${entry.company}
-Location: ${entry.location ?? "Not specified"}
-Salary: ${entry.salary ?? "Not specified"}
-Summary: ${entry.job_summary ?? "No summary available"}
-WhyFit: ${entry.why_fit ?? "Not available"}
+FORMAT:
+- Output exactly 3 paragraph blocks. No bullets, no numbering, no section labels, no headers, no em dashes, no emojis, no colon-led prefixes.
+- Each block: 2-3 short sentences. Separate each block with a single blank line.
 
-Client profile:
-- Name: ${profile.display_name}
-- Target roles: ${tracks || "Not specified"}
-- Top skills: ${(profile.top_skills ?? []).join(", ") || "Not specified"}
-- Signature stories: ${(profile.signature_stories ?? []).slice(0, 2).join("; ") || "None"}
+Structure (exactly 3 blocks):
+- Block 1 (Concrete match): One specific fact from the candidate profile and one specific requirement from the job. Connect them plainly. Calm observation, not praise.
+- Block 2 (Clear gap or unknown): A real gap, missing signal, or ambiguity. If no clear gap, state what is unclear in the posting and why it matters operationally. Do not fabricate missing skills.
+- Block 3 (Realistic framing): How the candidate would speak to this in conversation; what evidence they would point to; how they would handle it early. Practical positioning only. Not advice, coaching, or encouragement.
 
-Write a GoodFit assessment (3-5 bullets) that:
-1. Identifies specific strengths the client brings to THIS role
-2. Highlights 1-2 talking points for interviews using their signature stories
-3. Notes any gaps or areas to prepare for
-4. Gives one concrete tip for standing out in the application
+TONE (non-negotiable):
+- Sharp ops/account person thinking out loud next to the candidate. Not resume writer, motivational coach, LinkedIn post, chatbot, polished essay, or corporate HR. Short sentences (most under 18 words). Plain verbs: handled, ran, owned, fixed, tracked, escalated, coordinated. No motivational tone. No corporate tone. No resume summary language. Do not invent missing profile skills. If you cannot find a concrete profile fact, state "Profile signal missing on X" rather than fabricating alignment.
 
-Be direct, warm, and specific. No corporate-speak. Use "you" to address the client.`;
+BANNED words and phrases (do not use): aligns, alignment, demonstrates, suggests, indicates, highlights, showcases, leverages, utilizes, transferable, dynamic, fast paced, passionate, self starter, rockstar, great fit, perfect fit, ideal candidate, consider, you should, try to, make sure, ability to, open question, interview answer, your experience, we're excited, don't worry, you're amazing, personal brand, 10x, dream role. No em dashes. No filler like "This is a great opportunity", "This position offers", "You would be well suited".
+
+Candidate Skill Profile:
+${skillProfileText || "(No skill profile text provided yet.)"}
+
+Top Skills:
+${topSkills.length ? topSkills.join(", ") : "(None listed.)"}
+
+Signature Stories / Proof Points:
+${signatureStories.length ? signatureStories.join("; ") : "(None listed.)"}
+
+Job:
+- Company: ${entry.company}
+- Title: ${entry.title}
+- Location: ${entry.location ?? "N/A"}
+- Salary: ${entry.salary ?? "N/A"}
+
+Job Summary:
+${entry.job_summary ?? "(Not available)"}
+
+WhyFit Context:
+${entry.why_fit ?? "(Not available)"}
+
+Output only the 3 paragraph blocks, each separated by a single blank line. Nothing else.`;
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -73,12 +91,12 @@ Be direct, warm, and specific. No corporate-speak. Use "you" to address the clie
         messages: [
           {
             role: "system",
-            content: "You are Sygnalist, a direct and encouraging job-hunt coach. Write concise, actionable GoodFit assessments. Never use: 'exciting opportunity', 'dynamic team', 'fast-paced environment', 'leverage your expertise', 'passionate about'.",
+            content: "You are a sharp ops/account person. Write GoodFit assessments in plain language. No corporate tone, no coaching tone, no resume summary style. Short sentences. Plain verbs.",
           },
           { role: "user", content: prompt },
         ],
-        temperature: 0.7,
-        max_tokens: 500,
+        temperature: 0.5,
+        max_tokens: 600,
       }),
       signal: AbortSignal.timeout(25000),
     });
@@ -88,7 +106,8 @@ Be direct, warm, and specific. No corporate-speak. Use "you" to address the clie
     }
 
     const data = await res.json();
-    const goodFit = data.choices?.[0]?.message?.content ?? null;
+    const rawFit = data.choices?.[0]?.message?.content ?? null;
+    const goodFit = rawFit ? stripDashes(rawFit) : null;
 
     if (goodFit) {
       // Save to tracker entry

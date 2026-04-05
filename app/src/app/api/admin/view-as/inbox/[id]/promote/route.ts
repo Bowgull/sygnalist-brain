@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient, getRequestId } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** POST /api/admin/view-as/inbox/:id/promote?client_id=xxx — promote a client's inbox job to tracker */
+/** POST /api/admin/view-as/inbox/:id/promote?client_id=xxx - promote a client's inbox job to tracker */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

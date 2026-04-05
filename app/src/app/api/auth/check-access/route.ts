@@ -5,7 +5,7 @@ import { logFailure } from "@/lib/logger";
 /**
  * POST /api/auth/check-access
  * Checks if an email has been pre-registered by admin in the profiles table.
- * No auth required — this runs before login.
+ * No auth required - this runs before login.
  */
 export async function POST(request: Request) {
   const body = await request.json();

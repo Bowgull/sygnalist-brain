@@ -1,7 +1,7 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 
-/** GET /api/inbox/:id — get a single inbox job with full detail */
+/** GET /api/inbox/:id - get a single inbox job with full detail */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }

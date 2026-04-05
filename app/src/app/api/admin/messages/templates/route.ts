@@ -2,8 +2,8 @@ import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 
 /**
- * GET /api/admin/messages/templates — List all message templates
- * POST /api/admin/messages/templates — Create a custom template
+ * GET /api/admin/messages/templates - List all message templates
+ * POST /api/admin/messages/templates - Create a custom template
  */
 export async function GET() {
   const { response } = await requireAdmin();

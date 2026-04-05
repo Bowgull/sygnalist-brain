@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent } from "@/lib/logger";
 
-/** GET /api/admin/logs — get event logs, error logs, or fetch logs */
+/** GET /api/admin/logs - get event logs, error logs, or fetch logs */
 export async function GET(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
@@ -106,7 +106,7 @@ export async function GET(request: Request) {
   return json(data);
 }
 
-/** PATCH /api/admin/logs — resolve an error log */
+/** PATCH /api/admin/logs - resolve an error log */
 export async function PATCH(request: Request) {
   const { profile, response } = await requireAdmin();
   if (response) return response;

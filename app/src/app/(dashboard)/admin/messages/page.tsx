@@ -490,7 +490,7 @@ function OutreachView({
                 )}
               </div>
 
-              {/* Individual cards — show when only 1 item or expanded */}
+              {/* Individual cards - show when only 1 item or expanded */}
               {(items.length === 1 || isExpanded) && (
                 <div className="border-t border-[#2A3544]/50">
                   {items.map((s) => (
@@ -529,7 +529,7 @@ function SuggestionCard({
   let description = "";
   switch (s.trigger_event) {
     case "interview_reached":
-      description = `Reached ${ctx.status || "interview"} at ${ctx.company || "a company"} — ${ctx.title || ""}`;
+      description = `Reached ${ctx.status || "interview"} at ${ctx.company || "a company"} - ${ctx.title || ""}`;
       break;
     case "offer_reached":
       description = `Received an offer from ${ctx.company || "a company"}`;
@@ -554,7 +554,7 @@ function SuggestionCard({
           className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
           style={{ backgroundColor: `${color}15`, color }}
         >
-          {s.client?.display_name ? s.client.display_name[0].toUpperCase() : "—"}
+          {s.client?.display_name ? s.client.display_name[0].toUpperCase() : "-"}
         </div>
         <div>
           <p className="text-sm font-medium">{s.client?.display_name ?? <span className="rounded-full bg-[#9CA3AF]/10 px-2 py-0.5 text-[11px] text-[#9CA3AF] ring-1 ring-[#9CA3AF]/20">Removed User</span>}</p>
@@ -869,7 +869,7 @@ function ComposeView({
             disabled={selectedClients.length === 0}
             className="w-full rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] py-2.5 text-sm font-semibold text-[#0C1016] transition disabled:opacity-30"
           >
-            Next — Choose Template ({selectedClients.length} selected)
+            Next - Choose Template ({selectedClients.length} selected)
           </button>
         </div>
       )}
@@ -1065,7 +1065,7 @@ function ConversationsView({
       await loadConversations();
       if (selectedClientId) await loadThread(selectedClientId);
     } else {
-      showToast("Something went wrong — check Logs");
+      showToast("Something went wrong - check Logs");
     }
     setPolling(false);
   }
@@ -1188,7 +1188,7 @@ function ConversationsView({
 
               return (
                 <div key={subject} className="rounded-2xl border border-[#2A3544]/60 bg-[#0C1016] overflow-hidden">
-                  {/* Thread header — gold accent */}
+                  {/* Thread header - gold accent */}
                   <button
                     onClick={() => toggleThread(subject)}
                     className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[#151C24]"
@@ -1281,7 +1281,7 @@ function ConversationsView({
                         );
                       })}
 
-                      {/* Per-thread reply box — shown when reply icon is clicked */}
+                      {/* Per-thread reply box - shown when reply icon is clicked */}
                       {replyingToThread === subject && (
                         <ThreadReplyBox
                           subject={subject}
@@ -1342,7 +1342,7 @@ function ConversationsView({
             >
               <div className="relative">
                 <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${conv.display_name ? "bg-[#6AD7A3]/10 text-[#6AD7A3]" : "bg-[#9CA3AF]/10 text-[#9CA3AF]"}`}>
-                  {conv.display_name ? conv.display_name[0]?.toUpperCase() : "—"}
+                  {conv.display_name ? conv.display_name[0]?.toUpperCase() : "-"}
                 </div>
                 {conv.unread_count > 0 && (
                   <div className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[#6AD7A3] border-2 border-[#171F28]" />

@@ -93,7 +93,7 @@ export default function InboxPage() {
         toast.error(err?.error ?? "Scan failed");
       }
     } catch {
-      toast.error("Scan failed — check your connection");
+      toast.error("Scan failed - check your connection");
     } finally {
       setScanning(false);
     }
@@ -243,7 +243,7 @@ export default function InboxPage() {
             </svg>
             <p className="text-sm font-medium text-[#B8BFC8]">No fresh sygnals yet</p>
             <p className="mt-1 text-xs text-[#9CA3AF]">
-              {profileLocked ? "Your profile is inactive — contact your coach." : "Scan now to search for new roles."}
+              {profileLocked ? "Your profile is inactive - contact your coach." : "Scan now to search for new roles."}
             </p>
             {!profileLocked && (
               <button

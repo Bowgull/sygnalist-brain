@@ -80,7 +80,7 @@ export async function refineWithAi(
   if (!openaiKey || !userContent) return null;
 
   const threadSection = threadContext
-    ? `\n\nConversation so far (for context — do NOT repeat this, just use it to inform your tone and content):\n${threadContext}`
+    ? `\n\nConversation so far (for context - do NOT repeat this, just use it to inform your tone and content):\n${threadContext}`
     : "";
 
   try {
@@ -102,7 +102,7 @@ Voice rules:
 - Short sentences. Conversational. Like texting a friend who you also coach.
 - Use the client's first name naturally.
 - No "I hope this email finds you well" or similar filler.
-- Sign off as "Josh" — no "Best regards" or "Take care".
+- Sign off as "Josh" - no "Best regards" or "Take care".
 - Keep it concise. Under 150 words.
 - If replying to something the client said, acknowledge it naturally.
 

@@ -34,7 +34,7 @@ export async function getAuthProfile(): Promise<{
   return { supabase, profile, userId: user.id };
 }
 
-/** Require authentication — returns 401 if not authenticated. */
+/** Require authentication - returns 401 if not authenticated. */
 export async function requireAuth() {
   const result = await getAuthProfile();
   if (!result.userId) {
@@ -43,7 +43,7 @@ export async function requireAuth() {
   return { ...result, response: null };
 }
 
-/** Require admin — returns 403 if not admin. */
+/** Require admin - returns 403 if not admin. */
 export async function requireAdmin() {
   const result = await requireAuth();
   if (result.response) return result;

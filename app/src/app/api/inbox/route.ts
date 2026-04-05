@@ -1,7 +1,7 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 
-/** GET /api/inbox — get the user's inbox jobs */
+/** GET /api/inbox - get the user's inbox jobs */
 export async function GET(request: Request) {
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;

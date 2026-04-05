@@ -1,6 +1,6 @@
 import type { RawJob, SourceResult, FetchContext } from "./types";
 
-/** Arbeitnow — free, no API key needed */
+/** Arbeitnow - free, no API key needed */
 export async function fetchArbeitnow(ctx: FetchContext): Promise<SourceResult> {
   const start = Date.now();
   const jobs: RawJob[] = [];

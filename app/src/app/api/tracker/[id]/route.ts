@@ -1,7 +1,7 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** GET /api/tracker/:id — get a single tracker entry */
+/** GET /api/tracker/:id - get a single tracker entry */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -22,7 +22,7 @@ export async function GET(
   return json(data);
 }
 
-/** PATCH /api/tracker/:id — update a tracker entry */
+/** PATCH /api/tracker/:id - update a tracker entry */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -93,7 +93,7 @@ export async function PATCH(
   return json(data);
 }
 
-/** DELETE /api/tracker/:id — remove a tracker entry */
+/** DELETE /api/tracker/:id - remove a tracker entry */
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }

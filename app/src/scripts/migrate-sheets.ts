@@ -1,14 +1,14 @@
 /**
- * migrate-sheets.ts — One-time migration from Google Sheets to Supabase
+ * migrate-sheets.ts - One-time migration from Google Sheets to Supabase
  *
  * Usage:
  *   npx tsx src/scripts/migrate-sheets.ts
  *
  * Required env vars:
- *   GOOGLE_SHEETS_API_KEY     — API key with Sheets read access
- *   GOOGLE_SPREADSHEET_ID     — The spreadsheet ID from the Google Sheets URL
- *   NEXT_PUBLIC_SUPABASE_URL  — Supabase project URL
- *   SUPABASE_SERVICE_ROLE_KEY — Service role key (bypasses RLS)
+ *   GOOGLE_SHEETS_API_KEY     - API key with Sheets read access
+ *   GOOGLE_SPREADSHEET_ID     - The spreadsheet ID from the Google Sheets URL
+ *   NEXT_PUBLIC_SUPABASE_URL  - Supabase project URL
+ *   SUPABASE_SERVICE_ROLE_KEY - Service role key (bypasses RLS)
  *
  * What it migrates:
  *   1. Profiles sheet → profiles table

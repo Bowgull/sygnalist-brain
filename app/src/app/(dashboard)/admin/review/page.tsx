@@ -337,7 +337,7 @@ function ReviewCard({
         <div className="min-w-0 flex-1 cursor-pointer" onClick={onToggleExpand}>
           <div className="flex items-center gap-2">
             <span className="truncate text-[13px] font-medium text-white">{job.title || "Untitled"}</span>
-            <span className="shrink-0 text-[12px] text-[#6B7280]">— {job.company || "Unknown"}</span>
+            <span className="shrink-0 text-[12px] text-[#6B7280]"> - {job.company || "Unknown"}</span>
           </div>
         </div>
 
@@ -379,7 +379,7 @@ function ReviewCard({
             <div>
               <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Work Mode</label>
               <select value={workMode} onChange={(e) => { setWorkMode(e.target.value); markDirty(); }} className={inputClass}>
-                <option value="">—</option>
+                <option value="">-</option>
                 <option value="remote">Remote</option>
                 <option value="hybrid">Hybrid</option>
                 <option value="onsite">Onsite</option>
@@ -448,7 +448,7 @@ function ReviewCard({
           </div>
           <div className="mt-3">
             <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Job Description</label>
-            <textarea value={description} onChange={(e) => { setDescription(e.target.value); markDirty(); }} rows={4} className={inputClass} placeholder="Paste the job description here — used for AI enrichment on approval" />
+            <textarea value={description} onChange={(e) => { setDescription(e.target.value); markDirty(); }} rows={4} className={inputClass} placeholder="Paste the job description here - used for AI enrichment on approval" />
           </div>
           {dirty && (
             <div className="mt-3 flex gap-2">

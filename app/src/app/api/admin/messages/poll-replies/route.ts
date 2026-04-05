@@ -5,11 +5,11 @@ const MAX_MESSAGES = 20;
 const PARALLEL_BATCH = 5;
 
 /**
- * POST /api/admin/messages/poll-replies — Poll Gmail for replies
+ * POST /api/admin/messages/poll-replies - Poll Gmail for replies
  *
  * Simplified approach:
  * 1. Get access token
- * 2. Search for recent inbox messages (no label filtering — dedup via DB)
+ * 2. Search for recent inbox messages (no label filtering - dedup via DB)
  * 3. Fetch messages in parallel batches
  * 4. Match to sent messages via sender email or In-Reply-To
  * 5. Insert new replies into received_messages (unique constraint handles dedup)
@@ -173,19 +173,19 @@ export async function POST() {
             continue;
           }
 
-          // Reply is verified — resolve client_id from the sent message, then enrich with profile
+          // Reply is verified - resolve client_id from the sent message, then enrich with profile
           const clientId = sentMatch.client_id;
 
           // Extract body
           const bodyText = extractBody(msgData.payload, "text/plain");
           const bodyHtml = extractBody(msgData.payload, "text/html");
 
-          // Thread linking — we already matched above
+          // Thread linking - we already matched above
           const matchedSentId = sentMatch.id;
 
           const receivedAt = dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString();
 
-          // Insert — unique constraint on gmail_message_id handles dedup
+          // Insert - unique constraint on gmail_message_id handles dedup
           const { error: insertErr } = await service.from("received_messages").insert({
             gmail_message_id: gmailMsgId,
             gmail_thread_id: threadId,

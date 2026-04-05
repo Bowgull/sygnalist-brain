@@ -1,6 +1,6 @@
 import { requireAuth, json, error, getServiceClient } from "@/lib/api-helpers";
 
-/** GET /api/dashboard — get dashboard stats for the user */
+/** GET /api/dashboard - get dashboard stats for the user */
 export async function GET() {
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;

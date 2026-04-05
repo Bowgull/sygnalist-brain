@@ -67,7 +67,7 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Layout & spacing (outside @theme — plain CSS custom properties) */
+/* Layout & spacing (outside @theme - plain CSS custom properties) */
 :root {
   --layout-max-width: 1520px;
   --header-height: 88px;

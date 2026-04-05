@@ -76,7 +76,7 @@ export default function AdminHealthPage() {
           />
           <StatBox
             label="DB Latency"
-            value={health?.database.latency_ms ? `${health.database.latency_ms}ms` : "—"}
+            value={health?.database.latency_ms ? `${health.database.latency_ms}ms` : "-"}
             color="default"
           />
           <StatBox
@@ -86,7 +86,7 @@ export default function AdminHealthPage() {
           />
           <StatBox
             label="Last Check"
-            value={health?.timestamp ? new Date(health.timestamp).toLocaleTimeString() : "—"}
+            value={health?.timestamp ? new Date(health.timestamp).toLocaleTimeString() : "-"}
             color="default"
           />
         </div>

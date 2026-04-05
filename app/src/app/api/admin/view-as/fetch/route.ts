@@ -2,7 +2,7 @@ import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 import { runFetchPipeline } from "@/lib/sources/orchestrator";
 
-/** POST /api/admin/view-as/fetch?client_id=xxx — trigger a job fetch for a client */
+/** POST /api/admin/view-as/fetch?client_id=xxx - trigger a job fetch for a client */
 export async function POST(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;

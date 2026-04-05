@@ -127,7 +127,7 @@ async function enrichOne(
   };
 }
 
-/** Build the enrichment prompt — restored from original Blueprint voice */
+/** Build the enrichment prompt - restored from original Blueprint voice */
 function buildEnrichmentPrompt(job: ScoredJob, profile: Profile): string {
   const desc = (job.description_snippet ?? "").slice(0, MAX_DESC_CHARS);
   const skillProfileText = profile.skill_profile_text ?? "";
@@ -232,7 +232,7 @@ function sanitizeEnrichmentVoice(
 
   function stripBanned(text: string): string {
     if (!text) return text;
-    let out = text.replace(/[\u2014\u2013\u2012]/g, " "); // Strip em/en dashes
+    let out = text.replace(/[\u2014\u2013\u2012]/g, " - "); // Strip em/en dashes
     for (const phrase of banned) {
       const re = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
       out = out.replace(re, "");

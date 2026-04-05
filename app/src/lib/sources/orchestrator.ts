@@ -154,7 +154,7 @@ export async function runFetchPipeline(
   const { location, country } = resolveLocation(profile);
   const ctx: FetchContext = { searchTerms, location, country };
 
-  // Build source list — skip market-specific sources based on language preferences
+  // Build source list - skip market-specific sources based on language preferences
   const acceptedLanguages = new Set(
     (profile.preferred_languages?.length ? profile.preferred_languages : ["en"]).map((l) => l.toLowerCase()),
   );
@@ -262,7 +262,7 @@ export async function runFetchPipeline(
     request_id: requestId,
   }));
 
-  // Summary row — the batch receipt with full pipeline step data
+  // Summary row - the batch receipt with full pipeline step data
   logRows.push({
     profile_id: profile.id,
     batch_id: requestId,

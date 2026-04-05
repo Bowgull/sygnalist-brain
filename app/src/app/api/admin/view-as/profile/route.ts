@@ -1,6 +1,6 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 
-/** GET /api/admin/view-as/profile?client_id=xxx — get a client's profile for view-as */
+/** GET /api/admin/view-as/profile?client_id=xxx - get a client's profile for view-as */
 export async function GET(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;

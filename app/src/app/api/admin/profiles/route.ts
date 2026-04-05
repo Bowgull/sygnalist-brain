@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** GET /api/admin/profiles — list all profiles */
+/** GET /api/admin/profiles - list all profiles */
 export async function GET() {
   const { response } = await requireAdmin();
   if (response) return response;
@@ -16,7 +16,7 @@ export async function GET() {
   return json(data);
 }
 
-/** POST /api/admin/profiles — create a new profile */
+/** POST /api/admin/profiles - create a new profile */
 export async function POST(request: Request) {
   const { profile: admin, response } = await requireAdmin();
   if (response) return response;

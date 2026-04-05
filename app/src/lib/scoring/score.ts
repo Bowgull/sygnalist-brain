@@ -28,7 +28,7 @@ interface LaneControl {
   roles?: string[];
 }
 
-/** Common German words that appear in job postings — require 3+ matches to flag */
+/** Common German words that appear in job postings - require 3+ matches to flag */
 const GERMAN_MARKERS = [
   "und", "oder", "für", "mit", "von", "wir", "sie", "ihre",
   "aufgaben", "anforderungen", "bewerbung", "berufserfahrung",
@@ -49,7 +49,7 @@ function detectLanguage(text: string): string | null {
       if (hits >= 3) return "de";
     }
   }
-  // Check umlaut density — 3+ umlauts in title+snippet is a strong signal
+  // Check umlaut density - 3+ umlauts in title+snippet is a strong signal
   const umlauts = text.match(UMLAUT_RE);
   if (umlauts && umlauts.length >= 3) return "de";
 

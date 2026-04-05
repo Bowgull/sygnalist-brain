@@ -37,7 +37,7 @@ Rules:
 - For role_tracks, infer from job titles and experience what roles they'd target
 - If location preferences aren't clear, set all accept_* to true
 - For salary_estimate, give a market-rate range based on role + experience
-- Keep arrays concise — quality over quantity`;
+- Keep arrays concise - quality over quantity`;
 
 export async function parseWithAI(resumeText: string): Promise<ParsedResume> {
   if (!OPENAI_KEY) throw new Error("OpenAI API key not configured");

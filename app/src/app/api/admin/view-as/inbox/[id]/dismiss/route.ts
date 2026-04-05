@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient, getRequestId } from "@/lib/api-helpers";
 import { logEvent } from "@/lib/logger";
 
-/** POST /api/admin/view-as/inbox/:id/dismiss?client_id=xxx — dismiss a client's inbox job */
+/** POST /api/admin/view-as/inbox/:id/dismiss?client_id=xxx - dismiss a client's inbox job */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

@@ -2,7 +2,7 @@ import { json } from "@/lib/api-helpers";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { logEvent, logFailure } from "@/lib/logger";
 
-/** POST /api/auth/log — log an auth event from the client. */
+/** POST /api/auth/log - log an auth event from the client. */
 export async function POST(request: Request) {
   const body = await request.json();
   const event = body.event as string;
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
         .single();
       userId = profile?.id ?? null;
     }
-  } catch { /* Can't identify user — still log */ }
+  } catch { /* Can't identify user - still log */ }
 
   if (event === "login_failed") {
     await logFailure(`auth.${event}`, `Login failed${email ? ` for ${email}` : ""}: ${errorMessage ?? "unknown error"}`, {

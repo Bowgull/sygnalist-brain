@@ -4,7 +4,7 @@ export async function extractText(file: File): Promise<string> {
     return (await file.text()).slice(0, 15000);
   }
 
-  // Docx — extract text from XML content
+  // Docx - extract text from XML content
   if (file.name.endsWith(".docx") || file.type.includes("wordprocessingml")) {
     const buffer = await file.arrayBuffer();
     const raw = new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(buffer));

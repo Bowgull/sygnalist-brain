@@ -40,7 +40,7 @@ export async function PATCH(
     return json({ ...resume, status: "rejected" });
   }
 
-  // Approve — build profile patch from parsed_data
+  // Approve - build profile patch from parsed_data
   const parsed = resume.parsed_data as unknown as ParsedResume | null;
   if (!parsed) return error("No parsed data on this resume");
 

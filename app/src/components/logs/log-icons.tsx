@@ -1,4 +1,4 @@
-/** Inline SVG icons for log rows — 2px stroke, 24x24 viewBox */
+/** Inline SVG icons for log rows - 2px stroke, 24x24 viewBox */
 import type { ReactNode } from "react";
 
 type IconProps = { className?: string };

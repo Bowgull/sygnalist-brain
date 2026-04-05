@@ -3,8 +3,8 @@ import { sendEmail } from "@/lib/email";
 import { logEvent, logError } from "@/lib/logger";
 
 /**
- * GET /api/admin/messages — List sent messages with optional client filter
- * POST /api/admin/messages — Send an email to a client
+ * GET /api/admin/messages - List sent messages with optional client filter
+ * POST /api/admin/messages - Send an email to a client
  */
 export async function GET(request: Request) {
   const { response } = await requireAdmin();
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   // Validate UUID format
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(client_id)) {
-    return error(`Invalid client_id format: "${client_id}" — expected UUID`);
+    return error(`Invalid client_id format: "${client_id}" - expected UUID`);
   }
 
   const service = getServiceClient();

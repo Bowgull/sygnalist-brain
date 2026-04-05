@@ -65,7 +65,7 @@ function LoginForm() {
       setMessage(error.message);
       logAuth("login_failed", "magic", error.message, email);
     } else {
-      setMessage("Check your email — we just sent you a sign-in link.");
+      setMessage("Check your email - we just sent you a sign-in link.");
       logAuth("magic_link_sent", "magic", undefined, email);
     }
     setLoading(false);
@@ -155,7 +155,7 @@ function LoginForm() {
             )}
 
             <p className="mt-4 text-center text-[11px] text-[#9CA3AF]">
-              Enter the email your coach set up for you. No password needed — we&apos;ll send you a link.
+              Enter the email your coach set up for you. No password needed - we&apos;ll send you a link.
             </p>
           </div>
         )}

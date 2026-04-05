@@ -130,7 +130,7 @@ export default function OnboardPage() {
 
   async function handlePasteSubmit() {
     if (pasteText.trim().length < 50) {
-      setParseError("Text too short — paste at least a few paragraphs");
+      setParseError("Text too short - paste at least a few paragraphs");
       return;
     }
     setParsing(true);
@@ -443,7 +443,7 @@ export default function OnboardPage() {
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-medium text-white">Tap to upload resume</p>
-                  <p className="mt-0.5 text-[11px] text-[#6B7280]">Word (.docx) or plain text (.txt) — Max 5MB</p>
+                  <p className="mt-0.5 text-[11px] text-[#6B7280]">Word (.docx) or plain text (.txt) - Max 5MB</p>
                 </div>
               </button>
             ) : (
@@ -477,7 +477,7 @@ export default function OnboardPage() {
             onClick={handleSkipResume}
             className="w-full rounded-xl border border-[#2A3544] py-3 text-sm font-medium text-[#9CA3AF] transition hover:text-white"
           >
-            Skip — I&apos;ll set up manually
+            Skip - I&apos;ll set up manually
           </button>
         </div>
       )}
@@ -967,29 +967,29 @@ function buildWelcomeEmail(name: string, appUrl: string): string {
 
   return `Hey ${firstName},
 
-Welcome aboard. I've set up your Sygnalist profile and your inbox is already working — fresh job matches tailored to your skills, goals, and preferences are on the way.
+Welcome aboard. I've set up your Sygnalist profile and your inbox is already working - fresh job matches tailored to your skills, goals, and preferences are on the way.
 
 <a href="${appUrl}" style="display:inline-block;margin:16px 0;padding:14px 32px;background:linear-gradient(135deg,#A9FFB5,#5EF2C7,#39D6FF);color:#0C1016;font-weight:700;font-size:16px;text-decoration:none;border-radius:12px;">Open Sygnalist</a>
 
-Enter this email address and we'll send you a sign-in link. No passwords, no accounts to create — just check your email and tap the link.
+Enter this email address and we'll send you a sign-in link. No passwords, no accounts to create - just check your email and tap the link.
 
 <strong style="font-size:16px;">Make It Feel Like an App</strong>
-Sygnalist is built for your phone. Add it to your home screen and it works just like a native app — full screen, fast, and always one tap away.
+Sygnalist is built for your phone. Add it to your home screen and it works just like a native app - full screen, fast, and always one tap away.
 
 <strong>iPhone:</strong>
 1. Open the link above in <strong>Safari</strong>
 2. Tap the <strong>Share</strong> button (square with an arrow)
 3. Tap <strong>"Add to Home Screen"</strong>
-4. Done — you'll see the Sygnalist radar icon on your home screen
+4. Done - you'll see the Sygnalist radar icon on your home screen
 
 <strong>Android:</strong>
 1. Open the link above in <strong>Chrome</strong>
 2. Tap the <strong>three-dot menu</strong> (top right)
 3. Tap <strong>"Add to Home screen"</strong>
-4. Done — same thing, one tap to open
+4. Done - same thing, one tap to open
 
 <strong style="font-size:16px;">How It Works</strong>
-- Your inbox fills with jobs matched to you — no searching required
+- Your inbox fills with jobs matched to you - no searching required
 - Swipe right on anything worth pursuing, left to pass
 - Jobs you save go into your tracker where you can manage your pipeline from prospect all the way to offer
 - I'm watching behind the scenes and I'll jump in when I see signal
@@ -998,5 +998,5 @@ You don't need to do anything else right now. Just open the app, scroll through 
 
 Questions? Reply to this email anytime.
 
-— Josh`;
+- Josh`;
 }

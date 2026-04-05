@@ -218,7 +218,7 @@ export default function AdminLogsPage() {
           {/* ── EVENTS TAB ── */}
           {logType === "events" && groupConsecutiveEvents(logs).map((group) => {
             if (group.logs.length === 1) {
-              // Single event — render normally
+              // Single event - render normally
               const log = group.logs[0];
               const id = log.id as string;
               const isExpanded = expandedId === id;
@@ -241,7 +241,7 @@ export default function AdminLogsPage() {
               );
             }
 
-            // Grouped events — collapsed row with count, expandable
+            // Grouped events - collapsed row with count, expandable
             const firstLog = group.logs[0];
             const isGroupExpanded = expandedGroupId === group.key;
             const domain = domainFromEventType(group.eventType);

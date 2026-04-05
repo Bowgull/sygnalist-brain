@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 
-/** GET /api/admin/health — system health check */
+/** GET /api/admin/health - system health check */
 export async function GET() {
   const { response } = await requireAdmin();
   if (response) return response;

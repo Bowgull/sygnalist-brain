@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 
 /**
- * GET /api/admin/messages/conversations — List all conversations grouped by client
+ * GET /api/admin/messages/conversations - List all conversations grouped by client
  */
 export async function GET() {
   const { response } = await requireAdmin();

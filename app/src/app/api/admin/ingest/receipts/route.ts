@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 
 /**
- * GET /api/admin/ingest/receipts — Recent ingest and fetch run receipts.
+ * GET /api/admin/ingest/receipts - Recent ingest and fetch run receipts.
  *
  * Pulls from user_events for gmail.ingest_completed and cron.fetch_completed events.
  * Returns structured receipts for persistent display on the ingest page.

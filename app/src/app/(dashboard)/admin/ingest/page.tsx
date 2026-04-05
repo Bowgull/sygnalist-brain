@@ -147,7 +147,7 @@ export default function AdminIngestPage() {
                 <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#FAD76A]/10 px-3 py-2">
                   <div className="h-2 w-2 rounded-full bg-[#FAD76A]" />
                   <span className="text-[11px] font-medium text-[#FAD76A]">
-                    Capped at {result.jobs_cap_limit} jobs per run — more available
+                    Capped at {result.jobs_cap_limit} jobs per run - more available
                   </span>
                 </div>
               )}
@@ -155,7 +155,7 @@ export default function AdminIngestPage() {
                 <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#FAD76A]/10 px-3 py-2">
                   <div className="h-2 w-2 rounded-full bg-[#FAD76A]" />
                   <span className="text-[11px] font-medium text-[#FAD76A]">
-                    Backlog detected — ~{result.queue_remaining} more messages waiting
+                    Backlog detected - ~{result.queue_remaining} more messages waiting
                   </span>
                 </div>
               )}

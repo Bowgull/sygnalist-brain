@@ -1,7 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** GET /api/admin/job-bank — get global job bank entries */
+/** GET /api/admin/job-bank - get global job bank entries */
 export async function GET(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   return json({ jobs: data, total: count });
 }
 
-/** POST /api/admin/job-bank — add a single job or array of jobs */
+/** POST /api/admin/job-bank - add a single job or array of jobs */
 export async function POST(request: Request) {
   const { profile: admin, response } = await requireAdmin();
   if (response) return response;
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
   return json({ upserted: totalInserted });
 }
 
-/** PATCH /api/admin/job-bank — update a job bank entry by ID */
+/** PATCH /api/admin/job-bank - update a job bank entry by ID */
 export async function PATCH(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
@@ -131,7 +131,7 @@ export async function PATCH(request: Request) {
   return json(data);
 }
 
-/** DELETE /api/admin/job-bank — remove a job by ID or URL */
+/** DELETE /api/admin/job-bank - remove a job by ID or URL */
 export async function DELETE(request: Request) {
   const { profile: admin, response } = await requireAdmin();
   if (response) return response;

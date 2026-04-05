@@ -4,7 +4,7 @@ import { buildMergeFields, resolveMergeFields } from "@/lib/merge-fields";
 import { logEvent, logError } from "@/lib/logger";
 
 /**
- * POST /api/admin/messages/bulk — Send template-based email to multiple recipients
+ * POST /api/admin/messages/bulk - Send template-based email to multiple recipients
  *
  * Body: {
  *   recipients: Array<{ client_id: string }>,
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Resolve merge fields for this client — no AI, template is the message
+      // Resolve merge fields for this client - no AI, template is the message
       const mergeFields = await buildMergeFields(client_id, service);
       const subject = resolveMergeFields(template.subject, mergeFields);
       const emailBody = resolveMergeFields(template.body, mergeFields);

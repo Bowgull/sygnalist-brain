@@ -157,7 +157,7 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
               </p>
             )}
 
-            {/* Why it fits — expandable block with left accent border */}
+            {/* Why it fits - expandable block with left accent border */}
             {job.why_fit && (
               <div className="rounded-lg border-l-[3px] border-l-[#2F8A63] bg-[#6AD7A3]/5 p-4">
                 <p className="text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-[#6AD7A3]">
@@ -169,7 +169,7 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
               </div>
             )}
 
-            {/* Action buttons — always visible on desktop, supplement swipe on mobile */}
+            {/* Action buttons - always visible on desktop, supplement swipe on mobile */}
             <div className="flex flex-wrap gap-2 pt-1">
               {job.url && (
                 <a

@@ -5,7 +5,7 @@ import { logEvent, logError } from "@/lib/logger";
 const CRON_SECRET = process.env.CRON_SECRET;
 
 /**
- * GET /api/cron/digest — Weekly digest generator for all active profiles.
+ * GET /api/cron/digest - Weekly digest generator for all active profiles.
  *
  * Triggered by Vercel Cron (weekly). Generates digest data and queues
  * emails via the Message Hub system (Phase 12).

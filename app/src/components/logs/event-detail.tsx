@@ -97,7 +97,7 @@ export default function EventDetail({ log, profileMap, onTraceRequest }: Props) 
                   <div key={k} className="flex items-baseline gap-2">
                     <span className="shrink-0 text-[0.6875rem] font-medium text-[#9CA3AF]">{k}</span>
                     <span className="min-w-0 break-all text-[0.75rem] text-[#B8BFC8]">
-                      {typeof v === "object" ? JSON.stringify(v) : String(v ?? "—")}
+                      {typeof v === "object" ? JSON.stringify(v) : String(v ?? "-")}
                     </span>
                   </div>
                 ))}

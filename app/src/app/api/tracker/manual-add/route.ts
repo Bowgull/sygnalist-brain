@@ -3,7 +3,7 @@ import { logEvent, logError } from "@/lib/logger";
 
 const ALLOWED_STAGES = ["Prospect", "Applied", "Interview 1", "Interview 2", "Final", "Offer"];
 
-/** POST /api/tracker/manual-add — manually add a job to tracker */
+/** POST /api/tracker/manual-add - manually add a job to tracker */
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
   const { supabase, profile, response } = await requireAuth();
