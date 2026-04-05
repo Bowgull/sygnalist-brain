@@ -35,7 +35,7 @@ export default function AdminLogsPage() {
 
   // Debounced filters for API calls (avoids firing on every keystroke)
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     debounceRef.current = setTimeout(() => setDebouncedFilters(filters), 300);
     return () => clearTimeout(debounceRef.current);
