@@ -36,8 +36,8 @@ export default function EventDetail({ log, profileMap, onTraceRequest }: Props) 
   }, [requestId, success]);
 
   return (
-    <div className="border-t border-[#2A3544]/40 px-5 py-4">
-      <div className="ml-4 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#0C1016]/80 p-4">
+    <div className="border-t border-[#2A3544]/40 px-3 py-3 md:px-5 md:py-4">
+      <div className="ml-0 md:ml-4 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[#0C1016]/80 p-3 md:p-4">
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Left: Who + What + Result */}
         <div className="space-y-3">

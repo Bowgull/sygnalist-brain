@@ -28,7 +28,7 @@ export default function AdminSubTabs() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.04em] transition-colors ${
+              className={`whitespace-nowrap rounded-lg px-3 py-2 md:py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.04em] transition-colors ${
                 isActive
                   ? "bg-[#171F28] text-[#FAD76A] border border-[#FAD76A]/20"
                   : "text-[#9CA3AF] hover:text-[#B8BFC8] border border-transparent"

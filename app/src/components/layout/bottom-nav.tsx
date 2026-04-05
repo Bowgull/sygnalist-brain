@@ -45,7 +45,7 @@ export default function BottomNav({ isAdmin = false }: { isAdmin?: boolean }) {
             <Link
               key={item.label}
               href={item.href}
-              className={`flex flex-col items-center gap-0.5 px-4 py-1 text-xs transition-colors ${
+              className={`flex flex-col items-center gap-0.5 px-4 py-2 text-xs transition-colors ${
                 isActive
                   ? item.label === "Messages" ? "text-[#F59E0B]" : "text-[#6AD7A3]"
                   : "text-[#9CA3AF] hover:text-[#B8BFC8]"

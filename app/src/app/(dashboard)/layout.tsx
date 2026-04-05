@@ -5,7 +5,7 @@ import Header from "@/components/layout/header";
 import BottomNav from "@/components/layout/bottom-nav";
 import TopTabs from "@/components/layout/top-tabs";
 import MetricsSidebar from "@/components/layout/metrics-sidebar";
-import MobileMetrics from "@/components/layout/mobile-metrics";
+// MobileMetrics removed — desktop sidebar only
 import { ViewAsProvider } from "@/components/view-as/view-as-context";
 
 export default async function DashboardLayout({
@@ -33,9 +33,6 @@ export default async function DashboardLayout({
       <ViewAsProvider>
         <div className="flex min-h-dvh flex-col">
           <Header displayName={profile?.display_name} role={profile?.role} />
-
-          {/* Mobile metrics strip */}
-          <MobileMetrics />
 
           <div className="mx-auto w-full max-w-[var(--layout-max-width)] flex-1 px-3 md:px-6 py-3 md:py-5">
             {/* Desktop: 2-column grid */}

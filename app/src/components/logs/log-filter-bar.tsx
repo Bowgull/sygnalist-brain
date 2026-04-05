@@ -29,7 +29,7 @@ export default function LogFilterBar({ logType, filters, onFilterChange }: Props
         value={filters.search ?? ""}
         onChange={(e) => onFilterChange({ ...filters, search: e.target.value || undefined })}
         placeholder="Search..."
-        className={`${selectBase} w-44`}
+        className={`${selectBase} w-full md:w-44`}
       />
 
       {/* Domain filter (activity only) */}

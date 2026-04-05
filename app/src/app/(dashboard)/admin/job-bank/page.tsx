@@ -201,7 +201,7 @@ function JobBankCard({
   if (isEditing) {
     return (
       <div className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4 space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Job Title" className={inputClass} />
           <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" className={inputClass} />
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" className={inputClass} />
@@ -371,7 +371,7 @@ function AddJobForm({ onAdded, onError }: { onAdded: () => void; onError: (msg: 
   return (
     <form onSubmit={handleSubmit} className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4">
       <h2 className="mb-3 text-sm font-semibold">Add to Job Bank</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Job Title" className={inputClass} />
         <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" className={inputClass} />
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" className={inputClass} />

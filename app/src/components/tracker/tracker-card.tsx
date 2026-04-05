@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  Pencil, Check, Trash2, X, ExternalLink, Zap, Send, Clock,
+  Pencil, Check, Trash2, X, ExternalLink, Zap, Send, Clock, ChevronDown,
 } from "lucide-react";
 import StatusPill from "@/components/ui/status-pill";
 import type { Database } from "@/types/database";
@@ -285,7 +285,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setQuickEdit(!quickEdit); setStatus(entry.status); setTransitionNote(""); }}
-              className="rounded-md p-1 text-[#9CA3AF] opacity-0 group-hover:opacity-100 hover:bg-[#222D3D] hover:text-[#6AD7A3] transition-all"
+              className="rounded-md p-1.5 text-[#9CA3AF] md:opacity-0 md:group-hover:opacity-100 hover:bg-[#222D3D] hover:text-[#6AD7A3] transition-all"
               title="Quick edit stage"
             >
               <Pencil size={14} strokeWidth={2} />
@@ -301,63 +301,39 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
         {quickEdit && (
           <div
             ref={quickEditRef}
-            className="absolute right-4 top-12 z-20 w-[320px] rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#1A2332] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+            className="absolute right-2 left-2 top-12 z-20 md:left-auto md:right-4 md:w-[300px] rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#1A2332] p-3 md:p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-2">Move to</p>
 
-            {/* Pipeline dots */}
-            <div className="flex items-center justify-between mb-2">
-              {STAGES.map((s, i) => {
+            {/* Styled status dropdown */}
+            <div className="space-y-1 mb-3 max-h-[240px] overflow-y-auto">
+              {[...STAGES, ...CLOSED].map((s) => {
                 const c = statusBorderColor[s] ?? "#9CA3AF";
                 const isActive = status === s;
-                const isPast = quickEditStageIdx >= 0 && i < quickEditStageIdx;
-                return (
-                  <div key={s} className="flex items-center">
-                    <button
-                      type="button"
-                      onClick={() => setStatus(s)}
-                      className="flex flex-col items-center gap-0.5 group/qstage"
-                      title={stageDisplay[s] ?? s}
-                    >
-                      <div
-                        className={`h-2.5 w-2.5 rounded-full border-[1.5px] transition-all ${
-                          isActive ? "scale-125" : isPast ? "opacity-60" : "opacity-30 hover:opacity-60"
-                        }`}
-                        style={{
-                          borderColor: c,
-                          backgroundColor: isActive || isPast ? c : "transparent",
-                        }}
-                      />
-                      <span className={`text-[0.5rem] whitespace-nowrap ${isActive ? "text-white font-medium" : "text-[#9CA3AF]"}`}>
-                        {stageDisplay[s] ?? s}
-                      </span>
-                    </button>
-                    {i < STAGES.length - 1 && (
-                      <div className="h-[1.5px] w-2 mx-[2px]" style={{ backgroundColor: isPast ? `${c}60` : "#2A3544" }} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Terminal states */}
-            <div className="flex gap-1 mb-3">
-              {CLOSED.map((s) => {
-                const c = statusBorderColor[s] ?? "#9CA3AF";
+                const isClosed = CLOSED.includes(s);
                 return (
                   <button
                     key={s}
                     type="button"
                     onClick={() => setStatus(s)}
-                    className={`rounded-full border px-2 py-0.5 text-[0.5625rem] font-medium transition-colors ${
-                      status === s
-                        ? "border-current bg-current/15"
-                        : "border-[#2A3544] text-[#9CA3AF] hover:text-[#B8BFC8]"
-                    }`}
-                    style={status === s ? { color: c } : undefined}
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors ${
+                      isActive
+                        ? "bg-[rgba(255,255,255,0.08)] ring-1"
+                        : "hover:bg-[rgba(255,255,255,0.04)]"
+                    } ${isClosed && !isActive ? "opacity-60" : ""}`}
+                    style={isActive ? { ringColor: `${c}50` } : undefined}
                   >
-                    {s}
+                    <span
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full transition-transform ${isActive ? "scale-125" : ""}`}
+                      style={{ backgroundColor: c }}
+                    />
+                    <span className={`text-[0.8125rem] font-medium ${isActive ? "text-white" : "text-[#B8BFC8]"}`}>
+                      {stageDisplay[s] ?? s}
+                    </span>
+                    {isActive && (
+                      <Check size={14} strokeWidth={2.5} className="ml-auto shrink-0" style={{ color: c }} />
+                    )}
                   </button>
                 );
               })}
@@ -444,9 +420,9 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
     <>
       {cardFront}
       <div className="spotlight-overlay" onClick={() => { setSpotlight(false); setEditing(false); setTransitionNote(""); }} />
-      <div className="fixed inset-0 z-[52] flex items-center justify-center p-4" onClick={() => { setSpotlight(false); setEditing(false); setTransitionNote(""); }}>
+      <div className="fixed inset-0 z-[52] flex items-center justify-center p-2 md:p-4" onClick={() => { setSpotlight(false); setEditing(false); setTransitionNote(""); }}>
         <div
-          className="spotlight-card w-full max-w-2xl max-h-[min(90vh,720px)] overflow-y-auto rounded-[var(--radius-xl)] border border-[rgba(255,255,255,0.12)] bg-[#171F28]"
+          className="spotlight-card w-full max-w-2xl max-h-[min(90vh,720px)] overflow-y-auto rounded-[var(--radius-lg)] md:rounded-[var(--radius-xl)] border border-[rgba(255,255,255,0.12)] bg-[#171F28]"
           style={{
             borderTopWidth: "3px",
             borderTopColor: borderColor,
@@ -455,18 +431,18 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-start justify-between gap-4 p-6 pb-4">
+          <div className="flex items-start justify-between gap-3 p-4 pb-3 md:p-6 md:pb-4">
             <div className="min-w-0 flex-1">
-              <h3 className="text-[1.3125rem] font-bold text-white">{entry.title}</h3>
-              <p className="mt-1 text-[0.9375rem] text-[#B8BFC8]">{entry.company}</p>
+              <h3 className="text-[1.125rem] md:text-[1.3125rem] font-bold text-white">{entry.title}</h3>
+              <p className="mt-0.5 md:mt-1 text-[0.8125rem] md:text-[0.9375rem] text-[#B8BFC8]">{entry.company}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2 md:gap-3">
               <span className={`text-[0.8125rem] font-semibold tabular-nums ${daysColor}`}>{daysInStage}d</span>
               <StatusPill status={entry.status} />
               <button
                 type="button"
                 onClick={() => { setSpotlight(false); setEditing(false); setTransitionNote(""); }}
-                className="rounded-lg p-1.5 text-[#9CA3AF] hover:bg-[#222D3D] hover:text-white"
+                className="rounded-lg p-2.5 -mr-1.5 text-[#9CA3AF] hover:bg-[#222D3D] hover:text-white"
               >
                 <X size={20} strokeWidth={2} />
               </button>
@@ -474,7 +450,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
           </div>
 
           {/* Chips */}
-          <div className="flex flex-wrap gap-2 px-6 pb-4">
+          <div className="flex flex-wrap gap-2 px-4 pb-3 md:px-6 md:pb-4">
             {entry.salary && (
               <span className="inline-flex h-[26px] items-center rounded-full border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] px-3 text-[0.6875rem] font-semibold text-white">
                 {entry.salary}
@@ -498,7 +474,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
             )}
           </div>
 
-          <div className="border-t border-[#2A3544] p-6 space-y-4">
+          <div className="border-t border-[#2A3544] p-4 md:p-6 space-y-4">
             {/* Summary */}
             {entry.job_summary && (
               <p className="text-[0.9375rem] leading-relaxed text-[#B8BFC8] italic">
@@ -571,9 +547,9 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                         <button
                           type="button"
                           onClick={() => handleDeleteNote(note.id)}
-                          className="shrink-0 rounded p-1 text-[#9CA3AF] hover:text-[#DC2626] opacity-0 group-hover/note:opacity-100 transition-opacity"
+                          className="shrink-0 rounded-lg p-2 text-[#9CA3AF] hover:text-[#DC2626] hover:bg-[#DC2626]/10 md:opacity-0 md:group-hover/note:opacity-100 transition-all"
                         >
-                          <X size={12} strokeWidth={2} />
+                          <X size={14} strokeWidth={2} />
                         </button>
                       )}
                     </div>

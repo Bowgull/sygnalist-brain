@@ -37,7 +37,7 @@ export function ActionButton({
   type = "button",
 }: ActionButtonProps) {
   const base =
-    "inline-flex h-[32px] items-center gap-1.5 rounded-full border px-3.5 text-[0.75rem] font-medium transition-all hover:-translate-y-px active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none";
+    "inline-flex h-[36px] md:h-[32px] items-center gap-1.5 rounded-full border px-3.5 text-[0.75rem] font-medium transition-all hover:-translate-y-px active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none";
 
   return (
     <button

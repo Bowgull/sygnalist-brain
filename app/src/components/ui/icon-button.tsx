@@ -13,8 +13,8 @@ const variantStyles: Record<Variant, string> = {
 };
 
 const sizeStyles: Record<Size, { padding: string; iconSize: number }> = {
-  sm: { padding: "p-1.5", iconSize: 14 },
-  md: { padding: "p-2", iconSize: 16 },
+  sm: { padding: "p-2.5", iconSize: 14 },
+  md: { padding: "p-2.5", iconSize: 16 },
 };
 
 interface IconButtonProps {

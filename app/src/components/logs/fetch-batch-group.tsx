@@ -40,11 +40,11 @@ export default function FetchBatchGroup({ batchId, logs, profileMap, isInitially
     <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.08)] bg-[#171F28] overflow-hidden">
       {/* Collapsed card header */}
       <div
-        className="cursor-pointer px-5 py-4 transition-colors hover:bg-[#222D3D]/20"
+        className="cursor-pointer px-3 py-3 md:px-5 md:py-4 transition-colors hover:bg-[#222D3D]/20"
         onClick={() => setExpanded(!expanded)}
       >
         {/* Line 1: Status + profile + time */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           {/* Status label */}
           <span className={`text-[0.8125rem] font-bold tracking-wide ${statusStyle.text}`}>
             {statusStyle.label}
@@ -72,19 +72,27 @@ export default function FetchBatchGroup({ batchId, logs, profileMap, isInitially
           </svg>
         </div>
 
-        {/* Line 2: Pipeline funnel */}
-        <div className="mt-2 flex items-center gap-1.5 text-[0.8125rem] tabular-nums">
-          <span className="font-semibold text-white">{jobsReturned}</span>
-          <span className="text-[0.6875rem] text-[#9CA3AF]">fetched</span>
-          <span className="text-[#9CA3AF]">&rarr;</span>
-          <span className="text-[#B8BFC8]">{jobsDedupe}</span>
-          <span className="text-[0.6875rem] text-[#9CA3AF]">deduped</span>
-          <span className="text-[#9CA3AF]">&rarr;</span>
-          <span className="text-[#B8BFC8]">{jobsScored}</span>
-          <span className="text-[0.6875rem] text-[#9CA3AF]">scored</span>
-          <span className="text-[#9CA3AF]">&rarr;</span>
-          <span className="font-semibold text-[#6AD7A3]">{jobsEnriched}</span>
-          <span className="text-[0.6875rem] text-[#9CA3AF]">enriched</span>
+        {/* Line 2: Pipeline funnel — wraps to grid on mobile */}
+        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 md:flex md:items-center md:gap-1.5 text-[0.8125rem] tabular-nums">
+          <div className="flex items-center gap-1">
+            <span className="font-semibold text-white">{jobsReturned}</span>
+            <span className="text-[0.6875rem] text-[#9CA3AF]">fetched</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="hidden md:inline text-[#9CA3AF]">&rarr;</span>
+            <span className="text-[#B8BFC8]">{jobsDedupe}</span>
+            <span className="text-[0.6875rem] text-[#9CA3AF]">deduped</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="hidden md:inline text-[#9CA3AF]">&rarr;</span>
+            <span className="text-[#B8BFC8]">{jobsScored}</span>
+            <span className="text-[0.6875rem] text-[#9CA3AF]">scored</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="hidden md:inline text-[#9CA3AF]">&rarr;</span>
+            <span className="font-semibold text-[#6AD7A3]">{jobsEnriched}</span>
+            <span className="text-[0.6875rem] text-[#9CA3AF]">enriched</span>
+          </div>
         </div>
 
         {/* Line 3: Sources + duration + warnings/error */}
@@ -116,7 +124,7 @@ export default function FetchBatchGroup({ batchId, logs, profileMap, isInitially
 
       {/* Expanded: sectioned detail */}
       {expanded && (
-        <div className="border-t border-[#2A3544]/40 bg-[#0C1016]/40 px-5 py-5 space-y-5">
+        <div className="border-t border-[#2A3544]/40 bg-[#0C1016]/40 px-3 py-4 md:px-5 md:py-5 space-y-5">
           {/* Error banner if present */}
           {errorMessage && (
             <div className="rounded-lg border border-[#DC2626]/20 bg-[#DC2626]/5 px-4 py-3">
@@ -213,16 +221,16 @@ export default function FetchBatchGroup({ batchId, logs, profileMap, isInitially
             <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-[#9CA3AF]">Details</span>
             <div className="mt-2 space-y-1.5">
               <div className="flex items-baseline gap-3">
-                <span className="text-[0.6875rem] font-medium text-[#9CA3AF] w-20">Batch ID</span>
+                <span className="text-[0.6875rem] font-medium text-[#9CA3AF] w-16 md:w-20 shrink-0">Batch ID</span>
                 <span className="font-mono text-[0.75rem] text-[#B8BFC8]">{batchId}</span>
               </div>
               <div className="flex items-baseline gap-3">
-                <span className="text-[0.6875rem] font-medium text-[#9CA3AF] w-20">Timestamp</span>
+                <span className="text-[0.6875rem] font-medium text-[#9CA3AF] w-16 md:w-20 shrink-0">Timestamp</span>
                 <span className="text-[0.75rem] tabular-nums text-[#B8BFC8]">{fullTime(summary.created_at as string)}</span>
               </div>
               {duration && (
                 <div className="flex items-baseline gap-3">
-                  <span className="text-[0.6875rem] font-medium text-[#9CA3AF] w-20">Duration</span>
+                  <span className="text-[0.6875rem] font-medium text-[#9CA3AF] w-16 md:w-20 shrink-0">Duration</span>
                   <span className="text-[0.75rem] tabular-nums text-[#B8BFC8]">{duration}</span>
                 </div>
               )}

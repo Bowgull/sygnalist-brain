@@ -327,7 +327,7 @@ export default function AdminLogsPage() {
                   return (
                     <div key={group.key} className={showBorder ? "border-t border-[#2A3544]/30" : ""}>
                       <div
-                        className="flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#222D3D]/20 bg-[#151C24]/40"
+                        className="flex flex-wrap items-center gap-2 px-3 py-3 md:px-5 md:py-3.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#222D3D]/20 bg-[#151C24]/40"
                         onClick={() => navigateToFetchBatch()}
                       >
                         <span className={`h-2 w-2 shrink-0 rounded-full ${allSuccess ? "bg-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.3)]" : "bg-[#DC2626] shadow-[0_0_6px_rgba(220,38,38,0.4)]"}`} />
@@ -337,13 +337,12 @@ export default function AdminLogsPage() {
                         <span className="text-[0.8125rem] font-medium text-white">
                           Pipeline complete
                         </span>
-                        {userName && <span className="text-[0.75rem] text-[#9CA3AF]">{userName}</span>}
+                        {userName && <span className="hidden md:inline text-[0.75rem] text-[#9CA3AF]">{userName}</span>}
                         <span className="rounded-full bg-[#2A3544] px-2 py-0.5 text-[0.6875rem] tabular-nums text-[#9CA3AF]">
                           {group.logs.length} stages
                         </span>
                         <span className="flex-1" />
                         <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">{relativeTime(firstLog.created_at as string)}</span>
-                        {/* Arrow to indicate navigation to Fetches tab */}
                         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" fill="none" stroke="currentColor" strokeWidth={2}>
                           <polyline points="9 18 15 12 9 6" />
                         </svg>
@@ -364,7 +363,7 @@ export default function AdminLogsPage() {
                       <button
                         type="button"
                         onClick={() => setExpandedGroupId(isGroupExpanded ? null : group.key)}
-                        className="flex w-full items-center gap-2.5 px-5 py-3 text-left transition-colors hover:bg-[#222D3D]/20"
+                        className="flex w-full items-center gap-2 px-3 py-3 md:px-5 md:gap-2.5 text-left transition-colors hover:bg-[#222D3D]/20"
                       >
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ds.dot }} />
                         <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase ${ds.badge}`}>
@@ -418,7 +417,7 @@ export default function AdminLogsPage() {
                   return (
                     <div key={group.key} className={showBorder ? "border-t border-[#2A3544]/30" : ""}>
                       <div
-                        className="flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors hover:bg-[#222D3D]/20 bg-[#151C24]/40"
+                        className="flex flex-wrap items-center gap-2 px-3 py-3 md:px-5 md:py-3.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#222D3D]/20 bg-[#151C24]/40"
                         onClick={() => navigateToFetchBatch()}
                       >
                         <span className={`h-2 w-2 shrink-0 rounded-full ${success ? "bg-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.3)]" : "bg-[#DC2626] shadow-[0_0_6px_rgba(220,38,38,0.4)]"}`} />
