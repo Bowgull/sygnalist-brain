@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     .from("tracker_entries")
     .select("*", { count: "exact" })
     .eq("profile_id", clientId)
-    .order("created_at", { ascending: false });
+    .order("added_at", { ascending: false });
 
   if (status) {
     query = query.eq("status", status);

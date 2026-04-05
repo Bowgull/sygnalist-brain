@@ -140,6 +140,23 @@ export default function AdminLogsPage() {
       .catch(() => setTraceLoading(false));
   }
 
+  // ── Group consecutive events by event_type ────────────────────────────
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+
+  function groupConsecutiveEvents(events: Record<string, unknown>[]) {
+    const groups: Array<{ key: string; eventType: string; logs: Record<string, unknown>[] }> = [];
+    for (const log of events) {
+      const et = log.event_type as string;
+      const last = groups[groups.length - 1];
+      if (last && last.eventType === et) {
+        last.logs.push(log);
+      } else {
+        groups.push({ key: log.id as string, eventType: et, logs: [log] });
+      }
+    }
+    return groups;
+  }
+
   // ── Group fetches by batch_id ─────────────────────────────────────────
   function groupFetchesByBatch(fetchLogs: Record<string, unknown>[]) {
     const groups: Map<string, Record<string, unknown>[]> = new Map();
@@ -199,24 +216,79 @@ export default function AdminLogsPage() {
       ) : (
         <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden divide-y divide-[#2A3544]/40">
           {/* ── EVENTS TAB ── */}
-          {logType === "events" && logs.map((log) => {
-            const id = log.id as string;
-            const isExpanded = expandedId === id;
-            return (
-              <div key={id}>
-                <EventRow
-                  log={log}
-                  isExpanded={isExpanded}
-                  onToggle={() => setExpandedId(isExpanded ? null : id)}
-                  profileMap={profileMap}
-                />
-                {isExpanded && (
-                  <EventDetail
+          {logType === "events" && groupConsecutiveEvents(logs).map((group) => {
+            if (group.logs.length === 1) {
+              // Single event — render normally
+              const log = group.logs[0];
+              const id = log.id as string;
+              const isExpanded = expandedId === id;
+              return (
+                <div key={id}>
+                  <EventRow
                     log={log}
+                    isExpanded={isExpanded}
+                    onToggle={() => setExpandedId(isExpanded ? null : id)}
                     profileMap={profileMap}
-                    onTraceRequest={handleTraceRequest}
                   />
-                )}
+                  {isExpanded && (
+                    <EventDetail
+                      log={log}
+                      profileMap={profileMap}
+                      onTraceRequest={handleTraceRequest}
+                    />
+                  )}
+                </div>
+              );
+            }
+
+            // Grouped events — collapsed row with count, expandable
+            const firstLog = group.logs[0];
+            const isGroupExpanded = expandedGroupId === group.key;
+            const domain = domainFromEventType(group.eventType);
+            const ds = getDomainStyle(group.eventType);
+            const DIcon = getDomainIcon(domain);
+            return (
+              <div key={group.key}>
+                <button
+                  type="button"
+                  onClick={() => setExpandedGroupId(isGroupExpanded ? null : group.key)}
+                  className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-[#222D3D]/20"
+                >
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: ds.dot }} />
+                  <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.5625rem] font-semibold uppercase ${ds.badge}`}>
+                    <DIcon className="h-3 w-3" />
+                    {ds.label}
+                  </span>
+                  <span className="text-[0.75rem] capitalize text-[#B8BFC8]">{actionLabel(group.eventType)}</span>
+                  <span className="rounded-full bg-[#2A3544] px-2 py-0.5 text-[0.625rem] font-semibold tabular-nums text-[#9CA3AF]">
+                    {group.logs.length}x
+                  </span>
+                  <span className="ml-auto text-[0.6875rem] tabular-nums text-[#9CA3AF]">{relativeTime(firstLog.created_at as string)}</span>
+                  <svg viewBox="0 0 24 24" className={`h-4 w-4 text-[#9CA3AF] transition-transform ${isGroupExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {isGroupExpanded && group.logs.map((log) => {
+                  const id = log.id as string;
+                  const isExpanded = expandedId === id;
+                  return (
+                    <div key={id} className="border-t border-[#2A3544]/20">
+                      <EventRow
+                        log={log}
+                        isExpanded={isExpanded}
+                        onToggle={() => setExpandedId(isExpanded ? null : id)}
+                        profileMap={profileMap}
+                      />
+                      {isExpanded && (
+                        <EventDetail
+                          log={log}
+                          profileMap={profileMap}
+                          onTraceRequest={handleTraceRequest}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
