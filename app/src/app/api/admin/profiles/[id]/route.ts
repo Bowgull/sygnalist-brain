@@ -117,12 +117,11 @@ export async function DELETE(
 
   if (!target) return error("Profile not found", 404);
 
-  // Delete all related data before removing the profile
-  await service.from("sent_messages").delete().eq("client_id", id);
-  await service.from("received_messages").delete().eq("client_id", id);
-  await service.from("outreach_suggestions").delete().eq("client_id", id);
-  await service.from("tracker_entries").delete().eq("profile_id", id);
-  await service.from("inbox_items").delete().eq("profile_id", id);
+  // Nullify client_id on message/outreach records so audit trail is preserved.
+  // Tables with ON DELETE CASCADE (tracker_entries, inbox_items, etc.) clean up automatically.
+  await service.from("sent_messages").update({ client_id: null }).eq("client_id", id);
+  await service.from("received_messages").update({ client_id: null }).eq("client_id", id);
+  await service.from("outreach_suggestions").update({ client_id: null }).eq("client_id", id);
 
   const { error: dbError } = await service
     .from("profiles")

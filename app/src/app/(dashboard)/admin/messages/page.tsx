@@ -549,10 +549,10 @@ function SuggestionCard({
           className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
           style={{ backgroundColor: `${color}15`, color }}
         >
-          {(s.client?.display_name ?? "?")[0].toUpperCase()}
+          {s.client?.display_name ? s.client.display_name[0].toUpperCase() : "—"}
         </div>
         <div>
-          <p className="text-sm font-medium">{s.client?.display_name ?? "Unknown"}</p>
+          <p className="text-sm font-medium">{s.client?.display_name ?? <span className="rounded-full bg-[#9CA3AF]/10 px-2 py-0.5 text-[11px] text-[#9CA3AF] ring-1 ring-[#9CA3AF]/20">Removed User</span>}</p>
           <p className="text-[11px] text-[#9CA3AF]">{description}</p>
         </div>
       </div>
@@ -1068,7 +1068,7 @@ function ConversationsView({
     if (res.ok) {
       const data = await res.json();
       setThread(data.messages ?? []);
-      setSelectedClientName(data.client?.display_name || "Unknown");
+      setSelectedClientName(data.client?.display_name || "Removed User");
     }
     setThreadLoading(false);
   }
@@ -1333,8 +1333,8 @@ function ConversationsView({
               className="flex w-full items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
             >
               <div className="relative">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#6AD7A3]/10 text-sm font-bold text-[#6AD7A3]">
-                  {(conv.display_name ?? conv.email)[0]?.toUpperCase()}
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${conv.display_name ? "bg-[#6AD7A3]/10 text-[#6AD7A3]" : "bg-[#9CA3AF]/10 text-[#9CA3AF]"}`}>
+                  {conv.display_name ? conv.display_name[0]?.toUpperCase() : "—"}
                 </div>
                 {conv.unread_count > 0 && (
                   <div className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-[#6AD7A3] border-2 border-[#171F28]" />
@@ -1343,7 +1343,7 @@ function ConversationsView({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium truncate">
-                    {conv.display_name || conv.email}
+                    {conv.display_name || <span className="rounded-full bg-[#9CA3AF]/10 px-2 py-0.5 text-[11px] text-[#9CA3AF] ring-1 ring-[#9CA3AF]/20">Removed User</span>}
                   </span>
                   <span className="ml-2 text-[10px] text-[#6B7280] whitespace-nowrap">
                     {formatTimeAgo(new Date(conv.last_message_at))}

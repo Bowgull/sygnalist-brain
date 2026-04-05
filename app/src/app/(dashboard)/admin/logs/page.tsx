@@ -283,10 +283,12 @@ export default function AdminLogsPage() {
                     {previewMeta(meta) || "—"}
                   </span>
 
-                  {/* User name if known */}
-                  {userName && (
+                  {/* User name or removed user pill */}
+                  {userName ? (
                     <span className="shrink-0 text-[0.6875rem] text-[#9CA3AF]">{userName}</span>
-                  )}
+                  ) : userId ? (
+                    <span className="shrink-0 rounded-full bg-[#9CA3AF]/10 px-2 py-0.5 text-[0.625rem] text-[#9CA3AF] ring-1 ring-[#9CA3AF]/20">Removed User</span>
+                  ) : null}
 
                   {/* Relative time */}
                   <span className="shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">{rel}</span>
@@ -330,7 +332,7 @@ export default function AdminLogsPage() {
                         <div>
                           <span className="text-[0.625rem] font-medium uppercase tracking-wide text-[#9CA3AF]">Actor</span>
                           <p className="mt-0.5 text-[0.8125rem] text-white">
-                            {userName || (userId ? userId.slice(0, 8) + "..." : "System")}
+                            {userName || (userId ? <span className="rounded-full bg-[#9CA3AF]/10 px-2 py-0.5 text-[0.6875rem] text-[#9CA3AF] ring-1 ring-[#9CA3AF]/20">Removed User</span> : "System")}
                           </p>
                         </div>
 
