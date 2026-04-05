@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Trash2, Search } from "lucide-react";
 import TrackerCard from "@/components/tracker/tracker-card";
@@ -23,6 +24,9 @@ const STAGES = [
 const ALL_STATUSES = [...STAGES.map((s) => s.label), "Rejected", "Ghosted", "Withdrawn"];
 
 export default function TrackerPage() {
+  const searchParams = useSearchParams();
+  const viewAsId = searchParams.get("view_as");
+
   const [entries, setEntries] = useState<TrackerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeStage, setActiveStage] = useState(0);
@@ -36,13 +40,16 @@ export default function TrackerPage() {
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/tracker");
+    const url = viewAsId
+      ? `/api/admin/view-as/tracker?client_id=${viewAsId}`
+      : "/api/tracker";
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       setEntries(data.entries ?? []);
     }
     setLoading(false);
-  }, []);
+  }, [viewAsId]);
 
   useEffect(() => {
     fetchEntries();
@@ -99,7 +106,10 @@ export default function TrackerPage() {
     setEntries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...patch } as TrackerEntry : e))
     );
-    const res = await fetch(`/api/tracker/${id}`, {
+    const url = viewAsId
+      ? `/api/admin/view-as/tracker/${id}?client_id=${viewAsId}`
+      : `/api/tracker/${id}`;
+    const res = await fetch(url, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
@@ -114,7 +124,10 @@ export default function TrackerPage() {
   async function handleDelete(id: string) {
     const prevEntries = entries;
     setEntries((prev) => prev.filter((e) => e.id !== id));
-    const res = await fetch(`/api/tracker/${id}`, { method: "DELETE" });
+    const url = viewAsId
+      ? `/api/admin/view-as/tracker/${id}?client_id=${viewAsId}`
+      : `/api/tracker/${id}`;
+    const res = await fetch(url, { method: "DELETE" });
     if (!res.ok) {
       setEntries(prevEntries);
       toast.error("Failed to remove");
@@ -314,4 +327,3 @@ function OpsTable({
     </div>
   );
 }
-

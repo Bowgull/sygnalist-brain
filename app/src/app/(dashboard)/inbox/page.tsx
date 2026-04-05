@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Radar, RefreshCw, Plus } from "lucide-react";
 import JobCard from "@/components/inbox/job-card";
@@ -11,6 +12,9 @@ import type { Database } from "@/types/database";
 type InboxJob = Database["public"]["Tables"]["inbox_jobs"]["Row"];
 
 export default function InboxPage() {
+  const searchParams = useSearchParams();
+  const viewAsId = searchParams.get("view_as");
+
   const [jobs, setJobs] = useState<InboxJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeLane, setActiveLane] = useState("All");
@@ -22,13 +26,16 @@ export default function InboxPage() {
 
   // Check profile status on mount
   useEffect(() => {
-    fetch("/api/profile").then(async (res) => {
+    const url = viewAsId
+      ? `/api/admin/view-as/profile?client_id=${viewAsId}`
+      : "/api/profile";
+    fetch(url).then(async (res) => {
       if (res.ok) {
         const data = await res.json();
         setProfileLocked(data.status === "inactive_soft_locked");
       }
     });
-  }, []);
+  }, [viewAsId]);
 
   const fetchJobs = useCallback(
     async (lane: string) => {
@@ -36,7 +43,11 @@ export default function InboxPage() {
       const params = new URLSearchParams({ limit: "50" });
       if (lane !== "All") params.set("lane", lane);
 
-      const res = await fetch(`/api/inbox?${params}`);
+      const url = viewAsId
+        ? `/api/admin/view-as/inbox?client_id=${viewAsId}&${params}`
+        : `/api/inbox?${params}`;
+
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setJobs(data.jobs ?? []);
@@ -55,7 +66,7 @@ export default function InboxPage() {
       }
       setLoading(false);
     },
-    []
+    [viewAsId]
   );
 
   useEffect(() => {
@@ -66,7 +77,10 @@ export default function InboxPage() {
     if (scanning || profileLocked) return;
     setScanning(true);
     try {
-      const res = await fetch("/api/fetch", { method: "POST" });
+      const url = viewAsId
+        ? `/api/admin/view-as/fetch?client_id=${viewAsId}`
+        : "/api/fetch";
+      const res = await fetch(url, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         const count = data.jobs_delivered ?? 0;
@@ -86,7 +100,10 @@ export default function InboxPage() {
   }
 
   async function handlePromote(id: string) {
-    const res = await fetch(`/api/inbox/${id}/promote`, { method: "POST" });
+    const url = viewAsId
+      ? `/api/admin/view-as/inbox/${id}/promote?client_id=${viewAsId}`
+      : `/api/inbox/${id}/promote`;
+    const res = await fetch(url, { method: "POST" });
     const data = await res.json().catch(() => null);
     if (res.ok) {
       toast.success("Added to Tracker");
@@ -102,7 +119,10 @@ export default function InboxPage() {
     const prevTotal = total;
     setJobs((prev) => prev.filter((j) => j.id !== id));
     setTotal((prev) => prev - 1);
-    const res = await fetch(`/api/inbox/${id}/dismiss`, { method: "POST" });
+    const url = viewAsId
+      ? `/api/admin/view-as/inbox/${id}/dismiss?client_id=${viewAsId}`
+      : `/api/inbox/${id}/dismiss`;
+    const res = await fetch(url, { method: "POST" });
     if (!res.ok) {
       setJobs(prevJobs);
       setTotal(prevTotal);

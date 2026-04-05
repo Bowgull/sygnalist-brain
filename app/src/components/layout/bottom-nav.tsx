@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Radar, Target, AlignJustify, LayoutGrid } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Radar, Target, AlignJustify, LayoutGrid, MessageSquare } from "lucide-react";
 
 const clientItems = [
   { label: "Inbox", href: "/inbox", icon: Radar },
@@ -17,25 +17,37 @@ const adminItems = [
 
 export default function BottomNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const viewAsId = searchParams.get("view_as");
 
-  const items = isAdmin ? adminItems : clientItems;
+  // In view_as mode: show client tabs + messages
+  const viewAsItems = viewAsId
+    ? [
+        { label: "Inbox", href: `/inbox?view_as=${viewAsId}`, icon: Radar },
+        { label: "Tracker", href: `/tracker?view_as=${viewAsId}`, icon: Target },
+        { label: "Messages", href: `/messages?view_as=${viewAsId}`, icon: MessageSquare },
+      ]
+    : null;
+
+  const items = viewAsItems ?? (isAdmin ? adminItems : clientItems);
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[#2A3544] bg-[#0C1016]/95 backdrop-blur-md">
       <div className="mx-auto flex max-w-lg items-center justify-around py-2">
         {items.map((item) => {
           const Icon = item.icon;
+          const itemPath = item.href.split("?")[0];
           const isActive =
-            item.href === "/admin"
+            itemPath === "/admin"
               ? pathname === "/admin" || (pathname.startsWith("/admin/") && !pathname.startsWith("/admin/logs"))
-              : pathname.startsWith(item.href);
+              : pathname.startsWith(itemPath);
           return (
             <Link
-              key={item.href}
+              key={item.label}
               href={item.href}
               className={`flex flex-col items-center gap-0.5 px-4 py-1 text-xs transition-colors ${
                 isActive
-                  ? "text-[#6AD7A3]"
+                  ? item.label === "Messages" ? "text-[#F59E0B]" : "text-[#6AD7A3]"
                   : "text-[#9CA3AF] hover:text-[#B8BFC8]"
               }`}
             >
