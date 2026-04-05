@@ -32,6 +32,28 @@ export async function POST(
     return json({ good_fit: entry.good_fit, cached: true });
   }
 
+  // Try to get the full job description from inbox_jobs or global_job_bank
+  let jobDescription: string | null = null;
+  if (entry.url) {
+    const { data: inboxJob } = await supabase
+      .from("inbox_jobs")
+      .select("description_snippet")
+      .eq("url", entry.url)
+      .limit(1)
+      .maybeSingle();
+    jobDescription = inboxJob?.description_snippet ?? null;
+
+    if (!jobDescription) {
+      const { data: bankJob } = await supabase
+        .from("global_job_bank")
+        .select("description_snippet")
+        .eq("url", entry.url)
+        .limit(1)
+        .maybeSingle();
+      jobDescription = bankJob?.description_snippet ?? null;
+    }
+  }
+
   if (!OPENAI_KEY) {
     return json({ good_fit: null, cached: false, message: "AI not configured" });
   }
@@ -71,6 +93,9 @@ Job:
 - Title: ${entry.title}
 - Location: ${entry.location ?? "N/A"}
 - Salary: ${entry.salary ?? "N/A"}
+
+Job Description:
+${jobDescription ?? "(Not available)"}
 
 Job Summary:
 ${entry.job_summary ?? "(Not available)"}

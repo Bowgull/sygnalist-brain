@@ -10,6 +10,7 @@ export interface ParsedResume {
   accept_onsite: boolean;
   salary_estimate: string;
   summary: string;
+  signature_stories: string[];
   experience_years: number;
   education: string;
 }

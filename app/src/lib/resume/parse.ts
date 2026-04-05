@@ -28,6 +28,7 @@ Return a JSON object with these fields:
   "accept_onsite": true/false,
   "salary_estimate": "Estimated salary range based on experience level and role",
   "summary": "2-3 sentence professional summary",
+  "signature_stories": ["3-6 measurable achievements from their work history. Each should be 1-2 sentences with specific numbers, outcomes, or impact. e.g. 'Built customer success team from 0 to 4 people, achieving 95% retention' or 'Shipped integration that reduced onboarding from 30 days to 3 days'"],
   "experience_years": number,
   "education": "Highest degree and school"
 }
@@ -37,7 +38,8 @@ Rules:
 - For role_tracks, infer from job titles and experience what roles they'd target
 - If location preferences aren't clear, set all accept_* to true
 - For salary_estimate, give a market-rate range based on role + experience
-- Keep arrays concise - quality over quantity`;
+- Keep arrays concise - quality over quantity
+- For signature_stories, pull the strongest measurable achievements. These are proof points - real results with numbers, not vague descriptions. Minimum 3, maximum 6.`;
 
 export async function parseWithAI(resumeText: string): Promise<ParsedResume> {
   if (!OPENAI_KEY) throw new Error("OpenAI API key not configured");
@@ -88,6 +90,7 @@ export async function parseWithAI(resumeText: string): Promise<ParsedResume> {
     accept_onsite: parsed.accept_onsite ?? false,
     salary_estimate: parsed.salary_estimate || "",
     summary: parsed.summary || "",
+    signature_stories: parsed.signature_stories || [],
     experience_years: parsed.experience_years || 0,
     education: parsed.education || "",
   };

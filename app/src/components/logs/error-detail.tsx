@@ -37,7 +37,6 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
   const resolveNote = meta?.resolve_note as string | null;
 
   const [showStack, setShowStack] = useState(false);
-  const [fullScreenTrace, setFullScreenTrace] = useState(false);
   const [showResolveInput, setShowResolveInput] = useState(false);
   const [noteText, setNoteText] = useState("");
 
@@ -101,32 +100,21 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
             <p className="mt-0.5 text-[0.8125rem] text-white">{message}</p>
           </div>
 
-          {/* Stack trace — soft green, draggable resize (desktop) / full-screen (mobile) */}
+          {/* Stack trace — soft green, word-wrapped on mobile, draggable resize on desktop */}
           {stackTrace && (
             <div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setShowStack(!showStack); }}
-                  className="text-[0.6875rem] text-[#38BDF8] hover:underline"
-                >
-                  {showStack ? "Hide stack trace" : "Show stack trace"}
-                </button>
-                {showStack && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setFullScreenTrace(true); }}
-                    className="md:hidden text-[0.6875rem] text-[#9CA3AF] hover:text-white"
-                  >
-                    Full screen
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setShowStack(!showStack); }}
+                className="text-[0.6875rem] text-[#38BDF8] hover:underline"
+              >
+                {showStack ? "Hide stack trace" : "Show stack trace"}
+              </button>
               {showStack && (
                 <div ref={traceContainerRef} className="mt-2 relative" style={{ width: traceWidth ?? "100%" }}>
                   <pre
-                    className="overflow-auto rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#0C1016] p-3 font-mono text-[0.75rem] md:text-[0.6875rem] leading-relaxed text-[#6AD7A3]/70"
-                    style={{ height: traceHeight }}
+                    className="overflow-y-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal md:overflow-auto rounded-lg border border-[rgba(255,255,255,0.06)] bg-[#0C1016] p-3 font-mono text-[0.6875rem] leading-relaxed text-[#6AD7A3]/70 max-h-[400px] md:max-h-none"
+                    style={{ minHeight: 120 }}
                   >
                     {stackTrace}
                   </pre>
@@ -140,28 +128,6 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
                       <path d="M9 5v4H5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                   </div>
-                </div>
-              )}
-
-              {/* Full-screen trace overlay (mobile) */}
-              {fullScreenTrace && (
-                <div className="fixed inset-0 z-50 flex flex-col bg-[#0C1016]" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between border-b border-[#2A3544] px-4 py-3">
-                    <span className="text-[0.8125rem] font-semibold text-white">Stack Trace</span>
-                    <button
-                      type="button"
-                      onClick={() => setFullScreenTrace(false)}
-                      className="rounded-lg p-2 text-[#9CA3AF] hover:bg-[#222D3D] hover:text-white"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
-                  </div>
-                  <pre className="flex-1 overflow-auto p-4 font-mono text-[0.75rem] leading-relaxed text-[#6AD7A3]/70">
-                    {stackTrace}
-                  </pre>
                 </div>
               )}
             </div>

@@ -420,9 +420,9 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
     <>
       {cardFront}
       <div className="spotlight-overlay" onClick={() => { setSpotlight(false); setEditing(false); setTransitionNote(""); }} />
-      <div className="fixed inset-0 z-[52] flex items-center justify-center p-2 md:p-4" onClick={() => { setSpotlight(false); setEditing(false); setTransitionNote(""); }}>
+      <div className="fixed inset-0 z-[52] flex flex-col items-center justify-center p-2 md:p-4" onClick={() => { setSpotlight(false); setEditing(false); setTransitionNote(""); }}>
         <div
-          className="spotlight-card w-full max-w-2xl max-h-[min(90vh,720px)] overflow-y-auto rounded-[var(--radius-lg)] md:rounded-[var(--radius-xl)] border border-[rgba(255,255,255,0.12)] bg-[#171F28]"
+          className="spotlight-card w-full max-w-2xl max-h-[min(85vh,720px)] overflow-y-auto rounded-[var(--radius-lg)] md:rounded-[var(--radius-xl)] border border-[rgba(255,255,255,0.12)] bg-[#171F28]"
           style={{
             borderTopWidth: "3px",
             borderTopColor: borderColor,
@@ -679,6 +679,16 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
             )}
           </div>
         </div>
+
+        {/* Sticky close button — always visible at bottom */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setSpotlight(false); setEditing(false); setTransitionNote(""); }}
+          className="mt-3 shrink-0 inline-flex h-[44px] items-center justify-center gap-2 rounded-full border border-[#2A3544] bg-[#151C24] px-8 text-[0.875rem] font-medium text-[#B8BFC8] shadow-[0_4px_20px_rgba(0,0,0,0.4)] hover:border-[#9CA3AF]/30 hover:text-white transition-colors"
+        >
+          <X size={18} strokeWidth={2} />
+          Close
+        </button>
       </div>
     </>
   );

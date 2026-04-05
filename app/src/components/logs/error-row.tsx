@@ -26,24 +26,15 @@ export default function ErrorRow({ log, isExpanded, onToggle, batchContext }: Pr
       className={`cursor-pointer px-3 py-3 md:px-5 md:py-4 transition-colors hover:bg-[#222D3D]/20 ${sevStyle.row}`}
       onClick={onToggle}
     >
-      {/* Line 1: severity, source, time, chevron */}
+      {/* Row 1: severity badge + source + time + chevron */}
       <div className="flex items-center gap-2 md:gap-3">
-        {/* Severity badge with icon */}
         <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase ${sevStyle.badge}`}>
           <SevIcon className="h-3 w-3" />
           {severity}
         </span>
-
-        {/* Source system */}
-        <span className="shrink-0 text-[0.8125rem] font-medium text-[#B8BFC8]">{source}</span>
-
-        {/* Message — 2-line clamp on mobile, single truncate on desktop */}
-        <span className="min-w-0 flex-1 text-[0.8125rem] text-white line-clamp-2 md:line-clamp-1">{message}</span>
-
-        {/* Time */}
+        <span className="min-w-0 truncate text-[0.75rem] md:text-[0.8125rem] font-medium text-[#B8BFC8]">{source}</span>
+        <span className="flex-1" />
         <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">{rel}</span>
-
-        {/* Expand chevron */}
         <svg
           viewBox="0 0 24 24"
           className={`h-4 w-4 shrink-0 text-[#9CA3AF] transition-transform ${isExpanded ? "rotate-180" : ""}`}
@@ -55,19 +46,20 @@ export default function ErrorRow({ log, isExpanded, onToggle, batchContext }: Pr
         </svg>
       </div>
 
-      {/* Line 2: batch context + status */}
-      <div className="mt-1.5 flex items-center gap-2 md:gap-3 pl-0 md:pl-[calc(0.625rem+1rem+0.625rem)]">
-        {batchContext && (
-          <span className="text-[0.75rem] text-[#9CA3AF]">
-            Batch: {batchContext.profileName} &middot; {shortBatchId(batchContext.batchId)}
-          </span>
-        )}
+      {/* Row 2: message — full width, wraps naturally */}
+      <p className="mt-1 text-[0.8125rem] text-white line-clamp-2 md:line-clamp-1">{message}</p>
 
-        {/* Resolved status */}
+      {/* Row 3: status + batch context */}
+      <div className="mt-1.5 flex items-center gap-2">
         <span className={`inline-flex items-center gap-1 text-[0.75rem] font-semibold ${resolved ? "text-[#6AD7A3]/50" : "text-[#F59E0B]"}`}>
           <StatusIcon className="h-3.5 w-3.5" />
           {resolved ? "Resolved" : "Open"}
         </span>
+        {batchContext && (
+          <span className="text-[0.6875rem] text-[#9CA3AF]">
+            {batchContext.profileName} &middot; {shortBatchId(batchContext.batchId)}
+          </span>
+        )}
       </div>
     </div>
   );
