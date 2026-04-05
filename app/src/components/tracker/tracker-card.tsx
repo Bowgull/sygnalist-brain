@@ -319,10 +319,10 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                     onClick={() => setStatus(s)}
                     className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors ${
                       isActive
-                        ? "bg-[rgba(255,255,255,0.08)] ring-1"
+                        ? "bg-[rgba(255,255,255,0.08)]"
                         : "hover:bg-[rgba(255,255,255,0.04)]"
                     } ${isClosed && !isActive ? "opacity-60" : ""}`}
-                    style={isActive ? { ringColor: `${c}50` } : undefined}
+                    style={isActive ? { boxShadow: `inset 0 0 0 1px ${c}50` } : undefined}
                   >
                     <span
                       className={`h-2.5 w-2.5 shrink-0 rounded-full transition-transform ${isActive ? "scale-125" : ""}`}
