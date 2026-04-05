@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Radar, Eye, Columns3, Link2, Lock, Unlock, Trash2, X, Plus, Check } from "lucide-react";
+import { Pencil, Radar, Eye, Link2, Lock, Unlock, Trash2, X, Plus } from "lucide-react";
+import ClientEditor from "@/components/admin/client-editor";
 import { ActionButton } from "@/components/ui/action-button";
 import { IconButton } from "@/components/ui/icon-button";
 import type { Database } from "@/types/database";
@@ -271,13 +272,6 @@ export default function AdminClientsPage() {
                 onClick={() => window.open(`/inbox?view_as=${p.id}`, '_blank')}
               />
               <ActionButton
-                icon={Columns3}
-                label="Lanes"
-                variant="navigate"
-                className="border-[#8B5CF6]/30 text-[#8B5CF6] hover:bg-[#8B5CF6]/10 hover:text-[#8B5CF6]"
-                onClick={() => router.push(`/admin/lanes?profile=${p.id}`)}
-              />
-              <ActionButton
                 icon={Link2}
                 label="Get Link"
                 variant="view"
@@ -310,60 +304,11 @@ export default function AdminClientsPage() {
             </div>
 
             {editingId === p.id && (
-              <ProfileEditor profile={p} onSave={(patch) => handleUpdate(p.id, patch)} />
+              <ClientEditor profile={p} onSave={(patch) => handleUpdate(p.id, patch)} />
             )}
           </div>
         );
         })}
-    </div>
-  );
-}
-
-function ProfileEditor({
-  profile,
-  onSave,
-}: {
-  profile: Profile;
-  onSave: (patch: Record<string, unknown>) => void;
-}) {
-  const [name, setName] = useState(profile.display_name);
-  const [city, setCity] = useState(profile.current_city);
-  const [salary, setSalary] = useState(String(profile.salary_min));
-  const [role, setRole] = useState(profile.role);
-
-  const inputClass = "w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]";
-
-  return (
-    <div className="mt-3 space-y-3 border-t border-[#2A3544] pt-3 animate-slide-down">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">City</label>
-          <input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Min Salary</label>
-          <input type="number" value={salary} onChange={(e) => setSalary(e.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)} className={inputClass}>
-            <option value="client">Client</option>
-            <option value="coach">Coach</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={() => onSave({ display_name: name, current_city: city, salary_min: parseInt(salary) || 0, role })}
-        className="rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-4 py-1.5 text-[12px] font-semibold text-[#0C1016]"
-      >
-        Save Changes
-      </button>
     </div>
   );
 }

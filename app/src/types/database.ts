@@ -874,6 +874,40 @@ export interface Database {
         };
         Relationships: [];
       };
+      client_resumes: {
+        Row: {
+          id: string;
+          profile_id: string;
+          file_path: string | null;
+          file_name: string;
+          file_size: number;
+          parsed_data: Json | null;
+          status: string;
+          applied_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          file_path?: string | null;
+          file_name: string;
+          file_size?: number;
+          parsed_data?: Json | null;
+          status?: string;
+          applied_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          file_path?: string | null;
+          file_name?: string;
+          file_size?: number;
+          parsed_data?: Json | null;
+          status?: string;
+          applied_at?: string | null;
+        };
+        Relationships: [];
+      };
       gmail_poll_state: {
         Row: {
           id: string;
