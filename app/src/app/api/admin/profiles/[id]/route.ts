@@ -119,9 +119,9 @@ export async function DELETE(
 
   // Nullify client_id on message/outreach records so audit trail is preserved.
   // Tables with ON DELETE CASCADE (tracker_entries, inbox_items, etc.) clean up automatically.
-  await service.from("sent_messages").update({ client_id: null }).eq("client_id", id);
-  await service.from("received_messages").update({ client_id: null }).eq("client_id", id);
-  await service.from("outreach_suggestions").update({ client_id: null }).eq("client_id", id);
+  await service.from("sent_messages").update({ client_id: null as unknown as string }).eq("client_id", id);
+  await service.from("received_messages").update({ client_id: null as unknown as string }).eq("client_id", id);
+  await service.from("outreach_suggestions").update({ client_id: null as unknown as string }).eq("client_id", id);
 
   const { error: dbError } = await service
     .from("profiles")
