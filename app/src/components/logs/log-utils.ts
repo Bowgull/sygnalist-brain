@@ -1,17 +1,17 @@
 // ── Domain badge styles ─────────────────────────────────────────────────
-export const domainStyles: Record<string, { badge: string; dot: string; label: string }> = {
-  auth:    { badge: "border-[#3B82F6] bg-[#3B82F6]/12 text-[#3B82F6]", dot: "bg-[#3B82F6]", label: "Auth" },
-  inbox:   { badge: "border-[#22C55E] bg-[#22C55E]/12 text-[#22C55E]", dot: "bg-[#22C55E]", label: "Inbox" },
-  tracker: { badge: "border-[#8B5CF6] bg-[#8B5CF6]/12 text-[#8B5CF6]", dot: "bg-[#8B5CF6]", label: "Tracker" },
-  fetch:   { badge: "border-[#22C55E] bg-[#22C55E]/12 text-[#22C55E]", dot: "bg-[#22C55E]", label: "Fetch" },
-  admin:   { badge: "border-[#A855F7] bg-[#A855F7]/12 text-[#A855F7]", dot: "bg-[#A855F7]", label: "Admin" },
-  message: { badge: "border-[#FAD76A] bg-[#FAD76A]/12 text-[#FAD76A]", dot: "bg-[#FAD76A]", label: "Message" },
-  gmail:   { badge: "border-[#14B8A6] bg-[#14B8A6]/12 text-[#14B8A6]", dot: "bg-[#14B8A6]", label: "Gmail" },
-  cron:    { badge: "border-[#14B8A6] bg-[#14B8A6]/12 text-[#14B8A6]", dot: "bg-[#14B8A6]", label: "Cron" },
-  enrich:  { badge: "border-[#38BDF8] bg-[#38BDF8]/12 text-[#38BDF8]", dot: "bg-[#38BDF8]", label: "Enrich" },
-  system:  { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", label: "System" },
+export const domainStyles: Record<string, { badge: string; dot: string; color: string; label: string }> = {
+  auth:    { badge: "border-[#3B82F6] bg-[#3B82F6]/12 text-[#3B82F6]", dot: "bg-[#3B82F6]", color: "#3B82F6", label: "Auth" },
+  inbox:   { badge: "border-[#22C55E] bg-[#22C55E]/12 text-[#22C55E]", dot: "bg-[#22C55E]", color: "#22C55E", label: "Inbox" },
+  tracker: { badge: "border-[#8B5CF6] bg-[#8B5CF6]/12 text-[#8B5CF6]", dot: "bg-[#8B5CF6]", color: "#8B5CF6", label: "Tracker" },
+  fetch:   { badge: "border-[#22C55E] bg-[#22C55E]/12 text-[#22C55E]", dot: "bg-[#22C55E]", color: "#22C55E", label: "Fetch" },
+  admin:   { badge: "border-[#A855F7] bg-[#A855F7]/12 text-[#A855F7]", dot: "bg-[#A855F7]", color: "#A855F7", label: "Admin" },
+  message: { badge: "border-[#FAD76A] bg-[#FAD76A]/12 text-[#FAD76A]", dot: "bg-[#FAD76A]", color: "#FAD76A", label: "Message" },
+  gmail:   { badge: "border-[#14B8A6] bg-[#14B8A6]/12 text-[#14B8A6]", dot: "bg-[#14B8A6]", color: "#14B8A6", label: "Gmail" },
+  cron:    { badge: "border-[#14B8A6] bg-[#14B8A6]/12 text-[#14B8A6]", dot: "bg-[#14B8A6]", color: "#14B8A6", label: "Cron" },
+  enrich:  { badge: "border-[#38BDF8] bg-[#38BDF8]/12 text-[#38BDF8]", dot: "bg-[#38BDF8]", color: "#38BDF8", label: "Enrich" },
+  system:  { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", color: "#9CA3AF", label: "System" },
 };
-const defaultDomain = { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", label: "Event" };
+const defaultDomain = { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", color: "#9CA3AF", label: "Event" };
 
 export function getDomainStyle(eventType: string) {
   const domain = domainFromEventType(eventType);

@@ -182,61 +182,39 @@ export default function AdminLogsPage() {
       .catch(() => setTraceLoading(false));
   }
 
-  // ── Group consecutive events for Activity tab ─────────────────────────
+  // ── Group consecutive events by domain for Activity tab ────────────────
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
-  type ActivityGroup =
-    | { type: "fetch-batch"; key: string; logs: Record<string, unknown>[]; userId: string | null }
-    | { type: "event-group"; key: string; eventType: string; logs: Record<string, unknown>[] }
-    | { type: "single"; key: string; log: Record<string, unknown> };
+  type DomainGroup = { key: string; domain: string; logs: Record<string, unknown>[] };
 
-  function groupActivityEvents(events: Record<string, unknown>[]): ActivityGroup[] {
-    const groups: ActivityGroup[] = [];
-
+  function groupByDomain(events: Record<string, unknown>[]): DomainGroup[] {
+    const groups: DomainGroup[] = [];
     let i = 0;
     while (i < events.length) {
       const log = events[i];
-      const et = log.event_type as string;
-      const domain = domainFromEventType(et);
-
-      // Consecutive fetch events for the same user → collapse into one batch row
-      if (domain === "fetch") {
-        const userId = log.user_id as string | null;
-        const batchLogs: Record<string, unknown>[] = [log];
-        let j = i + 1;
-        while (j < events.length) {
-          const next = events[j];
-          const nextDomain = domainFromEventType(next.event_type as string);
-          const nextUserId = next.user_id as string | null;
-          if (nextDomain === "fetch" && nextUserId === userId) {
-            batchLogs.push(next);
-            j++;
-          } else {
-            break;
-          }
-        }
-        groups.push({ type: "fetch-batch", key: log.id as string, logs: batchLogs, userId });
-        i = j;
-        continue;
-      }
-
-      // Consecutive same event_type → group if 3+
-      const sameLogs: Record<string, unknown>[] = [log];
+      const domain = domainFromEventType(log.event_type as string);
+      const batch: Record<string, unknown>[] = [log];
       let j = i + 1;
-      while (j < events.length && (events[j].event_type as string) === et) {
-        sameLogs.push(events[j]);
+      while (j < events.length && domainFromEventType(events[j].event_type as string) === domain) {
+        batch.push(events[j]);
         j++;
       }
-      if (sameLogs.length >= 3) {
-        groups.push({ type: "event-group", key: log.id as string, eventType: et, logs: sameLogs });
-      } else {
-        for (const single of sameLogs) {
-          groups.push({ type: "single", key: single.id as string, log: single });
-        }
-      }
+      groups.push({ key: log.id as string, domain, logs: batch });
       i = j;
     }
     return groups;
+  }
+
+  /** Build a summary line for a domain group */
+  function domainGroupSummary(group: DomainGroup, pMap: Record<string, string>): string {
+    const actions = [...new Set(group.logs.map((l) => actionLabel(l.event_type as string)))];
+    if (group.domain === "fetch" || group.domain === "cron") {
+      const allSuccess = group.logs.every((l) => l.success as boolean);
+      return allSuccess ? "Pipeline complete" : "Pipeline (with errors)";
+    }
+    if (actions.length === 1) return actions[0];
+    if (actions.length <= 3) return actions.join(", ");
+    return `${actions.slice(0, 2).join(", ")} +${actions.length - 2} more`;
   }
 
   // ── Group fetches by batch_id ─────────────────────────────────────────
@@ -310,152 +288,85 @@ export default function AdminLogsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {/* ── ACTIVITY TAB ── */}
+          {/* ── ACTIVITY TAB — domain-grouped cards ── */}
           {logType === "activity" && (
-            <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden">
-              {groupActivityEvents(logs).map((group, groupIdx) => {
-                const showBorder = groupIdx > 0;
+            <div className="space-y-2">
+              {groupByDomain(logs).map((group) => {
+                const ds = getDomainStyle(group.logs[0].event_type as string);
+                const DIcon = getDomainIcon(group.domain);
+                const isOpen = expandedGroupId === group.key;
+                const firstLog = group.logs[0];
+                const allSuccess = group.logs.every((l) => l.success as boolean);
+                const hasFailure = group.logs.some((l) => !(l.success as boolean));
+                const summary = domainGroupSummary(group, profileMap);
 
-                // ── Fetch batch: all consecutive fetch.* events for same user → one row
-                if (group.type === "fetch-batch") {
-                  const firstLog = group.logs[0];
-                  const lastLog = group.logs[group.logs.length - 1];
-                  const allSuccess = group.logs.every((l) => l.success as boolean);
-                  const userName = group.userId ? profileMap[group.userId] : null;
-                  // Show the pipeline stages as a compact list
-                  const stages = group.logs.map((l) => actionLabel(l.event_type as string));
-                  return (
-                    <div key={group.key} className={showBorder ? "border-t border-[#2A3544]/30" : ""}>
-                      <div
-                        className="flex flex-wrap items-center gap-2 px-3 py-3 md:px-5 md:py-3.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#222D3D]/20 bg-[#151C24]/40"
-                        onClick={() => navigateToFetchBatch()}
-                      >
-                        <span className={`h-2 w-2 shrink-0 rounded-full ${allSuccess ? "bg-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.3)]" : "bg-[#DC2626] shadow-[0_0_6px_rgba(220,38,38,0.4)]"}`} />
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded border border-[#22C55E]/30 bg-[#22C55E]/10 px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase text-[#22C55E]">
-                          Fetch
-                        </span>
-                        <span className="text-[0.8125rem] font-medium text-white">
-                          Pipeline complete
-                        </span>
-                        {userName && <span className="hidden md:inline text-[0.75rem] text-[#9CA3AF]">{userName}</span>}
-                        <span className="rounded-full bg-[#2A3544] px-2 py-0.5 text-[0.6875rem] tabular-nums text-[#9CA3AF]">
-                          {group.logs.length} stages
-                        </span>
-                        <span className="flex-1" />
-                        <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">{relativeTime(firstLog.created_at as string)}</span>
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" fill="none" stroke="currentColor" strokeWidth={2}>
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // ── Event group: 3+ consecutive same-type events → collapsed
-                if (group.type === "event-group") {
-                  const firstLog = group.logs[0];
-                  const isGroupExpanded = expandedGroupId === group.key;
-                  const domain = domainFromEventType(group.eventType);
-                  const ds = getDomainStyle(group.eventType);
-                  const DIcon = getDomainIcon(domain);
-                  return (
-                    <div key={group.key} className={showBorder ? "border-t border-[#2A3544]/30" : ""}>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedGroupId(isGroupExpanded ? null : group.key)}
-                        className="flex w-full items-center gap-2 px-3 py-3 md:px-5 md:gap-2.5 text-left transition-colors hover:bg-[#222D3D]/20"
-                      >
-                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ds.dot }} />
-                        <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase ${ds.badge}`}>
-                          <DIcon className="h-3 w-3" />
-                          {ds.label}
-                        </span>
-                        <span className="text-[0.8125rem] capitalize text-[#B8BFC8]">{actionLabel(group.eventType)}</span>
-                        <span className="rounded-full bg-[#2A3544] px-2 py-0.5 text-[0.6875rem] font-semibold tabular-nums text-[#9CA3AF]">
-                          {group.logs.length}x
-                        </span>
-                        <span className="ml-auto text-[0.75rem] tabular-nums text-[#9CA3AF]">{relativeTime(firstLog.created_at as string)}</span>
-                        <svg viewBox="0 0 24 24" className={`h-4 w-4 text-[#9CA3AF] transition-transform ${isGroupExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}>
-                          <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                      </button>
-                      {isGroupExpanded && group.logs.map((log) => {
-                        const id = log.id as string;
-                        const isExpanded = expandedId === id;
-                        return (
-                          <div key={id} className="border-t border-[#2A3544]/20">
-                            <EventRow
-                              log={log}
-                              isExpanded={isExpanded}
-                              onToggle={() => setExpandedId(isExpanded ? null : id)}
-                              profileMap={profileMap}
-                            />
-                            {isExpanded && (
-                              <EventDetail
-                                log={log}
-                                profileMap={profileMap}
-                                onTraceRequest={handleTraceRequest}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                }
-
-                // ── Single event
-                const log = group.log;
-                const id = log.id as string;
-                const isExpanded = expandedId === id;
-
-                // Cron events also get the fetch-style elevated treatment
-                const domain = domainFromEventType(log.event_type as string);
-                if (domain === "cron") {
-                  const success = log.success as boolean;
-                  const meta = log.metadata as Record<string, unknown> | null;
-                  return (
-                    <div key={group.key} className={showBorder ? "border-t border-[#2A3544]/30" : ""}>
-                      <div
-                        className="flex flex-wrap items-center gap-2 px-3 py-3 md:px-5 md:py-3.5 md:gap-3 cursor-pointer transition-colors hover:bg-[#222D3D]/20 bg-[#151C24]/40"
-                        onClick={() => navigateToFetchBatch()}
-                      >
-                        <span className={`h-2 w-2 shrink-0 rounded-full ${success ? "bg-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.3)]" : "bg-[#DC2626] shadow-[0_0_6px_rgba(220,38,38,0.4)]"}`} />
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded border border-[#14B8A6]/30 bg-[#14B8A6]/10 px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase text-[#14B8A6]">
-                          Cron
-                        </span>
-                        <span className="text-[0.8125rem] font-medium capitalize text-white">{actionLabel(log.event_type as string)}</span>
-                        {meta?.profiles_processed != null && (
-                          <span className="text-[0.75rem] text-[#9CA3AF]">{String(meta.profiles_processed)} profiles</span>
-                        )}
-                        {meta?.total_jobs != null && (
-                          <span className="text-[0.75rem] font-semibold tabular-nums text-[#6AD7A3]">{String(meta.total_jobs)} jobs</span>
-                        )}
-                        <span className="flex-1" />
-                        <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">{relativeTime(log.created_at as string)}</span>
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-[#9CA3AF]" fill="none" stroke="currentColor" strokeWidth={2}>
-                          <polyline points="9 18 15 12 9 6" />
-                        </svg>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // Standard event row
                 return (
-                  <div key={group.key} className={showBorder ? "border-t border-[#2A3544]/30" : ""}>
-                    <EventRow
-                      log={log}
-                      isExpanded={isExpanded}
-                      onToggle={() => setExpandedId(isExpanded ? null : id)}
-                      profileMap={profileMap}
-                    />
-                    {isExpanded && (
-                      <EventDetail
-                        log={log}
-                        profileMap={profileMap}
-                        onTraceRequest={handleTraceRequest}
-                      />
+                  <div
+                    key={group.key}
+                    className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden"
+                    style={{ borderLeftWidth: "3px", borderLeftColor: ds.color }}
+                  >
+                    {/* Group header — click to expand */}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedGroupId(isOpen ? null : group.key)}
+                      className="flex w-full items-center gap-2 px-3 py-3 md:px-5 md:gap-3 text-left transition-colors hover:bg-[#222D3D]/20"
+                    >
+                      {/* Status dot */}
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${hasFailure ? "bg-[#DC2626] shadow-[0_0_6px_rgba(220,38,38,0.4)]" : "bg-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.3)]"}`} />
+
+                      {/* Domain badge */}
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase ${ds.badge}`}>
+                        <DIcon className="h-3 w-3" />
+                        {ds.label}
+                      </span>
+
+                      {/* Summary text */}
+                      <span className="min-w-0 truncate text-[0.8125rem] font-medium capitalize text-white">{summary}</span>
+
+                      {/* Count badge (only if more than 1) */}
+                      {group.logs.length > 1 && (
+                        <span className="shrink-0 rounded-full bg-[#2A3544] px-2 py-0.5 text-[0.6875rem] font-semibold tabular-nums text-[#9CA3AF]">
+                          {group.logs.length}
+                        </span>
+                      )}
+
+                      <span className="flex-1" />
+
+                      {/* Time */}
+                      <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">{relativeTime(firstLog.created_at as string)}</span>
+
+                      {/* Chevron */}
+                      <svg viewBox="0 0 24 24" className={`h-4 w-4 shrink-0 text-[#9CA3AF] transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}>
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+
+                    {/* Expanded — individual events cascade down */}
+                    {isOpen && (
+                      <div className="border-t border-[#2A3544]/30">
+                        {group.logs.map((log, logIdx) => {
+                          const id = log.id as string;
+                          const isExpanded = expandedId === id;
+                          return (
+                            <div key={id} className={logIdx > 0 ? "border-t border-[#2A3544]/20" : ""}>
+                              <EventRow
+                                log={log}
+                                isExpanded={isExpanded}
+                                onToggle={() => setExpandedId(isExpanded ? null : id)}
+                                profileMap={profileMap}
+                              />
+                              {isExpanded && (
+                                <EventDetail
+                                  log={log}
+                                  profileMap={profileMap}
+                                  onTraceRequest={handleTraceRequest}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 );
