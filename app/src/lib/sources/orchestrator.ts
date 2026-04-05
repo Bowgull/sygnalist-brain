@@ -250,7 +250,7 @@ export async function runFetchPipeline(
   const pipelineDuration = Date.now() - pipelineStart;
 
   // Log each source result + summary row (batch receipt)
-  const logRows: Record<string, unknown>[] = sourceResults.map((sr) => ({
+  const logRows: Database["public"]["Tables"]["job_fetch_logs"]["Insert"][] = sourceResults.map((sr) => ({
     profile_id: profile.id,
     batch_id: requestId,
     source_name: sr.source,
