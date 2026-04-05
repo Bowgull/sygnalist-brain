@@ -9,6 +9,7 @@ type Filters = {
   severity?: string;
   success?: string;
   resolved?: string;
+  search?: string;
 };
 
 type Props = {
@@ -22,6 +23,15 @@ const selectBase = "rounded-lg border border-[#2A3544] bg-[#151C24] px-2.5 py-1.
 export default function LogFilterBar({ logType, filters, onFilterChange }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* Search */}
+      <input
+        type="text"
+        value={filters.search ?? ""}
+        onChange={(e) => onFilterChange({ ...filters, search: e.target.value || undefined })}
+        placeholder="Search..."
+        className={`${selectBase} w-44`}
+      />
+
       {/* Domain filter (events only) */}
       {logType === "events" && (
         <select

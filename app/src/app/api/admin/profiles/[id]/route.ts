@@ -39,6 +39,7 @@ export async function PATCH(
     "current_city",
     "preferred_locations",
     "preferred_countries",
+    "preferred_languages",
     "preferred_cities",
     "salary_min",
     "accept_onsite",

@@ -1,6 +1,6 @@
 import type { RawJob, SourceResult, FetchContext } from "./types";
 import type { Database } from "@/types/database";
-import { logError } from "@/lib/logger";
+import { logEvent, logError } from "@/lib/logger";
 import { fetchAdzuna } from "./adzuna";
 import { fetchJooble } from "./jooble";
 import { fetchJSearch } from "./jsearch";
@@ -13,6 +13,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MAX_SEARCH_TERMS = 8;
 const MAX_INBOX_JOBS = 8;
+
+/** German-market sources that should only run when client accepts German */
+const GERMAN_MARKET_SOURCES = new Set(["arbeitnow"]);
+const GERMAN_LANGUAGE_CODES = new Set(["de"]);
 
 interface RoleTrack {
   label?: string;
@@ -150,17 +154,27 @@ export async function runFetchPipeline(
   const { location, country } = resolveLocation(profile);
   const ctx: FetchContext = { searchTerms, location, country };
 
-  // Run all sources in parallel
-  const sourcePromises: Promise<SourceResult>[] = [
-    fetchAdzuna(ctx),
-    fetchJooble(ctx),
-    fetchJSearch(ctx),
-    fetchLinkedIn(ctx),
-    fetchArbeitnow(ctx),
-    fetchHimalayas(ctx),
+  // Build source list — skip market-specific sources based on language preferences
+  const acceptedLanguages = new Set(
+    (profile.preferred_languages?.length ? profile.preferred_languages : ["en"]).map((l) => l.toLowerCase()),
+  );
+  const acceptsGerman = [...acceptedLanguages].some((l) => GERMAN_LANGUAGE_CODES.has(l));
+
+  const allSources: Array<{ name: string; fn: () => Promise<SourceResult> }> = [
+    { name: "adzuna", fn: () => fetchAdzuna(ctx) },
+    { name: "jooble", fn: () => fetchJooble(ctx) },
+    { name: "jsearch", fn: () => fetchJSearch(ctx) },
+    { name: "linkedin", fn: () => fetchLinkedIn(ctx) },
+    { name: "himalayas", fn: () => fetchHimalayas(ctx) },
   ];
 
-  const sourceNames = ["adzuna", "jooble", "jsearch", "linkedin", "arbeitnow", "himalayas"];
+  if (acceptsGerman) {
+    allSources.push({ name: "arbeitnow", fn: () => fetchArbeitnow(ctx) });
+  }
+
+  // Run all sources in parallel
+  const sourcePromises = allSources.map((s) => s.fn());
+  const sourceNames = allSources.map((s) => s.name);
   const results = await Promise.allSettled(sourcePromises);
   const sourceResults: SourceResult[] = [];
   for (let i = 0; i < results.length; i++) {
@@ -189,18 +203,28 @@ export async function runFetchPipeline(
   const deduped = deduplicateJobs(allRaw);
   const afterDedupe = deduped.length;
 
+  logEvent("fetch.dedupe", { userId: profile.id, requestId, metadata: { total_raw: totalRaw, after_dedupe: afterDedupe, removed: totalRaw - afterDedupe } });
+
   // Filter out dismissed jobs and jobs already in tracker/inbox
   const filtered = await filterExistingJobs(deduped, profile.id, service);
   const afterFilter = filtered.length;
 
+  logEvent("fetch.filter", { userId: profile.id, requestId, metadata: { before: afterDedupe, after: afterFilter, filtered_out: afterDedupe - afterFilter } });
+
   // Phase 5: Score jobs
   const scored = scoreJobs(filtered, profile);
+
+  const tierCounts: Record<string, number> = {};
+  for (const j of scored) tierCounts[j.tier] = (tierCounts[j.tier] ?? 0) + 1;
+  logEvent("fetch.score", { userId: profile.id, requestId, metadata: { input: afterFilter, valid: scored.length, excluded: afterFilter - scored.length, top_score: scored[0]?.score ?? 0, tiers: tierCounts } });
 
   // Take top N
   const topJobs = scored.slice(0, MAX_INBOX_JOBS);
 
   // Phase 6: Enrich with AI (summaries + whyFit)
   const enriched = await enrichJobs(topJobs, profile, service);
+
+  logEvent("fetch.enrich", { userId: profile.id, requestId, metadata: { input: topJobs.length, enriched: enriched.length } });
 
   // Insert into inbox_jobs
   if (enriched.length > 0) {
@@ -234,6 +258,8 @@ export async function runFetchPipeline(
   }
 
   const pipelineDuration = Date.now() - pipelineStart;
+
+  logEvent("fetch.deliver", { userId: profile.id, requestId, metadata: { delivered: enriched.length, duration_ms: pipelineDuration, sources_called: sourceNames.length } });
 
   // Log each source result + summary row (batch receipt)
   const logRows = sourceResults.map((sr) => ({

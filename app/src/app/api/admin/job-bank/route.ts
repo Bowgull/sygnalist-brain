@@ -17,7 +17,10 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { severity: "warning", sourceSystem: "api.admin.job-bank", stackTrace: dbError.message });
+    return error(dbError.message, 500);
+  }
   return json({ jobs: data, total: count });
 }
 
@@ -68,7 +71,10 @@ export async function POST(request: Request) {
       .from("global_job_bank")
       .upsert(withUrl, { onConflict: "url" })
       .select();
-    if (dbError) return error(dbError.message, 500);
+    if (dbError) {
+      logError(dbError.message, { severity: "error", sourceSystem: "api.admin.job-bank", stackTrace: dbError.message });
+      return error(dbError.message, 500);
+    }
     totalInserted += data?.length ?? 0;
   }
 
@@ -77,7 +83,10 @@ export async function POST(request: Request) {
       .from("global_job_bank")
       .insert(withoutUrl)
       .select();
-    if (dbError) return error(dbError.message, 500);
+    if (dbError) {
+      logError(dbError.message, { severity: "error", sourceSystem: "api.admin.job-bank", stackTrace: dbError.message });
+      return error(dbError.message, 500);
+    }
     totalInserted += data?.length ?? 0;
   }
 
@@ -115,7 +124,10 @@ export async function PATCH(request: Request) {
     .select()
     .single();
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { severity: "error", sourceSystem: "api.admin.job-bank", stackTrace: dbError.message });
+    return error(dbError.message, 500);
+  }
   return json(data);
 }
 
@@ -134,7 +146,10 @@ export async function DELETE(request: Request) {
       .from("global_job_bank")
       .delete()
       .eq("id", id);
-    if (dbError) return error(dbError.message, 500);
+    if (dbError) {
+      logError(dbError.message, { severity: "error", sourceSystem: "api.admin.job-bank", stackTrace: dbError.message });
+      return error(dbError.message, 500);
+    }
     logEvent("admin.job_bank_delete", { userId: admin?.id, metadata: { job_id: id } });
     return json({ ok: true });
   }
@@ -149,7 +164,10 @@ export async function DELETE(request: Request) {
       .from("global_job_bank")
       .delete()
       .eq("url", body.url);
-    if (dbError) return error(dbError.message, 500);
+    if (dbError) {
+      logError(dbError.message, { severity: "error", sourceSystem: "api.admin.job-bank", stackTrace: dbError.message });
+      return error(dbError.message, 500);
+    }
     logEvent("admin.job_bank_delete", { userId: admin?.id, metadata: { url: body.url } });
     return json({ ok: true });
   } catch {

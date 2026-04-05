@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import EventRow from "@/components/logs/event-row";
 import EventDetail from "@/components/logs/event-detail";
@@ -12,7 +12,7 @@ import { getDomainIcon, getSeverityIcon } from "@/components/logs/log-icons";
 import { domainFromEventType, getDomainStyle, actionLabel, relativeTime, fullTime, getSeverityStyle } from "@/components/logs/log-utils";
 
 type LogType = "events" | "errors" | "fetches";
-type Filters = { domain?: string; severity?: string; success?: string; resolved?: string };
+type Filters = { domain?: string; severity?: string; success?: string; resolved?: string; search?: string };
 
 export default function AdminLogsPage() {
   const router = useRouter();
@@ -30,7 +30,16 @@ export default function AdminLogsPage() {
     severity: searchParams.get("severity") ?? undefined,
     success: searchParams.get("success") ?? undefined,
     resolved: searchParams.get("resolved") ?? undefined,
+    search: searchParams.get("search") ?? undefined,
   });
+
+  // Debounced filters for API calls (avoids firing on every keystroke)
+  const [debouncedFilters, setDebouncedFilters] = useState(filters);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => setDebouncedFilters(filters), 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [filters]);
 
   // Request ID trace modal
   const [traceRequestId, setTraceRequestId] = useState<string | null>(null);
@@ -45,6 +54,7 @@ export default function AdminLogsPage() {
     if (f.severity) params.set("severity", f.severity);
     if (f.success) params.set("success", f.success);
     if (f.resolved) params.set("resolved", f.resolved);
+    if (f.search) params.set("search", f.search);
     router.replace(`?${params.toString()}`, { scroll: false });
   }, [router]);
 
@@ -54,10 +64,11 @@ export default function AdminLogsPage() {
     setExpandedId(null);
 
     const params = new URLSearchParams({ type: logType, limit: "100" });
-    if (filters.domain && logType === "events") params.set("domain", filters.domain);
-    if (filters.success && logType !== "errors") params.set("success", filters.success);
-    if (filters.severity && logType === "errors") params.set("severity", filters.severity);
-    if (filters.resolved && logType === "errors") params.set("resolved", filters.resolved);
+    if (debouncedFilters.domain && logType === "events") params.set("domain", debouncedFilters.domain);
+    if (debouncedFilters.success && logType !== "errors") params.set("success", debouncedFilters.success);
+    if (debouncedFilters.severity && logType === "errors") params.set("severity", debouncedFilters.severity);
+    if (debouncedFilters.resolved && logType === "errors") params.set("resolved", debouncedFilters.resolved);
+    if (debouncedFilters.search) params.set("search", debouncedFilters.search);
 
     fetch(`/api/admin/logs?${params}`)
       .then((r) => r.json())
@@ -71,7 +82,7 @@ export default function AdminLogsPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [logType, filters]);
+  }, [logType, debouncedFilters]);
 
   // ── Fetch profile names ───────────────────────────────────────────────
   useEffect(() => {

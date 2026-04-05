@@ -25,7 +25,10 @@ export async function GET(request: Request) {
   }
 
   const { data, error: err } = await query;
-  if (err) return error(err.message, 500);
+  if (err) {
+    logError(err.message, { severity: "warning", sourceSystem: "api.admin.messages", stackTrace: err.message });
+    return error(err.message, 500);
+  }
 
   return json(data);
 }
@@ -93,7 +96,10 @@ export async function POST(request: Request) {
     .select()
     .single();
 
-  if (insertErr) return error(`Save failed: ${insertErr.message}`, 500);
+  if (insertErr) {
+    logError(`Save failed: ${insertErr.message}`, { severity: "error", sourceSystem: "api.admin.messages", stackTrace: insertErr.message });
+    return error(`Save failed: ${insertErr.message}`, 500);
+  }
 
   // Log to email_logs
   try {

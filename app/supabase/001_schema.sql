@@ -27,6 +27,7 @@ create table public.profiles (
   accept_onsite boolean default false,
   remote_region_scope text default 'remote_global',
   preferred_countries text[] default '{}',
+  preferred_languages text[] default '{en}',
   preferred_cities text[] default '{}',
   preferred_locations text[] default '{}',
   current_city text default '',

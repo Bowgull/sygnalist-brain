@@ -28,6 +28,34 @@ interface LaneControl {
   roles?: string[];
 }
 
+/** Common German words that appear in job postings — require 3+ matches to flag */
+const GERMAN_MARKERS = [
+  "und", "oder", "für", "mit", "von", "wir", "sie", "ihre",
+  "aufgaben", "anforderungen", "bewerbung", "berufserfahrung",
+  "unternehmen", "kenntnisse", "stellenangebot", "verantwortung",
+  "erfahrung", "bereich", "arbeiten", "bieten", "suchen",
+];
+
+const UMLAUT_RE = /[äöüÄÖÜß]/g;
+
+/** Detect if text is likely German. Returns "de" or null. */
+function detectLanguage(text: string): string | null {
+  const lower = text.toLowerCase();
+  // Check German word markers (require 3+ distinct hits to avoid false positives)
+  let hits = 0;
+  for (const marker of GERMAN_MARKERS) {
+    if (new RegExp(`\\b${marker}\\b`).test(lower)) {
+      hits++;
+      if (hits >= 3) return "de";
+    }
+  }
+  // Check umlaut density — 3+ umlauts in title+snippet is a strong signal
+  const umlauts = text.match(UMLAUT_RE);
+  if (umlauts && umlauts.length >= 3) return "de";
+
+  return null;
+}
+
 /** Score and rank a set of raw jobs against a profile */
 export function scoreJobs(jobs: RawJob[], profile: Profile): ScoredJob[] {
   const scored = jobs.map((job) => scoreOne(job, profile));
@@ -65,6 +93,15 @@ function scoreOne(job: RawJob, profile: Profile): ScoredJob {
     if (level && titleLower.includes(level.toLowerCase())) {
       return makeScoredJob(job, -999, "F", 0, false, null, null);
     }
+  }
+
+  // --- Language filter (hard exclude non-matching languages) ---
+  const acceptedLanguages = new Set(
+    (profile.preferred_languages?.length ? profile.preferred_languages : ["en"]).map((l) => l.toLowerCase()),
+  );
+  const detectedLang = detectLanguage(fullText);
+  if (detectedLang && !acceptedLanguages.has(detectedLang)) {
+    return makeScoredJob(job, -999, "F", 0, false, null, null);
   }
 
   // --- Work-type preference filters ---

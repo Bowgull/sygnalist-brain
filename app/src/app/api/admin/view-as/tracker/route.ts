@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logError } from "@/lib/logger";
 
 /** GET /api/admin/view-as/tracker?client_id=xxx — get a client's tracker entries */
 export async function GET(request: Request) {
@@ -24,7 +25,10 @@ export async function GET(request: Request) {
   }
 
   const { data, error: dbError, count } = await query;
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { severity: "warning", sourceSystem: "api.admin.view-as.tracker", stackTrace: dbError.message });
+    return error(dbError.message, 500);
+  }
 
   return json({ entries: data, total: count });
 }

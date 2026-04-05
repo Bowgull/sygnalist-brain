@@ -51,7 +51,7 @@ export async function logError(
       severity,
       source_system: opts.sourceSystem ?? "api",
       message,
-      stack_trace: opts.stackTrace ?? null,
+      stack_trace: opts.stackTrace ?? new Error("[logError]").stack ?? null,
       user_id: opts.userId ?? null,
       request_id: opts.requestId ?? null,
       metadata: (opts.metadata ?? {}) as Json,

@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logError } from "@/lib/logger";
 
 /**
  * GET /api/admin/messages/templates — List all message templates
@@ -15,7 +16,10 @@ export async function GET() {
     .order("is_system", { ascending: false })
     .order("name");
 
-  if (err) return error(err.message, 500);
+  if (err) {
+    logError(err.message, { severity: "warning", sourceSystem: "api.admin.messages.templates", stackTrace: err.message });
+    return error(err.message, 500);
+  }
   return json(data);
 }
 
@@ -44,6 +48,9 @@ export async function POST(request: Request) {
     .select()
     .single();
 
-  if (err) return error(err.message, 500);
+  if (err) {
+    logError(err.message, { severity: "error", sourceSystem: "api.admin.messages.templates", stackTrace: err.message });
+    return error(err.message, 500);
+  }
   return json(data);
 }

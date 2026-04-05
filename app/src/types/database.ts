@@ -18,6 +18,7 @@ export interface Database {
           accept_onsite: boolean;
           remote_region_scope: string;
           preferred_countries: string[];
+          preferred_languages: string[];
           preferred_cities: string[];
           preferred_locations: string[];
           current_city: string;
@@ -56,6 +57,7 @@ export interface Database {
           accept_onsite?: boolean;
           remote_region_scope?: string;
           preferred_countries?: string[];
+          preferred_languages?: string[];
           preferred_cities?: string[];
           preferred_locations?: string[];
           current_city?: string;
@@ -92,6 +94,7 @@ export interface Database {
           accept_onsite?: boolean;
           remote_region_scope?: string;
           preferred_countries?: string[];
+          preferred_languages?: string[];
           preferred_cities?: string[];
           preferred_locations?: string[];
           current_city?: string;

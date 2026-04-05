@@ -1,4 +1,5 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
+import { logError } from "@/lib/logger";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
@@ -19,7 +20,10 @@ export async function POST(
     .eq("profile_id", profile.id)
     .single();
 
-  if (fetchErr || !entry) return error("Entry not found", 404);
+  if (fetchErr || !entry) {
+    if (fetchErr) logError(fetchErr.message, { severity: "warning", sourceSystem: "api.tracker.goodfit", stackTrace: fetchErr.stack });
+    return error("Entry not found", 404);
+  }
 
   // Return existing if already generated
   if (entry.good_fit) {
@@ -98,7 +102,8 @@ Be direct, warm, and specific. No corporate-speak. Use "you" to address the clie
     }
 
     return json({ good_fit: goodFit, cached: false });
-  } catch {
+  } catch (err) {
+    logError(err instanceof Error ? err.message : "AI request failed", { severity: "warning", sourceSystem: "api.tracker.goodfit", stackTrace: err instanceof Error ? err.stack : undefined });
     return json({ good_fit: null, cached: false, message: "AI request timed out" });
   }
 }

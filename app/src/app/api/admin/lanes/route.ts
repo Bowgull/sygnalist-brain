@@ -1,5 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
-import { logEvent } from "@/lib/logger";
+import { logEvent, logError } from "@/lib/logger";
 
 /** GET /api/admin/lanes — get all lanes */
 export async function GET() {
@@ -12,7 +12,10 @@ export async function GET() {
     .select("*")
     .order("lane_key");
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { severity: "warning", sourceSystem: "api.admin.lanes", stackTrace: dbError.message });
+    return error(dbError.message, 500);
+  }
   return json(data);
 }
 
@@ -56,7 +59,10 @@ export async function POST(request: Request) {
     .select()
     .single();
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { severity: "error", sourceSystem: "api.admin.lanes", stackTrace: dbError.message });
+    return error(dbError.message, 500);
+  }
 
   logEvent("admin.lane_add", { userId: admin?.id, metadata: { lane_key: laneKey, role_name: roleName } });
   return json(data, 201);
@@ -77,7 +83,10 @@ export async function DELETE(request: Request) {
     .delete()
     .eq("id", id);
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { severity: "error", sourceSystem: "api.admin.lanes", stackTrace: dbError.message });
+    return error(dbError.message, 500);
+  }
 
   logEvent("admin.lane_delete", { userId: admin?.id, metadata: { id } });
   return json({ deleted: true });

@@ -1,4 +1,5 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
+import { logError } from "@/lib/logger";
 
 /** GET /api/profile — get the authenticated user's profile */
 export async function GET() {
@@ -50,6 +51,9 @@ export async function PATCH(request: Request) {
     .select()
     .single();
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { severity: "error", sourceSystem: "api.profile", stackTrace: dbError.stack });
+    return error(dbError.message, 500);
+  }
   return json(data);
 }

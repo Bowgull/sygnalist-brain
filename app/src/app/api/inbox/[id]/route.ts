@@ -1,4 +1,5 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
+import { logError } from "@/lib/logger";
 
 /** GET /api/inbox/:id — get a single inbox job with full detail */
 export async function GET(
@@ -17,6 +18,9 @@ export async function GET(
     .eq("profile_id", profile.id)
     .single();
 
-  if (dbError) return error("Job not found", 404);
+  if (dbError) {
+    logError(dbError.message, { severity: "warning", sourceSystem: "api.inbox.detail", stackTrace: dbError.stack });
+    return error("Job not found", 404);
+  }
   return json(data);
 }

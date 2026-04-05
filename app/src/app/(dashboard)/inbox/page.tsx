@@ -100,6 +100,10 @@ export default function InboxPage() {
   }
 
   async function handlePromote(id: string) {
+    const prevJobs = jobs;
+    const prevTotal = total;
+    setJobs((prev) => prev.filter((j) => j.id !== id));
+    setTotal((prev) => prev - 1);
     const url = viewAsId
       ? `/api/admin/view-as/inbox/${id}/promote?client_id=${viewAsId}`
       : `/api/inbox/${id}/promote`;
@@ -107,10 +111,14 @@ export default function InboxPage() {
     const data = await res.json().catch(() => null);
     if (res.ok) {
       toast.success("Added to Tracker");
-    } else if (res.status === 409) {
-      toast.error("Already in Tracker");
     } else {
-      toast.error(data?.error ?? "Failed to promote");
+      setJobs(prevJobs);
+      setTotal(prevTotal);
+      if (res.status === 409) {
+        toast.error("Already in Tracker");
+      } else {
+        toast.error(data?.error ?? "Failed to promote");
+      }
     }
   }
 

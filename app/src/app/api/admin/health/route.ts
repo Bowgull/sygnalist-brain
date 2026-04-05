@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logError } from "@/lib/logger";
 
 /** GET /api/admin/health — system health check */
 export async function GET() {
@@ -16,6 +17,7 @@ export async function GET() {
   const dbLatency = Date.now() - start;
 
   if (dbError) {
+    logError(dbError.message, { severity: "warning", sourceSystem: "api.admin.health", stackTrace: dbError.message });
     return json({
       status: "unhealthy",
       database: { connected: false, error: dbError.message },

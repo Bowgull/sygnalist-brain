@@ -1,4 +1,5 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
+import { logError } from "@/lib/logger";
 
 /** GET /api/inbox — get the user's inbox jobs */
 export async function GET(request: Request) {
@@ -24,7 +25,10 @@ export async function GET(request: Request) {
 
   const { data, error: dbError, count } = await query;
 
-  if (dbError) return error(dbError.message, 500);
+  if (dbError) {
+    logError(dbError.message, { severity: "warning", sourceSystem: "api.inbox", stackTrace: dbError.stack });
+    return error(dbError.message, 500);
+  }
 
   return json({ jobs: data, total: count });
 }

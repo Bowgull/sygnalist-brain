@@ -11,6 +11,8 @@ export async function GET(request: Request) {
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 200);
   const profileId = searchParams.get("profile_id");
 
+  const search = searchParams.get("search")?.trim();
+
   const service = getServiceClient();
 
   // ── Request ID cross-query: search all 3 tables ──────────────────────
@@ -45,6 +47,8 @@ export async function GET(request: Request) {
     const severity = searchParams.get("severity");
     if (severity) query = query.eq("severity", severity);
 
+    if (search) query = query.or(`message.ilike.%${search}%,source_system.ilike.%${search}%`);
+
     const { data, error: dbError } = await query;
     if (dbError) return error(dbError.message, 500);
 
@@ -70,6 +74,8 @@ export async function GET(request: Request) {
     const success = searchParams.get("success");
     if (success !== null) query = query.eq("success", success === "true");
 
+    if (search) query = query.or(`source_name.ilike.%${search}%,error_message.ilike.%${search}%`);
+
     const { data, error: dbError } = await query;
     if (dbError) return error(dbError.message, 500);
     return json(data);
@@ -92,6 +98,8 @@ export async function GET(request: Request) {
 
   const success = searchParams.get("success");
   if (success !== null) query = query.eq("success", success === "true");
+
+  if (search) query = query.or(`event_type.ilike.%${search}%,metadata->>'reason'.ilike.%${search}%`);
 
   const { data, error: dbError } = await query;
   if (dbError) return error(dbError.message, 500);

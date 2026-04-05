@@ -1,4 +1,5 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
+import { logError } from "@/lib/logger";
 
 /**
  * GET  /api/admin/messages/suggestions — List pending outreach suggestions
@@ -17,7 +18,10 @@ export async function GET() {
     .eq("status", "pending")
     .order("created_at", { ascending: false });
 
-  if (err) return error(err.message, 500);
+  if (err) {
+    logError(err.message, { severity: "warning", sourceSystem: "api.admin.messages.suggestions", stackTrace: err.message });
+    return error(err.message, 500);
+  }
 
   // Enrich with client + template + tracker data
   const clientIds = [...new Set((suggestions ?? []).map((s) => s.client_id))];
@@ -69,7 +73,10 @@ export async function PATCH(request: Request) {
     .update({ status, resolved_at: new Date().toISOString() })
     .eq("id", id);
 
-  if (err) return error(err.message, 500);
+  if (err) {
+    logError(err.message, { severity: "error", sourceSystem: "api.admin.messages.suggestions", stackTrace: err.message });
+    return error(err.message, 500);
+  }
 
   return json({ ok: true });
 }
