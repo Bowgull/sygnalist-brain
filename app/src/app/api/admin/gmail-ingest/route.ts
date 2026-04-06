@@ -15,17 +15,10 @@ import { logEvent, logError } from "@/lib/logger";
  * - Dedup: checks against jobs_inbox + global_job_bank URLs
  * - Garbage filter: rejects CSS fragments, base64 strings, encoded data as titles
  */
-export async function POST(request: Request) {
+export async function POST() {
   const { profile, response } = await requireAdmin();
   if (response) return response;
   if (!profile) return error("Profile not found", 404);
-
-  // Support reprocess mode: re-scan SYGN_INGESTED emails
-  let reprocess = false;
-  try {
-    const body = await request.json().catch(() => ({}));
-    reprocess = body?.reprocess === true;
-  } catch { /* no body is fine */ }
 
   const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
   const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
@@ -100,10 +93,7 @@ export async function POST(request: Request) {
     const ingestedLabelId = ingestedLabel?.id;
 
     // --- Step 3: Search for messages (with safety filters) ---
-    // Reprocess mode: include already-ingested emails so they can be re-parsed
-    const searchQuery = reprocess
-      ? "label:SYGN_INTAKE newer_than:14d"
-      : "label:SYGN_INTAKE -label:SYGN_INGESTED newer_than:14d";
+    const searchQuery = "label:SYGN_INTAKE -label:SYGN_INGESTED newer_than:14d";
     const searchRes = await fetch(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=20`,
       { headers: { Authorization: `Bearer ${access_token}` } },

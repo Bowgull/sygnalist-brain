@@ -41,16 +41,12 @@ export default function AdminIngestPage() {
     }
   }
 
-  async function handleGmailIngest(reprocess = false) {
+  async function handleGmailIngest() {
     setRunning(true);
     setError(null);
     setResult(null);
 
-    const res = await fetch("/api/admin/gmail-ingest", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(reprocess ? { reprocess: true } : {}),
-    });
+    const res = await fetch("/api/admin/gmail-ingest", { method: "POST" });
     if (res.ok) {
       const data = await res.json();
       setResult(data);
@@ -130,14 +126,6 @@ export default function AdminIngestPage() {
             ) : (
               "Run Gmail Ingest"
             )}
-          </button>
-
-          <button
-            onClick={() => handleGmailIngest(true)}
-            disabled={running}
-            className="mt-2 w-full rounded-xl border border-[#2A3544] py-2.5 text-[12px] font-medium text-[#9CA3AF] transition hover:border-[#6AD7A3]/50 hover:text-white disabled:opacity-50"
-          >
-            {running ? "..." : "Reprocess Already-Scanned Emails"}
           </button>
 
           {/* Ingest Result */}
