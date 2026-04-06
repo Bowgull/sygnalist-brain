@@ -15,10 +15,17 @@ import { logEvent, logError } from "@/lib/logger";
  * - Dedup: checks against jobs_inbox + global_job_bank URLs
  * - Garbage filter: rejects CSS fragments, base64 strings, encoded data as titles
  */
-export async function POST() {
+export async function POST(request: Request) {
   const { profile, response } = await requireAdmin();
   if (response) return response;
   if (!profile) return error("Profile not found", 404);
+
+  // Support reprocess mode: re-scan SYGN_INGESTED emails
+  let reprocess = false;
+  try {
+    const body = await request.json().catch(() => ({}));
+    reprocess = body?.reprocess === true;
+  } catch { /* no body is fine */ }
 
   const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
   const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
@@ -93,7 +100,10 @@ export async function POST() {
     const ingestedLabelId = ingestedLabel?.id;
 
     // --- Step 3: Search for messages (with safety filters) ---
-    const searchQuery = "label:SYGN_INTAKE -label:SYGN_INGESTED newer_than:14d";
+    // Reprocess mode: include already-ingested emails so they can be re-parsed
+    const searchQuery = reprocess
+      ? "label:SYGN_INTAKE newer_than:14d"
+      : "label:SYGN_INTAKE -label:SYGN_INGESTED newer_than:14d";
     const searchRes = await fetch(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(searchQuery)}&maxResults=20`,
       { headers: { Authorization: `Bearer ${access_token}` } },
@@ -384,11 +394,11 @@ function isGarbageTitle(title: string): boolean {
   if (/&[a-z]+;|&#\d+;|<\/?[a-z]/i.test(title)) return true;
   // URL-encoded sequences (3+ occurrences)
   if ((title.match(/%[0-9A-Fa-f]{2}/g) ?? []).length >= 3) return true;
-  // No spaces and longer than 15 chars (hashes, encoded strings)
-  if (title.length > 15 && !/\s/.test(title)) return true;
+  // No spaces and longer than 20 chars (hashes, encoded strings)
+  if (title.length > 20 && !/\s/.test(title)) return true;
   // Mostly non-alphabetic (real job titles are mostly letters/spaces)
   const alphaLen = title.replace(/[^a-zA-Z\s]/g, "").length;
-  if (title.length > 5 && alphaLen / title.length < 0.5) return true;
+  if (title.length > 10 && alphaLen / title.length < 0.4) return true;
 
   return false;
 }
@@ -426,15 +436,12 @@ interface ParsedJob {
 /** ZipRecruiter newsletter parser */
 function parseZipRecruiter(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  // Match links that contain ziprecruiter AND a job-related path/param
-  const linkRegex = /<a[^>]+href="([^"]*ziprecruiter[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  // Match all links in ZipRecruiter emails — we already know the sender
+  const linkRegex = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
   while ((match = linkRegex.exec(html)) !== null) {
     const url = match[1];
-
-    // Only accept URLs that look like actual job links
-    if (!/\/jobs?\b|[?&]jid=|[?&]job_id=|\/clk\b/i.test(url)) continue;
     if (isNoiseUrl(url)) continue;
 
     const title = stripTags(match[2]).trim();
@@ -462,8 +469,8 @@ function parseZipRecruiter(html: string): ParsedJob[] {
 /** LinkedIn digest parser */
 function parseLinkedIn(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  // Require /jobs/view/ or /jobs/search/ or /jobs/collections/ in the URL
-  const linkRegex = /<a[^>]+href="([^"]*linkedin\.com\/jobs\/(?:view|search|collections)[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  // Match links containing linkedin.com — we already know the sender
+  const linkRegex = /<a[^>]+href="([^"]*linkedin\.com[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
   while ((match = linkRegex.exec(html)) !== null) {
@@ -493,8 +500,8 @@ function parseLinkedIn(html: string): ParsedJob[] {
 /** Indeed alert parser */
 function parseIndeed(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  // Require /viewjob or /rc/clk or /job/ in the URL
-  const linkRegex = /<a[^>]+href="([^"]*indeed\.com\/(?:viewjob|rc\/clk|job\/)[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  // Match links containing indeed.com — we already know the sender
+  const linkRegex = /<a[^>]+href="([^"]*indeed\.com[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
   while ((match = linkRegex.exec(html)) !== null) {
