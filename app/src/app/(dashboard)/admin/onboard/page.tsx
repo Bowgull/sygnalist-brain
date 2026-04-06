@@ -268,6 +268,13 @@ export default function OnboardPage() {
     const profile = await createRes.json();
     setCreatedProfileId(profile.id);
 
+    // Create Supabase auth user (no password - user sets via forgot-password flow)
+    await fetch("/api/auth/create-auth-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    }).catch(() => {});
+
     // Send welcome email with app link + home screen instructions
     const appUrl = window.location.origin;
     const emailBody = buildWelcomeEmail(name, appUrl);
@@ -971,7 +978,7 @@ Welcome aboard. I've set up your Sygnalist profile and your inbox is already wor
 
 <a href="${appUrl}" style="display:inline-block;margin:16px 0;padding:14px 32px;background:linear-gradient(135deg,#A9FFB5,#5EF2C7,#39D6FF);color:#0C1016;font-weight:700;font-size:16px;text-decoration:none;border-radius:12px;">Open Sygnalist</a>
 
-Enter this email address and we'll send you a sign-in link. No passwords, no accounts to create - just check your email and tap the link.
+When you open the app, tap <strong>"Set up your password"</strong> on the sign-in page. You'll get a quick email to verify - click the link, choose your password, and you're in. After that, just sign in with your email and password anytime.
 
 <strong style="font-size:16px;">Make It Feel Like an App</strong>
 Sygnalist is built for your phone. Add it to your home screen and it works just like a native app - full screen, fast, and always one tap away.

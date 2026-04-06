@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   if (event === "login_failed") {
     await logFailure(`auth.${event}`, `Login failed${email ? ` for ${email}` : ""}: ${errorMessage ?? "unknown error"}`, {
       severity: "error",
-      sourceSystem: "auth.magic_link",
+      sourceSystem: method === "password" ? "auth.password" : "auth.magic_link",
       userId,
       metadata: {
         method,
