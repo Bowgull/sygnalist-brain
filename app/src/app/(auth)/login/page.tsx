@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -28,6 +28,7 @@ function LoginForm() {
   const [message, setMessage] = useState("");
   const [denied, setDenied] = useState(false);
   const [mode, setMode] = useState<"password" | "magic">("password");
+  const router = useRouter();
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -71,7 +72,7 @@ function LoginForm() {
       logAuth("login", "password", undefined, email);
       // Set session start cookie for 3-day expiry
       document.cookie = `syg_session_start=${Math.floor(Date.now() / 1000)};path=/;max-age=259200;samesite=lax`;
-      window.location.href = "/inbox";
+      router.replace("/inbox");
       return;
     }
     setLoading(false);

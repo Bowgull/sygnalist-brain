@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useViewAs } from "@/components/view-as/view-as-context";
-import { Eye } from "lucide-react";
+import { Eye, LogOut } from "lucide-react";
 
 function useRelativeTime(iso: string | null) {
   const [text, setText] = useState("");
@@ -33,9 +34,17 @@ export default function Header({
   displayName?: string;
   role?: string;
 }) {
+  const router = useRouter();
   const { active: viewAsActive, clientName, loading: viewAsLoading } = useViewAs();
   const [lastFetch, setLastFetch] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const lastScanText = useRelativeTime(lastFetch);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    await fetch("/api/auth/sign-out", { method: "POST" });
+    router.replace("/login?force=1");
+  }
 
   // Fetch last scan time on mount and refresh periodically
   useEffect(() => {
@@ -134,6 +143,14 @@ export default function Header({
               </>
             )}
           </div>
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            title="Sign out"
+            className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-white hover:bg-[#1E2730] transition-colors disabled:opacity-50"
+          >
+            <LogOut size={16} strokeWidth={2} />
+          </button>
         </div>
       </div>
 
