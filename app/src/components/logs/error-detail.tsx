@@ -37,6 +37,7 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
   const resolveNote = meta?.resolve_note as string | null;
 
   const [showStack, setShowStack] = useState(false);
+  const [copiedTrace, setCopiedTrace] = useState(false);
   const [showResolveInput, setShowResolveInput] = useState(false);
   const [noteText, setNoteText] = useState("");
 
@@ -103,13 +104,34 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
           {/* Stack trace — soft green, word-wrapped on mobile, draggable resize on desktop */}
           {stackTrace && (
             <div>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setShowStack(!showStack); }}
-                className="text-[0.6875rem] text-[#38BDF8] hover:underline"
-              >
-                {showStack ? "Hide stack trace" : "Show stack trace"}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setShowStack(!showStack); }}
+                  className="text-[0.6875rem] text-[#38BDF8] hover:underline"
+                >
+                  {showStack ? "Hide stack trace" : "Show stack trace"}
+                </button>
+                {showStack && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(stackTrace).then(() => {
+                        setCopiedTrace(true);
+                        setTimeout(() => setCopiedTrace(false), 1500);
+                      });
+                    }}
+                    className="inline-flex items-center gap-1 text-[0.6875rem] text-[#38BDF8] hover:underline"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    {copiedTrace ? "Copied!" : "Copy trace"}
+                  </button>
+                )}
+              </div>
               {showStack && (
                 <div ref={traceContainerRef} className="mt-2 relative" style={{ width: traceWidth ?? "100%" }}>
                   <pre

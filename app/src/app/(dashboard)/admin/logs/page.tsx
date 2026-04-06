@@ -182,6 +182,26 @@ export default function AdminLogsPage() {
       .catch(() => setTraceLoading(false));
   }
 
+  // ── Bulk resolve (for error groups) ────────────────────────────────────
+  async function handleBulkResolve(errorIds: string[], note?: string) {
+    const results = await Promise.all(
+      errorIds.map((id) =>
+        fetch("/api/admin/logs", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ error_id: id, resolve_note: note }),
+        }).then((r) => r.ok ? r.json() : null)
+      )
+    );
+    setLogs((prev) =>
+      prev.map((l) => {
+        const updated = results.find((r) => r && r.id === l.id);
+        return updated ?? l;
+      })
+    );
+    setUnresolvedCount((c) => Math.max(0, c - results.filter(Boolean).length));
+  }
+
   // ── Smart grouping for Activity tab ────────────────────────────────────
   // Priority: request_id → user_id + 60s window → domain + 60s window
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
@@ -267,6 +287,69 @@ export default function AdminLogsPage() {
     return `${actions.slice(0, 2).join(", ")} +${actions.length - 2} more`;
   }
 
+  // ── Smart grouping for Errors tab ──────────────────────────────────────
+  const [expandedErrorGroupId, setExpandedErrorGroupId] = useState<string | null>(null);
+  const [bulkResolveGroupId, setBulkResolveGroupId] = useState<string | null>(null);
+  const [bulkNoteText, setBulkNoteText] = useState("");
+
+  type ErrorGroup = {
+    key: string;
+    sourceSystem: string;
+    message: string;
+    severity: string;
+    resolved: boolean;
+    logs: Record<string, unknown>[];
+  };
+
+  const SEVERITY_RANK: Record<string, number> = { critical: 4, error: 3, warning: 2, info: 1 };
+
+  function groupErrorLogs(errors: Record<string, unknown>[]): ErrorGroup[] {
+    const map = new Map<string, ErrorGroup>();
+
+    for (const log of errors) {
+      const src = (log.source_system as string) || "";
+      const msg = (log.message as string) || "";
+      const resolved = log.resolved as boolean;
+      const key = `${src}||${msg}||${resolved}`;
+      const sev = (log.severity as string) || "info";
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key: log.id as string,
+          sourceSystem: src,
+          message: msg,
+          severity: sev,
+          resolved,
+          logs: [],
+        });
+      }
+      const group = map.get(key)!;
+      group.logs.push(log);
+      // Track highest severity
+      if ((SEVERITY_RANK[sev] ?? 0) > (SEVERITY_RANK[group.severity] ?? 0)) {
+        group.severity = sev;
+      }
+    }
+
+    // Sort each group's logs by created_at descending (newest first)
+    for (const group of map.values()) {
+      group.logs.sort((a, b) =>
+        new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime()
+      );
+    }
+
+    // Sort groups: unresolved first, then by most-recent timestamp descending
+    const groups = Array.from(map.values());
+    groups.sort((a, b) => {
+      if (a.resolved !== b.resolved) return a.resolved ? 1 : -1;
+      const aTime = new Date(a.logs[0].created_at as string).getTime();
+      const bTime = new Date(b.logs[0].created_at as string).getTime();
+      return bTime - aTime;
+    });
+
+    return groups;
+  }
+
   // ── Group fetches by batch_id ─────────────────────────────────────────
   function groupFetchesByBatch(fetchLogs: Record<string, unknown>[]) {
     const groups: Map<string, Record<string, unknown>[]> = new Map();
@@ -321,7 +404,11 @@ export default function AdminLogsPage() {
             )}
           </button>
         ))}
-        <span className="ml-auto shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">{logs.length} entries</span>
+        <span className="ml-auto shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">
+          {logType === "errors" && logs.length > 0
+            ? `${logs.length} errors · ${groupErrorLogs(logs).length} groups`
+            : `${logs.length} entries`}
+        </span>
       </div>
 
       {/* Filter bar */}
@@ -429,34 +516,153 @@ export default function AdminLogsPage() {
             </div>
           )}
 
-          {/* ── ERRORS TAB ── */}
+          {/* ── ERRORS TAB — grouped cards ── */}
           {logType === "errors" && (
-            <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden">
-              {[...logs].sort((a, b) => {
-                const aResolved = a.resolved as boolean;
-                const bResolved = b.resolved as boolean;
-                if (aResolved !== bResolved) return aResolved ? 1 : -1;
-                return new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime();
-              }).map((log, idx) => {
-                const id = log.id as string;
-                const isExpanded = expandedId === id;
-                const reqId = log.request_id as string | null;
-                const ctx = reqId ? batchContextMap[reqId] ?? null : null;
+            <div className="space-y-2">
+              {groupErrorLogs(logs).map((group) => {
+                const sevStyle = getSeverityStyle(group.severity);
+                const SevIcon = getSeverityIcon(group.severity);
+                const isGroupOpen = expandedErrorGroupId === group.key;
+                const isBulkResolving = bulkResolveGroupId === group.key;
+                const borderColor = group.severity === "critical" || group.severity === "error" ? "#DC2626" : group.severity === "warning" ? "#F59E0B" : "#9CA3AF";
+                const newestTime = relativeTime(group.logs[0].created_at as string);
+                const oldestTime = group.logs.length > 1 ? relativeTime(group.logs[group.logs.length - 1].created_at as string) : null;
+
+                // Single-entry groups render as a plain row (no grouping overhead)
+                if (group.logs.length === 1) {
+                  const log = group.logs[0];
+                  const id = log.id as string;
+                  const isExpanded = expandedId === id;
+                  const reqId = log.request_id as string | null;
+                  const ctx = reqId ? batchContextMap[reqId] ?? null : null;
+                  return (
+                    <div
+                      key={id}
+                      className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden"
+                      style={{ borderLeftWidth: "3px", borderLeftColor: borderColor }}
+                    >
+                      <ErrorRow log={log} isExpanded={isExpanded} onToggle={() => setExpandedId(isExpanded ? null : id)} batchContext={ctx} />
+                      {isExpanded && (
+                        <ErrorDetail log={log} profileMap={profileMap} onTraceRequest={handleTraceRequest} onResolve={handleResolve} />
+                      )}
+                    </div>
+                  );
+                }
+
+                // Multi-entry groups
                 return (
-                  <div key={id} className={idx > 0 ? "border-t border-[#2A3544]/30" : ""}>
-                    <ErrorRow
-                      log={log}
-                      isExpanded={isExpanded}
-                      onToggle={() => setExpandedId(isExpanded ? null : id)}
-                      batchContext={ctx}
-                    />
-                    {isExpanded && (
-                      <ErrorDetail
-                        log={log}
-                        profileMap={profileMap}
-                        onTraceRequest={handleTraceRequest}
-                        onResolve={handleResolve}
-                      />
+                  <div
+                    key={group.key}
+                    className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden"
+                    style={{ borderLeftWidth: "3px", borderLeftColor: borderColor }}
+                  >
+                    {/* Group header */}
+                    <button
+                      type="button"
+                      onClick={() => { setExpandedErrorGroupId(isGroupOpen ? null : group.key); setBulkResolveGroupId(null); setBulkNoteText(""); }}
+                      className="flex w-full items-center gap-2 px-3 py-3 md:px-5 md:gap-3 text-left transition-colors hover:bg-[#222D3D]/20"
+                    >
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase ${sevStyle.badge}`}>
+                        <SevIcon className="h-3 w-3" />
+                        {group.severity}
+                      </span>
+                      <span className="min-w-0 truncate text-[0.75rem] md:text-[0.8125rem] font-medium text-[#B8BFC8]">{group.sourceSystem}</span>
+                      <span className="shrink-0 rounded-full bg-[#2A3544] px-2 py-0.5 text-[0.6875rem] font-semibold tabular-nums text-[#9CA3AF]">
+                        {group.logs.length}
+                      </span>
+                      <span className="flex-1" />
+                      {/* Status pill */}
+                      {group.resolved ? (
+                        <span className="hidden md:inline-flex shrink-0 items-center gap-1 rounded-full border border-[#6AD7A3]/25 bg-[#6AD7A3]/10 px-2 py-0.5 text-[0.625rem] font-semibold text-[#6AD7A3]">Resolved</span>
+                      ) : (
+                        <span className="hidden md:inline-flex shrink-0 items-center gap-1 rounded-full border border-[#F59E0B]/25 bg-[#F59E0B]/10 px-2 py-0.5 text-[0.625rem] font-semibold text-[#F59E0B]">Open</span>
+                      )}
+                      {/* Time range */}
+                      <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">
+                        {oldestTime ? `${newestTime} – ${oldestTime}` : newestTime}
+                      </span>
+                      <svg viewBox="0 0 24 24" className={`h-4 w-4 shrink-0 text-[#9CA3AF] transition-transform ${isGroupOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}>
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+
+                    {/* Group message preview (always visible) */}
+                    <div className="px-3 pb-2 md:px-5 -mt-1">
+                      <p className="text-[0.8125rem] text-white line-clamp-1">{group.message}</p>
+                    </div>
+
+                    {/* Expanded — nested child errors */}
+                    {isGroupOpen && (
+                      <div className="border-t border-[#2A3544]/30">
+                        {/* Bulk resolve bar */}
+                        {!group.resolved && (
+                          <div className="px-3 py-2.5 md:px-5 bg-[#0C1016]/60 border-b border-[#2A3544]/20">
+                            {isBulkResolving ? (
+                              <div className="flex w-full items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="text"
+                                  placeholder="What was done to resolve this..."
+                                  value={bulkNoteText}
+                                  onChange={(e) => setBulkNoteText(e.target.value)}
+                                  autoFocus
+                                  className="min-w-0 flex-1 rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-[0.8125rem] text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3] transition-colors"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleBulkResolve(group.logs.map((l) => l.id as string), bulkNoteText || undefined);
+                                      setBulkResolveGroupId(null);
+                                      setBulkNoteText("");
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleBulkResolve(group.logs.map((l) => l.id as string), bulkNoteText || undefined);
+                                    setBulkResolveGroupId(null);
+                                    setBulkNoteText("");
+                                  }}
+                                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#6AD7A3]/15 px-3 py-2 text-[0.75rem] font-semibold text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30 hover:bg-[#6AD7A3]/25 transition-colors"
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setBulkResolveGroupId(null); setBulkNoteText(""); }}
+                                  className="shrink-0 text-[0.75rem] text-[#9CA3AF] hover:text-white transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setBulkResolveGroupId(group.key); }}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-[#6AD7A3]/10 px-4 py-2 text-[0.75rem] font-semibold text-[#6AD7A3] ring-1 ring-[#6AD7A3]/25 hover:bg-[#6AD7A3]/20 transition-colors"
+                              >
+                                Resolve All ({group.logs.length})
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Individual errors */}
+                        <div className="ml-3 md:ml-5 bg-[#0C1016]/40">
+                          {group.logs.map((log, logIdx) => {
+                            const id = log.id as string;
+                            const isExpanded = expandedId === id;
+                            const reqId = log.request_id as string | null;
+                            const ctx = reqId ? batchContextMap[reqId] ?? null : null;
+                            return (
+                              <div key={id} className={logIdx > 0 ? "border-t border-[#2A3544]/15" : ""}>
+                                <ErrorRow log={log} isExpanded={isExpanded} onToggle={() => setExpandedId(isExpanded ? null : id)} batchContext={ctx} />
+                                {isExpanded && (
+                                  <ErrorDetail log={log} profileMap={profileMap} onTraceRequest={handleTraceRequest} onResolve={handleResolve} />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     )}
                   </div>
                 );

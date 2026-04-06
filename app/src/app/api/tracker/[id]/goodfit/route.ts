@@ -20,7 +20,7 @@ export async function POST(
     .select("*")
     .eq("id", id)
     .eq("profile_id", profile.id)
-    .single();
+    .maybeSingle();
 
   if (fetchErr || !entry) {
     if (fetchErr) logError(fetchErr.message, { severity: "warning", sourceSystem: "api.tracker.goodfit", stackTrace: fetchErr.stack });
