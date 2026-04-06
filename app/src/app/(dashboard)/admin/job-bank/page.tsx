@@ -107,17 +107,21 @@ export default function AdminJobBankPage() {
     setLoading(false);
   }, [page, sortBy, sortOrder, debouncedSearch, filterFamily, filterWorkMode, filterStale]);
 
-  // Load stale counts for stats line
+  // Load stale counts for stats line (fails silently if column doesn't exist yet)
   const loadStaleCounts = useCallback(async () => {
-    const counts = { active: 0, stale: 0, archived: 0 };
-    for (const status of ["active", "stale", "archived"] as const) {
-      const res = await fetch(`/api/admin/job-bank?limit=1&offset=0&stale_status=${status}`);
-      if (res.ok) {
-        const data = await res.json();
-        counts[status] = data.total ?? 0;
+    try {
+      const counts = { active: 0, stale: 0, archived: 0 };
+      for (const status of ["active", "stale", "archived"] as const) {
+        const res = await fetch(`/api/admin/job-bank?limit=1&offset=0&stale_status=${status}`);
+        if (res.ok) {
+          const data = await res.json();
+          counts[status] = data.total ?? 0;
+        }
       }
+      setStaleCounts(counts);
+    } catch {
+      // Column may not exist yet — ignore
     }
-    setStaleCounts(counts);
   }, []);
 
   useEffect(() => {
