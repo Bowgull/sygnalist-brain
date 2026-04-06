@@ -432,7 +432,12 @@ export default function AdminLogsPage() {
           {/* ── ERRORS TAB ── */}
           {logType === "errors" && (
             <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden">
-              {logs.map((log, idx) => {
+              {[...logs].sort((a, b) => {
+                const aResolved = a.resolved as boolean;
+                const bResolved = b.resolved as boolean;
+                if (aResolved !== bResolved) return aResolved ? 1 : -1;
+                return new Date(b.created_at as string).getTime() - new Date(a.created_at as string).getTime();
+              }).map((log, idx) => {
                 const id = log.id as string;
                 const isExpanded = expandedId === id;
                 const reqId = log.request_id as string | null;
