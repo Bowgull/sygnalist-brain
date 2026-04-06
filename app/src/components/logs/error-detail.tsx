@@ -222,32 +222,51 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
       {/* ── Resolve section ── */}
       <div className="mt-5">
         {resolved ? (
-          <div className="rounded-lg border border-[#6AD7A3]/15 bg-[#6AD7A3]/5 p-3 md:p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <CheckCircleIcon className="h-4 w-4 text-[#6AD7A3]" />
-              <span className="text-[0.8125rem] font-semibold text-[#6AD7A3]">Resolved</span>
-              {resolverName && <span className="text-[0.75rem] text-[#9CA3AF]">by {resolverName}</span>}
-            </div>
-
-            {/* Resolve note — prominent */}
-            {resolveNote && (
-              <p className="text-[0.875rem] leading-relaxed text-white">{resolveNote}</p>
-            )}
-
-            {/* Timestamps: occurred → resolved + duration */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.75rem] tabular-nums text-[#9CA3AF]">
-              <span>Occurred: {fullTime(log.created_at as string)}</span>
-              {resolvedAt && <span>Resolved: {fullTime(resolvedAt)}</span>}
+          <div className="space-y-3">
+            {/* Status banner */}
+            <div className="flex items-center gap-3 rounded-lg border border-[#6AD7A3]/20 bg-gradient-to-r from-[#6AD7A3]/10 to-[#6AD7A3]/5 px-4 py-3">
+              <CheckCircleIcon className="h-5 w-5 shrink-0 text-[#6AD7A3]" />
+              <div className="flex-1 min-w-0">
+                <span className="text-[0.875rem] font-bold text-[#6AD7A3]">Resolved</span>
+                {resolverName && <span className="ml-2 text-[0.8125rem] text-[#B8BFC8]">by {resolverName}</span>}
+              </div>
+              {/* Time-to-fix badge */}
               {resolvedAt && (() => {
                 const diffMs = new Date(resolvedAt).getTime() - new Date(log.created_at as string).getTime();
                 const mins = Math.floor(diffMs / 60000);
-                if (mins < 1) return <span className="text-[#6AD7A3]">Fixed in &lt;1m</span>;
-                if (mins < 60) return <span className="text-[#6AD7A3]">Fixed in {mins}m</span>;
-                const hrs = Math.floor(mins / 60);
-                if (hrs < 24) return <span className="text-[#6AD7A3]">Fixed in {hrs}h {mins % 60}m</span>;
-                const days = Math.floor(hrs / 24);
-                return <span className="text-[#F59E0B]">Fixed in {days}d {hrs % 24}h</span>;
+                let label = "";
+                let color = "text-[#6AD7A3] border-[#6AD7A3]/20 bg-[#6AD7A3]/10";
+                if (mins < 1) label = "<1m";
+                else if (mins < 60) label = `${mins}m`;
+                else {
+                  const hrs = Math.floor(mins / 60);
+                  if (hrs < 24) label = `${hrs}h ${mins % 60}m`;
+                  else {
+                    const days = Math.floor(hrs / 24);
+                    label = `${days}d ${hrs % 24}h`;
+                    color = "text-[#F59E0B] border-[#F59E0B]/20 bg-[#F59E0B]/10";
+                  }
+                }
+                return (
+                  <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-semibold tabular-nums ${color}`}>
+                    Fixed in {label}
+                  </span>
+                );
               })()}
+            </div>
+
+            {/* Resolve note — boxed, prominent */}
+            {resolveNote && (
+              <div className="rounded-lg border border-[#6AD7A3]/15 bg-[#0C1016] p-3 md:p-4">
+                <span className="text-[0.625rem] font-medium uppercase tracking-wide text-[#6AD7A3]">Resolution Note</span>
+                <p className="mt-1 text-[0.875rem] leading-relaxed text-[#B8BFC8]">{resolveNote}</p>
+              </div>
+            )}
+
+            {/* Timestamps */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[0.75rem] tabular-nums text-[#9CA3AF]">
+              <span>Occurred: {fullTime(log.created_at as string)}</span>
+              {resolvedAt && <span>Resolved: {fullTime(resolvedAt)}</span>}
             </div>
           </div>
         ) : showResolveInput ? (

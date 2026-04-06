@@ -45,11 +45,15 @@ export async function updateSession(request: NextRequest) {
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
 
   if (!user && !isAuthPage && !isApiRoute) {
-    // Log session drop - fire and forget
-    logEvent("auth.session_expired", {
-      success: false,
-      metadata: { path: request.nextUrl.pathname, reason: "no_session" },
-    }).catch(() => {});
+    // Only log if the request had a session cookie that failed to refresh
+    // (actual session expiry, not just an unauthenticated visit)
+    const hasSessionCookie = request.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
+    if (hasSessionCookie) {
+      logEvent("auth.session_expired", {
+        success: false,
+        metadata: { path: request.nextUrl.pathname, reason: "token_expired" },
+      }).catch(() => {});
+    }
 
     const url = request.nextUrl.clone();
     url.pathname = "/login";

@@ -49,12 +49,19 @@ export default function ErrorRow({ log, isExpanded, onToggle, batchContext }: Pr
       {/* Row 2: message — full width, wraps naturally */}
       <p className="mt-1 text-[0.8125rem] text-white line-clamp-2 md:line-clamp-1">{message}</p>
 
-      {/* Row 3: status + batch context */}
+      {/* Row 3: status pill + batch context */}
       <div className="mt-1.5 flex items-center gap-2">
-        <span className={`inline-flex items-center gap-1 text-[0.75rem] font-semibold ${resolved ? "text-[#6AD7A3]/50" : "text-[#F59E0B]"}`}>
-          <StatusIcon className="h-3.5 w-3.5" />
-          {resolved ? "Resolved" : "Open"}
-        </span>
+        {resolved ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#6AD7A3]/25 bg-[#6AD7A3]/10 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-[#6AD7A3]">
+            <StatusIcon className="h-3 w-3" />
+            Resolved
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F59E0B]/25 bg-[#F59E0B]/10 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-[#F59E0B]">
+            <StatusIcon className="h-3 w-3" />
+            Open
+          </span>
+        )}
         {batchContext && (
           <span className="text-[0.6875rem] text-[#9CA3AF]">
             {batchContext.profileName} &middot; {shortBatchId(batchContext.batchId)}
