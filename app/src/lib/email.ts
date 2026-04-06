@@ -98,7 +98,10 @@ function wrapInTemplate(body: string): string {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="email-outer" style="background-color:#0C1016;">
     <tr>
       <td align="center" style="padding:40px 16px 32px;">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
+          <tr>
+            <td style="border-radius:20px;overflow:hidden;background-color:#0C1016;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 
           <!-- Header -->
           <tr>
@@ -141,6 +144,9 @@ function wrapInTemplate(body: string): string {
             </td>
           </tr>
 
+              </table>
+            </td>
+          </tr>
         </table>
       </td>
     </tr>
