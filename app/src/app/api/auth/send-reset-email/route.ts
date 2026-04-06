@@ -3,8 +3,6 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { logEvent, logFailure } from "@/lib/logger";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sygnalist.app";
-
 /** POST /api/auth/send-reset-email - Send a branded password reset email. */
 export async function POST(request: Request) {
   const body = await request.json();
@@ -30,11 +28,10 @@ export async function POST(request: Request) {
   const { data: linkData, error: linkError } = await service.auth.admin.generateLink({
     type: "recovery",
     email,
-    options: { redirectTo: `${SITE_URL}/reset-password` },
   });
 
-  if (linkError || !linkData?.properties?.action_link) {
-    await logFailure("auth.password_reset_failed", `Failed to generate reset link for ${email}: ${linkError?.message ?? "no link returned"}`, {
+  if (linkError || !linkData?.properties?.hashed_token) {
+    await logFailure("auth.password_reset_failed", `Failed to generate reset link for ${email}: ${linkError?.message ?? "no token returned"}`, {
       severity: "error",
       sourceSystem: "auth.password_reset",
       userId: profile.id,
@@ -43,9 +40,10 @@ export async function POST(request: Request) {
     return error("Failed to generate reset link", 500);
   }
 
-  // The action_link from Supabase contains the token. We need to extract the code
-  // and redirect through our callback or directly to reset-password
-  const resetUrl = linkData.properties.action_link;
+  // Build a direct link to our reset-password page using the hashed token.
+  // This bypasses Supabase's redirect flow which breaks on mobile (domain mismatch, fragile redirect chain).
+  const origin = new URL(request.url).origin;
+  const resetUrl = `${origin}/reset-password?token_hash=${linkData.properties.hashed_token}`;
 
   // Build branded email
   const emailHtml = `Hey there,

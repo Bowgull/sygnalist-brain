@@ -33,19 +33,34 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    async function exchangeCode() {
+    async function verifyToken() {
+      const tokenHash = searchParams.get("token_hash");
       const code = searchParams.get("code");
-      if (!code) {
+
+      if (tokenHash) {
+        // Direct flow: verify the hashed token from the email link
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "recovery",
+        });
+        if (verifyError) {
+          setError("This link has expired or is invalid. Please request a new one.");
+          setStatus("error");
+          logAuth("password_reset_failed", "password", verifyError.message);
+          return;
+        }
+      } else if (code) {
+        // Legacy flow: exchange auth code for session (callback redirect)
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          setError("This link has expired or is invalid. Please request a new one.");
+          setStatus("error");
+          logAuth("password_reset_failed", "password", exchangeError.message);
+          return;
+        }
+      } else {
         setError("No reset code found. Please request a new password reset link.");
         setStatus("error");
-        return;
-      }
-
-      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-      if (exchangeError) {
-        setError("This link has expired or is invalid. Please request a new one.");
-        setStatus("error");
-        logAuth("password_reset_failed", "password", exchangeError.message);
         return;
       }
 
@@ -54,7 +69,7 @@ function ResetPasswordForm() {
 
       setStatus("ready");
     }
-    exchangeCode();
+    verifyToken();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
