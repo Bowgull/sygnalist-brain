@@ -224,6 +224,8 @@ export async function POST(request: Request) {
             work_mode: job.work_mode,
             job_family: job.lane_key,
             description_snippet: job.notes || job.description_snippet,
+            stale_status: "active",
+            stale_at: null,
           },
           { onConflict: "url" },
         );

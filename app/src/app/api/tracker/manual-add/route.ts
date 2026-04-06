@@ -65,6 +65,8 @@ export async function POST(request: Request) {
         company: body.company,
         location: body.location || null,
         source: "manual",
+        stale_status: "active",
+        stale_at: null,
       },
       { onConflict: "url" }
     );

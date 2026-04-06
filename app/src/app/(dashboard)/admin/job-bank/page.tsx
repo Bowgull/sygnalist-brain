@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Plus, Pencil, Trash2, ExternalLink, Search, Check, X,
-  ChevronLeft, ChevronRight, ArrowUpDown, Sparkles,
+  ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, RotateCcw, Archive,
 } from "lucide-react";
 
 interface JobBankEntry {
@@ -19,6 +19,8 @@ interface JobBankEntry {
   description_snippet: string | null;
   job_summary: string | null;
   why_fit: string | null;
+  stale_status?: string;
+  stale_at?: string | null;
   created_at: string;
   updated_at?: string;
 }
@@ -46,6 +48,8 @@ export default function AdminJobBankPage() {
   const [filterFamily, setFilterFamily] = useState("");
   const [filterWorkMode, setFilterWorkMode] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [filterStale, setFilterStale] = useState("");
+  const [staleCounts, setStaleCounts] = useState<{ active: number; stale: number; archived: number }>({ active: 0, stale: 0, archived: 0 });
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -90,6 +94,7 @@ export default function AdminJobBankPage() {
     if (debouncedSearch) params.set("search", debouncedSearch);
     if (filterFamily) params.set("job_family", filterFamily);
     if (filterWorkMode) params.set("work_mode", filterWorkMode);
+    if (filterStale) params.set("stale_status", filterStale);
 
     const res = await fetch(`/api/admin/job-bank?${params}`);
     if (res.ok) {
@@ -100,11 +105,28 @@ export default function AdminJobBankPage() {
       showToast("Failed to load job bank");
     }
     setLoading(false);
-  }, [page, sortBy, sortOrder, debouncedSearch, filterFamily, filterWorkMode]);
+  }, [page, sortBy, sortOrder, debouncedSearch, filterFamily, filterWorkMode, filterStale]);
+
+  // Load stale counts for stats line
+  const loadStaleCounts = useCallback(async () => {
+    const counts = { active: 0, stale: 0, archived: 0 };
+    for (const status of ["active", "stale", "archived"] as const) {
+      const res = await fetch(`/api/admin/job-bank?limit=1&offset=0&stale_status=${status}`);
+      if (res.ok) {
+        const data = await res.json();
+        counts[status] = data.total ?? 0;
+      }
+    }
+    setStaleCounts(counts);
+  }, []);
 
   useEffect(() => {
     loadJobs();
   }, [loadJobs]);
+
+  useEffect(() => {
+    loadStaleCounts();
+  }, [loadStaleCounts]);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -157,6 +179,44 @@ export default function AdminJobBankPage() {
     showToast(`Assigned lane to ${updated} job(s)`);
     setSelected(new Set());
     loadJobs();
+  }
+
+  async function handleStaleAction(id: string, action: "keep" | "archive") {
+    const patch = action === "keep"
+      ? { stale_status: "active", stale_at: null }
+      : { stale_status: "archived" };
+    const res = await fetch("/api/admin/job-bank", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...patch }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setJobs((prev) => prev.map((j) => (j.id === id ? updated : j)));
+      showToast(action === "keep" ? "Job marked active" : "Job archived");
+      loadStaleCounts();
+    } else {
+      showToast("Failed to update job");
+    }
+  }
+
+  async function handleBulkStaleAction(action: "keep" | "archive") {
+    let updated = 0;
+    const patch = action === "keep"
+      ? { stale_status: "active", stale_at: null }
+      : { stale_status: "archived" };
+    for (const id of selected) {
+      const res = await fetch("/api/admin/job-bank", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...patch }),
+      });
+      if (res.ok) updated++;
+    }
+    showToast(`${action === "keep" ? "Reactivated" : "Archived"} ${updated} job(s)`);
+    setSelected(new Set());
+    loadJobs();
+    loadStaleCounts();
   }
 
   async function handleUpdate(id: string, patch: Record<string, unknown>) {
@@ -288,7 +348,14 @@ export default function AdminJobBankPage() {
       )}
 
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Job Bank ({total})</h1>
+        <div>
+          <h1 className="text-lg font-semibold">Job Bank ({total})</h1>
+          <p className="mt-0.5 text-[11px] text-[#6B7280]">
+            <span className="text-[#6AD7A3]">{staleCounts.active} active</span>
+            {staleCounts.stale > 0 && <span className="text-[#FBBF24]"> / {staleCounts.stale} stale</span>}
+            {staleCounts.archived > 0 && <span className="text-[#DC2626]"> / {staleCounts.archived} archived</span>}
+          </p>
+        </div>
         <button
           onClick={() => setShowAdd(!showAdd)}
           className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-3 py-1.5 text-[12px] font-semibold text-[#0C1016]"
@@ -329,6 +396,16 @@ export default function AdminJobBankPage() {
             <option value="remote">Remote</option>
             <option value="hybrid">Hybrid</option>
             <option value="onsite">Onsite</option>
+          </select>
+          <select
+            value={filterStale}
+            onChange={(e) => { setFilterStale(e.target.value); setPage(0); }}
+            className="rounded-lg border border-[#2A3544] bg-[#171F28] px-3 py-1.5 text-[12px] text-white outline-none focus:border-[#6AD7A3]"
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="stale">Stale</option>
+            <option value="archived">Archived</option>
           </select>
           {/* Sort buttons */}
           <div className="ml-auto flex items-center gap-1">
@@ -375,6 +452,20 @@ export default function AdminJobBankPage() {
               <option key={l.lane_key} value={l.lane_key}>{l.role_name}</option>
             ))}
           </select>
+          <button
+            onClick={() => handleBulkStaleAction("keep")}
+            className="flex items-center gap-1 rounded-full border border-[#6AD7A3]/30 px-3 py-1 text-[11px] text-[#6AD7A3] hover:bg-[#6AD7A3]/10"
+          >
+            <RotateCcw size={12} strokeWidth={2} />
+            Mark Active
+          </button>
+          <button
+            onClick={() => handleBulkStaleAction("archive")}
+            className="flex items-center gap-1 rounded-full border border-[#FBBF24]/30 px-3 py-1 text-[11px] text-[#FBBF24] hover:bg-[#FBBF24]/10"
+          >
+            <Archive size={12} strokeWidth={2} />
+            Archive
+          </button>
           <button
             onClick={() => setBulkDeleteConfirm(true)}
             className="ml-auto flex items-center gap-1 rounded-full border border-[#DC2626]/30 px-3 py-1 text-[11px] text-[#DC2626] hover:bg-[#DC2626]/10"
@@ -453,6 +544,7 @@ export default function AdminJobBankPage() {
                 onUpdate={(patch) => handleUpdate(job.id, patch)}
                 onDelete={() => setDeleteConfirm({ id: job.id, title: job.title ?? "Untitled" })}
                 onCancel={() => setEditing(null)}
+                onStaleAction={(action) => handleStaleAction(job.id, action)}
               />
             ))}
           </div>
@@ -497,6 +589,7 @@ function JobBankCard({
   onUpdate,
   onDelete,
   onCancel,
+  onStaleAction,
 }: {
   job: JobBankEntry;
   lanes: LaneOption[];
@@ -507,6 +600,7 @@ function JobBankCard({
   onUpdate: (patch: Record<string, unknown>) => void;
   onDelete: () => void;
   onCancel: () => void;
+  onStaleAction: (action: "keep" | "archive") => void;
 }) {
   const [title, setTitle] = useState(job.title ?? "");
   const [company, setCompany] = useState(job.company ?? "");
@@ -690,6 +784,20 @@ function JobBankCard({
                 raw
               </span>
             )}
+            {/* Stale status badge */}
+            {job.stale_status === "stale" && (
+              <span
+                className="rounded-full bg-[#FBBF24]/10 px-2 py-0.5 text-[11px] font-medium text-[#FBBF24] ring-1 ring-[#FBBF24]/20"
+                title={job.stale_at ? `Stale since ${formatDate(job.stale_at)}` : "Stale"}
+              >
+                Stale
+              </span>
+            )}
+            {job.stale_status === "archived" && (
+              <span className="rounded-full bg-[#DC2626]/10 px-2 py-0.5 text-[11px] font-medium text-[#DC2626] ring-1 ring-[#DC2626]/20">
+                Archived
+              </span>
+            )}
           </div>
 
           {job.job_summary && (
@@ -713,6 +821,25 @@ function JobBankCard({
             <span className="text-[10px] text-[#4B5563]">
               Added {formatDate(job.created_at)}
             </span>
+            {/* Quick stale actions */}
+            {(job.stale_status === "stale" || job.stale_status === "archived") && (
+              <button
+                onClick={() => onStaleAction("keep")}
+                className="ml-auto flex items-center gap-1 rounded-full border border-[#6AD7A3]/30 px-2 py-0.5 text-[10px] font-medium text-[#6AD7A3] hover:bg-[#6AD7A3]/10"
+              >
+                <RotateCcw size={10} strokeWidth={2} />
+                Keep
+              </button>
+            )}
+            {job.stale_status === "stale" && (
+              <button
+                onClick={() => onStaleAction("archive")}
+                className="flex items-center gap-1 rounded-full border border-[#FBBF24]/30 px-2 py-0.5 text-[10px] font-medium text-[#FBBF24] hover:bg-[#FBBF24]/10"
+              >
+                <Archive size={10} strokeWidth={2} />
+                Archive
+              </button>
+            )}
           </div>
         </div>
       </div>

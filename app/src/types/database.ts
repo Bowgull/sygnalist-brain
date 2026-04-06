@@ -288,6 +288,8 @@ export interface Database {
           description_snippet: string | null;
           job_summary: string | null;
           why_fit: string | null;
+          stale_status: string;
+          stale_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -304,6 +306,8 @@ export interface Database {
           description_snippet?: string | null;
           job_summary?: string | null;
           why_fit?: string | null;
+          stale_status?: string;
+          stale_at?: string | null;
         };
         Update: {
           id?: string;
@@ -318,6 +322,8 @@ export interface Database {
           description_snippet?: string | null;
           job_summary?: string | null;
           why_fit?: string | null;
+          stale_status?: string;
+          stale_at?: string | null;
         };
         Relationships: [];
       };
