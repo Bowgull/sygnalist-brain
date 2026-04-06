@@ -1,21 +1,48 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
 
-/** GET /api/admin/job-bank - get global job bank entries */
+/** GET /api/admin/job-bank - get global job bank entries with search, filter, sort */
 export async function GET(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
 
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(parseInt(searchParams.get("limit") ?? "100"), 500);
+  const limit = Math.min(parseInt(searchParams.get("limit") ?? "50"), 500);
   const offset = parseInt(searchParams.get("offset") ?? "0");
+  const search = searchParams.get("search")?.trim() ?? "";
+  const jobFamily = searchParams.get("job_family") ?? "";
+  const source = searchParams.get("source") ?? "";
+  const workMode = searchParams.get("work_mode") ?? "";
+  const sortBy = searchParams.get("sort_by") ?? "created_at";
+  const order = searchParams.get("order") ?? "desc";
 
   const service = getServiceClient();
-  const { data, error: dbError, count } = await service
+  let query = service
     .from("global_job_bank")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .select("*", { count: "exact" });
+
+  // Server-side search across title, company, job_family
+  if (search) {
+    query = query.or(`title.ilike.%${search}%,company.ilike.%${search}%,job_family.ilike.%${search}%`);
+  }
+  if (jobFamily) {
+    query = query.eq("job_family", jobFamily);
+  }
+  if (source) {
+    query = query.eq("source", source);
+  }
+  if (workMode) {
+    query = query.eq("work_mode", workMode);
+  }
+
+  // Sorting
+  const validSortFields = ["created_at", "title", "company", "job_family", "source"];
+  const sortField = validSortFields.includes(sortBy) ? sortBy : "created_at";
+  query = query.order(sortField, { ascending: order === "asc" });
+
+  query = query.range(offset, offset + limit - 1);
+
+  const { data, error: dbError, count } = await query;
 
   if (dbError) {
     logError(dbError.message, { severity: "warning", sourceSystem: "api.admin.job-bank", stackTrace: dbError.message });
@@ -96,7 +123,7 @@ export async function POST(request: Request) {
 
 /** PATCH /api/admin/job-bank - update a job bank entry by ID */
 export async function PATCH(request: Request) {
-  const { response } = await requireAdmin();
+  const { profile: admin, response } = await requireAdmin();
   if (response) return response;
 
   const body = await request.json();
@@ -128,6 +155,7 @@ export async function PATCH(request: Request) {
     logError(dbError.message, { severity: "error", sourceSystem: "api.admin.job-bank", stackTrace: dbError.message });
     return error(dbError.message, 500);
   }
+  logEvent("admin.job_bank_update", { userId: admin?.id, metadata: { job_id: body.id, fields: Object.keys(patch) } });
   return json(data);
 }
 
