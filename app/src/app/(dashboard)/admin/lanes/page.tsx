@@ -281,14 +281,14 @@ export default function AdminLanesPage() {
                 )}
                 <button
                   onClick={() => setEditing(lane.id)}
-                  className="ml-0.5 hidden rounded-full p-0.5 text-[#4B5563] transition hover:bg-[#6AD7A3]/10 hover:text-[#6AD7A3] group-hover:inline-flex"
+                  className="ml-0.5 inline-flex rounded-full p-0.5 text-[#4B5563] transition hover:bg-[#6AD7A3]/10 hover:text-[#6AD7A3] sm:hidden sm:group-hover:inline-flex"
                   title="Edit lane"
                 >
                   <Pencil size={12} strokeWidth={2} />
                 </button>
                 <button
                   onClick={() => setDeleteConfirm({ id: lane.id, name: lane.role_name, jobCount: lane.job_count })}
-                  className="hidden rounded-full p-0.5 text-[#4B5563] transition hover:bg-[#DC2626]/10 hover:text-[#DC2626] group-hover:inline-flex"
+                  className="inline-flex rounded-full p-0.5 text-[#4B5563] transition hover:bg-[#DC2626]/10 hover:text-[#DC2626] sm:hidden sm:group-hover:inline-flex"
                   title="Remove lane"
                 >
                   <X size={14} strokeWidth={2} />
@@ -308,7 +308,7 @@ export default function AdminLanesPage() {
                     <span className="text-[13px] font-medium text-[#6B7280]">{lane.role_name}</span>
                     <button
                       onClick={() => handleUpdate(lane.id, { is_active: true })}
-                      className="ml-0.5 hidden text-[10px] text-[#6AD7A3] hover:underline group-hover:inline"
+                      className="ml-0.5 inline text-[10px] text-[#6AD7A3] hover:underline sm:hidden sm:group-hover:inline"
                     >
                       Activate
                     </button>
@@ -449,7 +449,7 @@ function LaneRow({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
         <button
           onClick={onEdit}
           className="rounded-lg p-1.5 text-[#6B7280] transition hover:bg-[#6AD7A3]/10 hover:text-[#6AD7A3]"
