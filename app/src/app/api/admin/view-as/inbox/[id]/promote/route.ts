@@ -77,6 +77,8 @@ export async function POST(
         source: job.source,
         job_summary: job.job_summary,
         why_fit: job.why_fit,
+        stale_status: "active",
+        stale_at: null,
       },
       { onConflict: "url" }
     );

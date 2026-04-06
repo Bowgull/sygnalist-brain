@@ -13,6 +13,7 @@ export async function GET(request: Request) {
   const jobFamily = searchParams.get("job_family") ?? "";
   const source = searchParams.get("source") ?? "";
   const workMode = searchParams.get("work_mode") ?? "";
+  const staleStatus = searchParams.get("stale_status") ?? "";
   const sortBy = searchParams.get("sort_by") ?? "created_at";
   const order = searchParams.get("order") ?? "desc";
 
@@ -33,6 +34,9 @@ export async function GET(request: Request) {
   }
   if (workMode) {
     query = query.eq("work_mode", workMode);
+  }
+  if (staleStatus) {
+    query = query.eq("stale_status", staleStatus);
   }
 
   // Sorting
@@ -85,6 +89,8 @@ export async function POST(request: Request) {
     description_snippet: (j.description_snippet as string) || null,
     job_summary: (j.job_summary as string) || null,
     why_fit: (j.why_fit as string) || null,
+    stale_status: "active",
+    stale_at: null,
   }));
 
   // Use insert if no URL (can't upsert without conflict key), upsert if URL present
@@ -132,6 +138,7 @@ export async function PATCH(request: Request) {
   const allowedFields = [
     "title", "company", "url", "location", "salary", "work_mode",
     "source", "job_family", "description_snippet", "job_summary", "why_fit",
+    "stale_status", "stale_at",
   ] as const;
 
   const patch: Record<string, unknown> = {};
