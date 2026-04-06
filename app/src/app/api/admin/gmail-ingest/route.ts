@@ -9,10 +9,11 @@ import { logEvent, logError } from "@/lib/logger";
  *
  * Safety controls:
  * - Age cutoff: only emails from last 14 days
- * - Batch cap: 20 messages per run, 50 jobs per run
+ * - Batch cap: 20 messages per run, 25 jobs per run
  * - Label management: SYGN_INTAKE → SYGN_INGESTED after processing
  * - Backlog detection: reports if more messages exist
  * - Dedup: checks against jobs_inbox + global_job_bank URLs
+ * - Garbage filter: rejects CSS fragments, base64 strings, encoded data as titles
  */
 export async function POST() {
   const { profile, response } = await requireAdmin();
@@ -140,7 +141,7 @@ export async function POST() {
     // --- Step 5: Process each message ---
     const allJobs: ParsedJob[] = [];
     let skippedFetch = 0;
-    let skippedNoHtml = 0;
+    let skippedNoContent = 0;
     let messagesProcessed = 0;
     const processedMessageIds: string[] = [];
 
@@ -164,11 +165,18 @@ export async function POST() {
       );
       const from = fromHeader?.value?.toLowerCase() ?? "";
 
-      // Get HTML body
-      const html = extractHtmlBody(msg.payload);
-      if (!html) {
-        skippedNoHtml++;
-        // Still mark as processed - no point retrying a message with no HTML
+      // Get email date from headers
+      const dateHeader = msg.payload?.headers?.find(
+        (h: { name: string; value: string }) => h.name.toLowerCase() === "date",
+      );
+      const emailDate = dateHeader?.value
+        ? safeParseDate(dateHeader.value)
+        : new Date().toISOString();
+
+      // Get email body (HTML preferred, text/plain fallback)
+      const body = extractEmailBody(msg.payload);
+      if (!body) {
+        skippedNoContent++;
         processedMessageIds.push(msgId);
         continue;
       }
@@ -176,20 +184,21 @@ export async function POST() {
       // Route to appropriate parser based on sender
       let parsed: ParsedJob[] = [];
       if (from.includes("ziprecruiter")) {
-        parsed = parseZipRecruiter(html);
+        parsed = parseZipRecruiter(body);
       } else if (from.includes("linkedin")) {
-        parsed = parseLinkedIn(html);
+        parsed = parseLinkedIn(body);
       } else if (from.includes("indeed")) {
-        parsed = parseIndeed(html);
+        parsed = parseIndeed(body);
       } else if (from.includes("glassdoor")) {
-        parsed = parseGlassdoor(html);
+        parsed = parseGlassdoor(body);
       } else {
-        parsed = parseGeneric(html);
+        parsed = parseGeneric(body);
       }
 
-      // Tag each job with the gmail message ID
+      // Tag each job with gmail message ID and email date
       for (const job of parsed) {
         job.gmail_message_id = msgId;
+        job.email_date = emailDate;
       }
 
       allJobs.push(...parsed);
@@ -197,7 +206,7 @@ export async function POST() {
     }
 
     // --- Step 6: Dedup and insert into jobs_inbox (review queue) ---
-    const MAX_INGEST_JOBS = 50;
+    const MAX_INGEST_JOBS = 25;
     let jobsNew = 0;
     let jobsDuplicate = 0;
     let jobsCapped = false;
@@ -230,7 +239,7 @@ export async function POST() {
         enrichment_status: "NEW",
         review_status: "pending",
         gmail_message_id: job.gmail_message_id || null,
-        email_received_at: new Date().toISOString(),
+        email_received_at: job.email_date || new Date().toISOString(),
       });
 
       if (!insertErr) {
@@ -270,7 +279,7 @@ export async function POST() {
 
     const receipt = {
       messages_scanned: messagesProcessed,
-      messages_skipped: skippedFetch + skippedNoHtml,
+      messages_skipped: skippedFetch + skippedNoContent,
       jobs_found: allJobs.length,
       jobs_new: jobsNew,
       jobs_duplicate: jobsDuplicate,
@@ -286,7 +295,7 @@ export async function POST() {
       metadata: {
         ...receipt,
         messages_skipped_fetch: skippedFetch,
-        messages_skipped_no_html: skippedNoHtml,
+        messages_skipped_no_content: skippedNoContent,
         messages_labeled: processedMessageIds.length,
       },
     });
@@ -319,12 +328,33 @@ function normalizeUrl(url: string): string {
   }
 }
 
-/** Extract HTML body from Gmail message payload (handles multipart) */
-function extractHtmlBody(payload: Record<string, unknown>): string | null {
+function safeParseDate(value: string): string {
+  try {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
+/** Extract email body from Gmail payload (prefers HTML, falls back to text/plain) */
+function extractEmailBody(payload: Record<string, unknown>): string | null {
   if (!payload) return null;
 
+  // Try HTML first
+  const html = extractPart(payload, "text/html");
+  if (html) return html;
+
+  // Fall back to text/plain, wrapped so link parsers can still work
+  const text = extractPart(payload, "text/plain");
+  if (text) return `<pre>${text}</pre>`;
+
+  return null;
+}
+
+function extractPart(payload: Record<string, unknown>, targetMime: string): string | null {
   const mimeType = payload.mimeType as string;
-  if (mimeType === "text/html" && payload.body) {
+  if (mimeType === targetMime && payload.body) {
     const body = payload.body as { data?: string };
     return body.data ? Buffer.from(body.data, "base64url").toString("utf-8") : null;
   }
@@ -332,13 +362,55 @@ function extractHtmlBody(payload: Record<string, unknown>): string | null {
   const parts = payload.parts as Array<Record<string, unknown>> | undefined;
   if (parts) {
     for (const part of parts) {
-      const html = extractHtmlBody(part);
-      if (html) return html;
+      const result = extractPart(part, targetMime);
+      if (result) return result;
     }
   }
 
   return null;
 }
+
+// ============================================================================
+// Garbage / noise filters
+// ============================================================================
+
+/** Reject titles that are CSS fragments, base64 strings, encoded data, etc. */
+function isGarbageTitle(title: string): boolean {
+  // CSS property patterns
+  if (/[\w-]+:\s*[\w#%-]+;/.test(title)) return true;
+  // Tailwind / CSS class-like fragments
+  if (/\b(?:inline-block|max-w-|min-w-|px-|py-|pl-|pr-|pt-|pb-|text-\[|bg-\[|flex-|grid-|overflow-|whitespace-)\b/.test(title)) return true;
+  // HTML entities or tag fragments
+  if (/&[a-z]+;|&#\d+;|<\/?[a-z]/i.test(title)) return true;
+  // URL-encoded sequences (3+ occurrences)
+  if ((title.match(/%[0-9A-Fa-f]{2}/g) ?? []).length >= 3) return true;
+  // No spaces and longer than 15 chars (hashes, encoded strings)
+  if (title.length > 15 && !/\s/.test(title)) return true;
+  // Mostly non-alphabetic (real job titles are mostly letters/spaces)
+  const alphaLen = title.replace(/[^a-zA-Z\s]/g, "").length;
+  if (title.length > 5 && alphaLen / title.length < 0.5) return true;
+
+  return false;
+}
+
+/** Reject URLs that point to non-job pages (unsubscribe, tracking, etc.) */
+function isNoiseUrl(url: string): boolean {
+  return NOISE_URL_PATTERN.test(url);
+}
+
+const NOISE_URL_PATTERN = /\/(unsubscribe|privacy|settings|preferences|manage|optout|opt-out|terms|help|faq|about|contact|pixel|track|open|beacon|impression)\b/i;
+
+/** Shared blocklist for anchor text that is clearly not a job title */
+const NOISE_TITLE_PATTERN = /^(unsubscribe|privacy|view in browser|click here|learn more|view online|manage preferences|update preferences|see all jobs|view all|apply now|more jobs|terms of use|terms of service|contact us|help center)$/i;
+
+/** Strip inner HTML tags from anchor text */
+function stripTags(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// ============================================================================
+// Parsers
+// ============================================================================
 
 interface ParsedJob {
   title: string;
@@ -348,30 +420,39 @@ interface ParsedJob {
   work_mode: string | null;
   source: string;
   gmail_message_id?: string;
+  email_date?: string;
 }
 
 /** ZipRecruiter newsletter parser */
 function parseZipRecruiter(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  const linkRegex = /<a[^>]+href="([^"]*ziprecruiter[^"]*)"[^>]*>([^<]+)<\/a>/gi;
+  // Match links that contain ziprecruiter AND a job-related path/param
+  const linkRegex = /<a[^>]+href="([^"]*ziprecruiter[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
   while ((match = linkRegex.exec(html)) !== null) {
     const url = match[1];
-    const title = match[2].trim();
-    if (!title || title.length < 3 || title.length > 200) continue;
-    if (/unsubscribe|privacy|view in browser/i.test(title)) continue;
 
-    const nearby = html.slice(match.index, match.index + 500);
-    const company = extractNearbyText(nearby, /(?:at|company[:\s]*)([^<]{2,60})/i);
-    const location = extractNearbyText(nearby, /(?:location[:\s]*|in\s+)([^<]{2,60})/i);
+    // Only accept URLs that look like actual job links
+    if (!/\/jobs?\b|[?&]jid=|[?&]job_id=|\/clk\b/i.test(url)) continue;
+    if (isNoiseUrl(url)) continue;
+
+    const title = stripTags(match[2]).trim();
+    if (!title || title.length < 3 || title.length > 200) continue;
+    if (NOISE_TITLE_PATTERN.test(title)) continue;
+    if (isGarbageTitle(title)) continue;
+
+    // Extract company and location from surrounding context
+    const contextAfter = html.slice(match.index + match[0].length, match.index + match[0].length + 1000);
+    const company = extractCompanyFromContext(contextAfter);
+    const location = extractLocationFromContext(contextAfter);
 
     jobs.push({
       title,
       company: company || "Unknown",
       url: cleanUrl(url),
       location,
-      work_mode: /remote/i.test(nearby) ? "remote" : null,
+      work_mode: detectWorkMode(contextAfter),
       source: "ziprecruiter_email",
     });
   }
@@ -381,24 +462,28 @@ function parseZipRecruiter(html: string): ParsedJob[] {
 /** LinkedIn digest parser */
 function parseLinkedIn(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  const linkRegex = /<a[^>]+href="([^"]*linkedin\.com\/jobs[^"]*)"[^>]*>([^<]+)<\/a>/gi;
+  // Require /jobs/view/ or /jobs/search/ or /jobs/collections/ in the URL
+  const linkRegex = /<a[^>]+href="([^"]*linkedin\.com\/jobs\/(?:view|search|collections)[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
   while ((match = linkRegex.exec(html)) !== null) {
     const url = match[1];
-    const title = match[2].trim();
-    if (!title || title.length < 3) continue;
-    if (/unsubscribe|privacy/i.test(title)) continue;
+    if (isNoiseUrl(url)) continue;
 
-    const nearby = html.slice(match.index, match.index + 500);
-    const company = extractNearbyText(nearby, /(?:at|company[:\s]*)([^<]{2,60})/i);
+    const title = stripTags(match[2]).trim();
+    if (!title || title.length < 3 || title.length > 200) continue;
+    if (NOISE_TITLE_PATTERN.test(title)) continue;
+    if (isGarbageTitle(title)) continue;
+
+    const contextAfter = html.slice(match.index + match[0].length, match.index + match[0].length + 1000);
+    const company = extractCompanyFromContext(contextAfter);
 
     jobs.push({
       title,
       company: company || "Unknown",
       url: cleanUrl(url),
-      location: null,
-      work_mode: /remote/i.test(nearby) ? "remote" : null,
+      location: extractLocationFromContext(contextAfter),
+      work_mode: detectWorkMode(contextAfter),
       source: "linkedin_email",
     });
   }
@@ -408,24 +493,29 @@ function parseLinkedIn(html: string): ParsedJob[] {
 /** Indeed alert parser */
 function parseIndeed(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  const linkRegex = /<a[^>]+href="([^"]*indeed\.com[^"]*)"[^>]*>([^<]+)<\/a>/gi;
+  // Require /viewjob or /rc/clk or /job/ in the URL
+  const linkRegex = /<a[^>]+href="([^"]*indeed\.com\/(?:viewjob|rc\/clk|job\/)[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
   while ((match = linkRegex.exec(html)) !== null) {
     const url = match[1];
-    const title = match[2].trim();
-    if (!title || title.length < 3 || /unsubscribe|privacy|view/i.test(title)) continue;
+    if (isNoiseUrl(url)) continue;
 
-    const nearby = html.slice(match.index, match.index + 500);
-    const company = extractNearbyText(nearby, /(?:company[:\s]*)([^<]{2,60})/i);
-    const location = extractNearbyText(nearby, /(?:location[:\s]*)([^<]{2,60})/i);
+    const title = stripTags(match[2]).trim();
+    if (!title || title.length < 3 || title.length > 200) continue;
+    if (NOISE_TITLE_PATTERN.test(title)) continue;
+    if (isGarbageTitle(title)) continue;
+
+    const contextAfter = html.slice(match.index + match[0].length, match.index + match[0].length + 1000);
+    const company = extractCompanyFromContext(contextAfter);
+    const location = extractLocationFromContext(contextAfter);
 
     jobs.push({
       title,
       company: company || "Unknown",
       url: cleanUrl(url),
       location,
-      work_mode: /remote/i.test(nearby) ? "remote" : null,
+      work_mode: detectWorkMode(contextAfter),
       source: "indeed_email",
     });
   }
@@ -435,20 +525,26 @@ function parseIndeed(html: string): ParsedJob[] {
 /** Glassdoor parser */
 function parseGlassdoor(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  const linkRegex = /<a[^>]+href="([^"]*glassdoor[^"]*job[^"]*)"[^>]*>([^<]+)<\/a>/gi;
+  const linkRegex = /<a[^>]+href="([^"]*glassdoor[^"]*(?:\/job|\/Job|[?&]job)[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
   while ((match = linkRegex.exec(html)) !== null) {
     const url = match[1];
-    const title = match[2].trim();
-    if (!title || title.length < 3 || /unsubscribe|privacy/i.test(title)) continue;
+    if (isNoiseUrl(url)) continue;
+
+    const title = stripTags(match[2]).trim();
+    if (!title || title.length < 3 || title.length > 200) continue;
+    if (NOISE_TITLE_PATTERN.test(title)) continue;
+    if (isGarbageTitle(title)) continue;
+
+    const contextAfter = html.slice(match.index + match[0].length, match.index + match[0].length + 1000);
 
     jobs.push({
       title,
-      company: "Unknown",
+      company: extractCompanyFromContext(contextAfter) || "Unknown",
       url: cleanUrl(url),
-      location: null,
-      work_mode: null,
+      location: extractLocationFromContext(contextAfter),
+      work_mode: detectWorkMode(contextAfter),
       source: "glassdoor_email",
     });
   }
@@ -458,22 +554,27 @@ function parseGlassdoor(html: string): ParsedJob[] {
 /** Generic URL extractor for unknown newsletter formats */
 function parseGeneric(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  const linkRegex = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([^<]+)<\/a>/gi;
+  const linkRegex = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
-  const jobDomains = ["lever.co", "greenhouse.io", "workday.com", "smartrecruiters.com", "ashbyhq.com", "jobs."];
   while ((match = linkRegex.exec(html)) !== null) {
     const url = match[1];
-    const title = match[2].trim();
-    if (!title || title.length < 5 || title.length > 200) continue;
-    if (/unsubscribe|privacy|view in browser|click here|learn more/i.test(title)) continue;
+    if (isNoiseUrl(url)) continue;
 
-    const isJobUrl = jobDomains.some((d) => url.includes(d));
-    if (!isJobUrl) continue;
+    const matchedDomain = JOB_DOMAINS.find((d) => url.includes(d));
+    if (!matchedDomain) continue;
+
+    const title = stripTags(match[2]).trim();
+    if (!title || title.length < 5 || title.length > 200) continue;
+    if (NOISE_TITLE_PATTERN.test(title)) continue;
+    if (isGarbageTitle(title)) continue;
+
+    // Try to extract company from the URL hostname for ATS platforms
+    const company = extractCompanyFromAtsUrl(url, matchedDomain) || "Unknown";
 
     jobs.push({
       title,
-      company: "Unknown",
+      company,
       url: cleanUrl(url),
       location: null,
       work_mode: null,
@@ -483,10 +584,118 @@ function parseGeneric(html: string): ParsedJob[] {
   return jobs;
 }
 
-function extractNearbyText(html: string, pattern: RegExp): string | null {
-  const stripped = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-  const match = pattern.exec(stripped);
-  return match?.[1]?.trim() || null;
+/** ATS and job board domains recognized by the generic parser */
+const JOB_DOMAINS = [
+  "lever.co",
+  "greenhouse.io",
+  "workday.com",
+  "myworkdayjobs.com",
+  "smartrecruiters.com",
+  "ashbyhq.com",
+  "icims.com",
+  "jobvite.com",
+  "breezy.hr",
+  "recruitee.com",
+  "bamboohr.com",
+  "jazz.co",
+  "applytojob.com",
+  "jobs.",
+];
+
+// ============================================================================
+// Context extraction helpers
+// ============================================================================
+
+/**
+ * Extract company name from HTML context after a job title link.
+ * Looks for the first short, meaningful text fragment in nearby elements.
+ */
+function extractCompanyFromContext(html: string): string | null {
+  // Strategy 1: Look for text content in the first few elements after the link
+  const textChunks = extractTextChunks(html, 8);
+
+  for (const chunk of textChunks) {
+    const text = chunk.trim();
+    if (!text || text.length < 2 || text.length > 80) continue;
+    // Skip things that look like job titles (contain role keywords)
+    if (/\b(engineer|developer|manager|director|analyst|designer|lead|senior|junior|intern|specialist|coordinator|associate|consultant|architect|administrator)\b/i.test(text)) continue;
+    // Skip navigation/action text
+    if (/^(apply|view|see|save|share|more|details|easy apply|new|hot|featured|sponsored|promoted|quick apply)\b/i.test(text)) continue;
+    // Skip pure numbers or dates
+    if (/^[\d\s/$.,:-]+$/.test(text)) continue;
+    // Skip location-like strings (we'll capture those separately)
+    if (/^[A-Z][a-zA-Z\s]+,\s*[A-Z]{2}$/.test(text)) continue;
+    // Skip "Remote" standalone
+    if (/^remote$/i.test(text)) continue;
+    // This looks like a company name
+    return text;
+  }
+
+  // Strategy 2: Look for "at CompanyName" or "- CompanyName" or "| CompanyName" patterns
+  const stripped = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 500);
+  const dashMatch = stripped.match(/(?:^|\s)[-–|]\s+([A-Z][A-Za-z0-9\s&.,]+?)(?:\s+[-–|]|\s*$)/);
+  if (dashMatch?.[1] && dashMatch[1].length >= 2 && dashMatch[1].length <= 60) {
+    return dashMatch[1].trim();
+  }
+
+  const atMatch = stripped.match(/\bat\s+([A-Z][A-Za-z0-9\s&.,]+?)(?:\s+[-–|·•]|\s*$)/);
+  if (atMatch?.[1] && atMatch[1].length >= 2 && atMatch[1].length <= 60) {
+    return atMatch[1].trim();
+  }
+
+  return null;
+}
+
+/** Extract text chunks from HTML elements (first N meaningful text nodes) */
+function extractTextChunks(html: string, maxChunks: number): string[] {
+  const chunks: string[] = [];
+  // Match text content inside common HTML elements
+  const tagRegex = /<(?:td|span|div|p|a|strong|b|em)[^>]*>([\s\S]*?)<\/(?:td|span|div|p|a|strong|b|em)>/gi;
+  let m;
+  while ((m = tagRegex.exec(html)) !== null && chunks.length < maxChunks) {
+    const inner = stripTags(m[1]).trim();
+    if (inner && inner.length >= 2) {
+      chunks.push(inner);
+    }
+  }
+  return chunks;
+}
+
+/** Extract location (City, ST format) from HTML context */
+function extractLocationFromContext(html: string): string | null {
+  const stripped = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 800);
+  // "City, ST" or "City, State" patterns
+  const cityState = stripped.match(/\b([A-Z][a-zA-Z\s]{1,30},\s*[A-Z]{2})\b/);
+  if (cityState) return cityState[1].trim();
+  return null;
+}
+
+/** Detect remote/hybrid/onsite from nearby HTML */
+function detectWorkMode(html: string): string | null {
+  const text = html.replace(/<[^>]+>/g, " ").slice(0, 500).toLowerCase();
+  if (/\bremote\b/.test(text)) return "remote";
+  if (/\bhybrid\b/.test(text)) return "hybrid";
+  return null;
+}
+
+/** Try to extract company name from ATS-style URLs (e.g. company.greenhouse.io) */
+function extractCompanyFromAtsUrl(url: string, domain: string): string | null {
+  try {
+    const u = new URL(url);
+    const host = u.hostname;
+    // For subdomain-based ATS: company.greenhouse.io, company.lever.co, etc.
+    const subdomainAts = ["greenhouse.io", "lever.co", "ashbyhq.com", "breezy.hr", "recruitee.com", "bamboohr.com"];
+    if (subdomainAts.some((d) => host.endsWith(d))) {
+      const sub = host.replace(`.${domain}`, "").replace(/\./g, "");
+      if (sub && sub !== "www" && sub !== "app" && sub !== "jobs" && sub.length > 1) {
+        // Capitalize first letter
+        return sub.charAt(0).toUpperCase() + sub.slice(1);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
 function cleanUrl(url: string): string {
