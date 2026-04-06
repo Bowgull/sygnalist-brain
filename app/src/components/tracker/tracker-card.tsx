@@ -510,11 +510,24 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
             ) : (
               <button
                 type="button"
-                onClick={handleGenerateGoodFit}
+                onClick={() => {
+                  if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(30);
+                  handleGenerateGoodFit();
+                }}
                 disabled={generatingFit}
-                className="rounded-md border border-[#6AD7A3]/30 bg-[#0A2E1F]/60 px-4 py-2 text-[0.8125rem] font-medium text-[#6AD7A3] transition-all hover:border-[#6AD7A3]/50 hover:bg-[#0A2E1F] disabled:opacity-50"
+                className={`group/gf flex items-center justify-center gap-2.5 rounded-lg border border-[#6AD7A3]/30 bg-gradient-to-r from-[#0A2E1F] to-[#0F3325] px-6 py-2.5 transition-all hover:border-[#6AD7A3]/60 hover:scale-[1.02] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 ${generatingFit ? "" : "animate-goodfit-glow"}`}
               >
-                {generatingFit ? "Generating GoodFit..." : "Generate GoodFit"}
+                {/* Radar sweep icon */}
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className={`shrink-0 ${generatingFit ? "animate-radar-sweep-fast" : "animate-radar-sweep"}`}>
+                  <circle cx="10" cy="10" r="8.5" stroke="#6AD7A3" strokeWidth="1" opacity="0.3" />
+                  <circle cx="10" cy="10" r="5" stroke="#6AD7A3" strokeWidth="1" opacity="0.2" />
+                  <circle cx="10" cy="10" r="1.5" fill="#6AD7A3" />
+                  <path d="M10 10 L10 1.5" stroke="#6AD7A3" strokeWidth="1.5" strokeLinecap="round" opacity="0.8" />
+                  <path d="M10 10 L10 1.5" stroke="#A9F2C4" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" style={{ filter: "blur(2px)" }} />
+                </svg>
+                <span className="text-[0.8125rem] font-semibold text-[#6AD7A3]">
+                  {generatingFit ? "Scanning..." : "Generate GoodFit"}
+                </span>
               </button>
             )}
             {fitError && (
