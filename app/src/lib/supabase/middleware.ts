@@ -85,8 +85,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from auth pages (except reset-password, which needs auth mid-flow)
-  if (user && isAuthPage && !request.nextUrl.pathname.startsWith("/reset-password")) {
+  // Redirect authenticated users away from auth pages
+  // Exceptions: reset-password (needs auth mid-flow), forgot-password, and login?force=1 (sign-out flow)
+  const isResetPassword = request.nextUrl.pathname.startsWith("/reset-password");
+  const isForgotPassword = request.nextUrl.pathname.startsWith("/forgot-password");
+  const isForceLogin = request.nextUrl.pathname.startsWith("/login") && request.nextUrl.searchParams.has("force");
+
+  if (user && isAuthPage && !isResetPassword && !isForgotPassword && !isForceLogin) {
     const url = request.nextUrl.clone();
     url.pathname = "/inbox";
     return NextResponse.redirect(url);

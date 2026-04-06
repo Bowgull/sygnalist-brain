@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -28,6 +28,7 @@ function ResetPasswordForm() {
   const [confirm, setConfirm] = useState("");
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState("");
+  const router = useRouter();
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -85,7 +86,7 @@ function ResetPasswordForm() {
     document.cookie = `syg_session_start=${Math.floor(Date.now() / 1000)};path=/;max-age=259200;samesite=lax`;
 
     setStatus("done");
-    window.location.href = "/inbox";
+    router.replace("/inbox");
   }
 
   return (
