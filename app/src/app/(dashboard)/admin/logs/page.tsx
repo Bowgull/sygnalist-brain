@@ -397,14 +397,14 @@ export default function AdminLogsPage() {
                       </svg>
                     </button>
 
-                    {/* Expanded — individual events cascade down */}
+                    {/* Expanded — nested child events */}
                     {isOpen && (
-                      <div className="border-t border-[#2A3544]/30">
+                      <div className="border-t border-[#2A3544]/30 ml-3 md:ml-5 bg-[#0C1016]/40">
                         {group.logs.map((log, logIdx) => {
                           const id = log.id as string;
                           const isExpanded = expandedId === id;
                           return (
-                            <div key={id} className={logIdx > 0 ? "border-t border-[#2A3544]/20" : ""}>
+                            <div key={id} className={`${logIdx > 0 ? "border-t border-[#2A3544]/15" : ""} opacity-90`}>
                               <EventRow
                                 log={log}
                                 isExpanded={isExpanded}
