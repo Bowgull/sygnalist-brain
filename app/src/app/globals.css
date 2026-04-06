@@ -292,37 +292,13 @@ body {
   }
 }
 
-/* GoodFit button ambient glow */
-@keyframes goodfit-glow {
-  0%, 100% { box-shadow: 0 0 12px rgba(106, 215, 163, 0.15), inset 0 0 12px rgba(106, 215, 163, 0.05); }
-  50% { box-shadow: 0 0 20px rgba(106, 215, 163, 0.3), inset 0 0 16px rgba(106, 215, 163, 0.08); }
-}
-.animate-goodfit-glow {
-  animation: goodfit-glow 3s ease-in-out infinite;
-}
-
-/* GoodFit radar sweep rotation */
-@keyframes radar-sweep {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.animate-radar-sweep {
-  animation: radar-sweep 3s linear infinite;
-}
-.animate-radar-sweep-fast {
-  animation: radar-sweep 0.8s linear infinite;
-}
-
 /* Reduce motion preference */
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-glow,
   .animate-dot-pulse,
   .animate-seam-glow,
   .animate-slide-up,
-  .animate-slide-down,
-  .animate-goodfit-glow,
-  .animate-radar-sweep,
-  .animate-radar-sweep-fast {
+  .animate-slide-down {
     animation: none;
   }
 }
