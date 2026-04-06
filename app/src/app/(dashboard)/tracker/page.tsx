@@ -24,7 +24,11 @@ const STAGES = [
   { label: "Offer", display: "Offer", color: "#22C55E" },
 ];
 
-const ALL_STATUSES = [...STAGES.map((s) => s.label), "Rejected", "Ghosted", "Withdrawn"];
+const CLOSED_STAGE = { label: "Closed", display: "Closed", color: "#4B5563" };
+const CLOSED_STATUSES = ["Rejected", "Ghosted", "Withdrawn"];
+const SWIPEABLE_STAGES = [...STAGES, CLOSED_STAGE]; // 0-6: 6 pipeline + 1 closed
+
+const ALL_STATUSES = [...STAGES.map((s) => s.label), ...CLOSED_STATUSES];
 
 const STAGE_ORDER: Record<string, number> = {};
 ALL_STATUSES.forEach((s, i) => { STAGE_ORDER[s] = i; });
@@ -42,6 +46,9 @@ export default function TrackerPage() {
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const pillContainerRef = useRef<HTMLDivElement>(null);
   const pillRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [slideDirection, setSlideDirection] = useState<"left" | "right" | null>(null);
+  const touchRef = useRef<{ x: number; y: number; t: number; locked: boolean | null } | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -63,7 +70,7 @@ export default function TrackerPage() {
   // Scroll active pill into view when scope changes
   useEffect(() => {
     if (scope === "all") return;
-    const pill = pillRefs.current[scope];
+    const pill = pillRefs.current[scope as number];
     const container = pillContainerRef.current;
     if (!pill || !container) return;
 
@@ -78,7 +85,63 @@ export default function TrackerPage() {
   const stageCounts = STAGES.map(
     (s) => entries.filter((e) => e.status === s.label).length
   );
+  const closedCount = entries.filter((e) => CLOSED_STATUSES.includes(e.status)).length;
   const totalCount = entries.length;
+
+  // Swipe to navigate stages (mobile only)
+  function handleSwipeNav(direction: "left" | "right") {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) return;
+    if (displayMode !== "cards") return;
+
+    const currentIdx = scope === "all" ? -1 : (scope as number);
+    let nextIdx: number;
+
+    if (direction === "left") {
+      // swipe left = next stage
+      nextIdx = currentIdx < 6 ? currentIdx + 1 : 6;
+      if (scope === "all") nextIdx = 0;
+    } else {
+      // swipe right = prev stage
+      if (scope === "all" || currentIdx <= 0) return;
+      nextIdx = currentIdx - 1;
+    }
+
+    setSlideDirection(direction === "left" ? "left" : "right");
+    setScope(nextIdx);
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    touchRef.current = { x: t.clientX, y: t.clientY, t: Date.now(), locked: null };
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (!touchRef.current) return;
+    const t = e.touches[0];
+    const dx = Math.abs(t.clientX - touchRef.current.x);
+    const dy = Math.abs(t.clientY - touchRef.current.y);
+
+    // Decide axis lock on first significant move
+    if (touchRef.current.locked === null && (dx > 10 || dy > 10)) {
+      touchRef.current.locked = dx > dy; // true = horizontal
+    }
+  }
+
+  function onTouchEnd(e: React.TouchEvent) {
+    if (!touchRef.current || !touchRef.current.locked) {
+      touchRef.current = null;
+      return;
+    }
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchRef.current.x;
+    const elapsed = Date.now() - touchRef.current.t;
+    const velocity = Math.abs(dx) / elapsed;
+
+    if (Math.abs(dx) > 50 || velocity > 0.3) {
+      handleSwipeNav(dx < 0 ? "left" : "right");
+    }
+    touchRef.current = null;
+  }
 
   // Search filter helper
   function filterBySearch(list: TrackerEntry[]) {
@@ -102,10 +165,13 @@ export default function TrackerPage() {
 
   // Get entries for current scope
   function getStageEntries(stageLabel: string) {
+    if (stageLabel === "Closed") {
+      return sortEntries(filterBySearch(entries.filter((e) => CLOSED_STATUSES.includes(e.status))));
+    }
     return sortEntries(filterBySearch(entries.filter((e) => e.status === stageLabel)));
   }
 
-  const currentStage = scope !== "all" ? STAGES[scope] : null;
+  const currentStage = scope === "all" ? null : SWIPEABLE_STAGES[scope as number] ?? null;
 
   async function handleUpdate(id: string, patch: Record<string, unknown>) {
     const prevEntries = entries;
@@ -201,16 +267,24 @@ export default function TrackerPage() {
             </button>
           ))}
 
-          {/* Closed count indicator */}
-          {(() => {
-            const closedCount = entries.filter((e) => ["Rejected", "Ghosted", "Withdrawn"].includes(e.status)).length;
-            if (closedCount === 0) return null;
-            return (
-              <span className="whitespace-nowrap text-[0.6875rem] text-[#4B5563] opacity-50 pl-1">
-                Closed {closedCount}
-              </span>
-            );
-          })()}
+          {/* Closed pill */}
+          <button
+            ref={(el) => { pillRefs.current[6] = el; }}
+            type="button"
+            onClick={() => setScope(6)}
+            className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-all ${
+              scope === 6 ? "ring-1" : "opacity-60 hover:opacity-80"
+            }`}
+            style={{
+              color: CLOSED_STAGE.color,
+              backgroundColor: scope === 6 ? `${CLOSED_STAGE.color}15` : "transparent",
+              ...(scope === 6 ? { boxShadow: `inset 0 0 0 1px ${CLOSED_STAGE.color}40` } : {}),
+            }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: CLOSED_STAGE.color }} />
+            <span>Closed</span>
+            {closedCount > 0 && <span className="ml-0.5 opacity-70">{closedCount}</span>}
+          </button>
 
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
             {/* Display mode toggle: Cards | Ops */}
@@ -272,38 +346,70 @@ export default function TrackerPage() {
       </div>
 
       {/* Content */}
-      {scope === "all" ? (
-        // All stages — grouped by stage in current display mode
-        displayMode === "cards" ? (
-          <AllCardsView
-            stages={STAGES}
-            entries={entries}
-            loading={loading}
-            search={search}
-            sortOrder={sortOrder}
-            onUpdate={handleUpdate}
-            onDelete={handleDelete}
-          />
+      <div
+        ref={contentRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        className={slideDirection === "left" ? "animate-slide-stage-left" : slideDirection === "right" ? "animate-slide-stage-right" : undefined}
+        onAnimationEnd={() => setSlideDirection(null)}
+      >
+        {scope === "all" ? (
+          // All stages — grouped by stage in current display mode
+          displayMode === "cards" ? (
+            <AllCardsView
+              stages={STAGES}
+              entries={entries}
+              loading={loading}
+              search={search}
+              sortOrder={sortOrder}
+              onUpdate={handleUpdate}
+              onDelete={handleDelete}
+            />
+          ) : (
+            <AllOpsTable
+              entries={filterBySearch(entries)}
+              loading={loading}
+              sortOrder={sortOrder}
+              onUpdate={handleUpdate}
+              onDelete={handleDelete}
+            />
+          )
+        ) : displayMode === "ops" ? (
+          <OpsTable entries={getStageEntries(currentStage!.label)} loading={loading} onUpdate={handleUpdate} onDelete={handleDelete} />
         ) : (
-          <AllOpsTable
-            entries={filterBySearch(entries)}
+          <SingleStageCardsView
+            stageEntries={getStageEntries(currentStage!.label)}
+            currentStage={currentStage!}
+            activeStage={scope as number}
             loading={loading}
-            sortOrder={sortOrder}
             onUpdate={handleUpdate}
             onDelete={handleDelete}
           />
-        )
-      ) : displayMode === "ops" ? (
-        <OpsTable entries={getStageEntries(currentStage!.label)} loading={loading} onUpdate={handleUpdate} onDelete={handleDelete} />
-      ) : (
-        <SingleStageCardsView
-          stageEntries={getStageEntries(currentStage!.label)}
-          currentStage={currentStage!}
-          activeStage={scope as number}
-          loading={loading}
-          onUpdate={handleUpdate}
-          onDelete={handleDelete}
-        />
+        )}
+      </div>
+
+      {/* Stage dot indicators (mobile only) */}
+      {scope !== "all" && displayMode === "cards" && (
+        <div className="flex justify-center gap-1.5 py-3 md:hidden">
+          {SWIPEABLE_STAGES.map((stage, i) => (
+            <button
+              key={stage.label}
+              type="button"
+              onClick={() => {
+                setSlideDirection((scope as number) < i ? "left" : "right");
+                setScope(i);
+              }}
+              className="p-1"
+              aria-label={stage.display}
+            >
+              <span
+                className={`block rounded-full transition-all ${scope === i ? "h-2 w-2" : "h-1.5 w-1.5"}`}
+                style={{ backgroundColor: scope === i ? stage.color : "#2A3544" }}
+              />
+            </button>
+          ))}
+        </div>
       )}
 
       {showManualAdd && <ManualAddDialog onClose={() => setShowManualAdd(false)} onSubmit={handleManualAdd} />}

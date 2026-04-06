@@ -150,6 +150,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
   const [status, setStatus] = useState(entry.status);
   const [goodFit, setGoodFit] = useState(entry.good_fit);
   const [generatingFit, setGeneratingFit] = useState(false);
+  const justGeneratedRef = useRef(false);
   const [transitionNote, setTransitionNote] = useState("");
   const quickEditRef = useRef<HTMLDivElement>(null);
 
@@ -206,6 +207,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
         return;
       }
       if (data?.good_fit) {
+        justGeneratedRef.current = true;
         setGoodFit(data.good_fit);
       } else {
         setFitError(data?.message || "Could not generate GoodFit — check profile and job details");
@@ -501,7 +503,10 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
 
             {/* GoodFit */}
             {goodFit ? (
-              <div className="rounded-lg border-l-[3px] border-l-[#2F8A63] bg-[#6AD7A3]/5 p-4">
+              <div
+                className={`rounded-lg border-l-[3px] border-l-[#2F8A63] bg-[#6AD7A3]/5 p-4${justGeneratedRef.current ? " animate-goodfit-reveal" : ""}`}
+                onAnimationEnd={() => { justGeneratedRef.current = false; }}
+              >
                 <p className="text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-[#6AD7A3]">GOOD FIT</p>
                 <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[#B8BFC8] whitespace-pre-line">
                   {goodFit}
