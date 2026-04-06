@@ -89,12 +89,22 @@ export default function EventDetail({ log, profileMap, onTraceRequest }: Props) 
 
         {/* Right: Metadata + Request ID */}
         <div className="space-y-3">
-          {/* Metadata */}
-          {meta && Object.keys(meta).length > 0 && (
+          {/* Resolve note — promoted out of metadata */}
+          {meta?.resolve_note != null && (
+            <div className="rounded-lg border-l-[3px] border-l-[#6AD7A3] bg-[#6AD7A3]/5 px-3 py-2">
+              <span className="text-[0.625rem] font-medium uppercase tracking-wide text-[#6AD7A3]">Fix</span>
+              <p className="mt-0.5 text-[0.8125rem] leading-snug text-[#B8BFC8]">{String(meta.resolve_note)}</p>
+            </div>
+          )}
+
+          {/* Metadata (excluding resolve_note) */}
+          {meta && Object.keys(meta).filter((k) => k !== "resolve_note").length > 0 && (
             <div>
               <span className="text-[0.625rem] font-medium uppercase tracking-wide text-[#9CA3AF]">Context</span>
               <div className="mt-1.5 space-y-1">
-                {Object.entries(meta).map(([k, v]) => (
+                {Object.entries(meta)
+                  .filter(([k]) => k !== "resolve_note")
+                  .map(([k, v]) => (
                   <div key={k} className="flex items-baseline gap-2">
                     <span className="shrink-0 text-[0.6875rem] font-medium text-[#9CA3AF]">{k}</span>
                     <span className="min-w-0 break-all text-[0.75rem] text-[#B8BFC8]">
