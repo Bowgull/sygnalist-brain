@@ -182,31 +182,81 @@ export default function AdminLogsPage() {
       .catch(() => setTraceLoading(false));
   }
 
-  // ── Group consecutive events by domain for Activity tab ────────────────
+  // ── Smart grouping for Activity tab ────────────────────────────────────
+  // Priority: request_id → user_id + 60s window → domain + 60s window
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const TIME_WINDOW = 60_000; // 60 seconds
 
-  type DomainGroup = { key: string; domain: string; logs: Record<string, unknown>[] };
+  type ActivityGroup = {
+    key: string;
+    domain: string;
+    logs: Record<string, unknown>[];
+    userId: string | null;
+    requestId: string | null;
+  };
 
-  function groupByDomain(events: Record<string, unknown>[]): DomainGroup[] {
-    const groups: DomainGroup[] = [];
-    let i = 0;
-    while (i < events.length) {
-      const log = events[i];
-      const domain = domainFromEventType(log.event_type as string);
-      const batch: Record<string, unknown>[] = [log];
-      let j = i + 1;
-      while (j < events.length && domainFromEventType(events[j].event_type as string) === domain) {
-        batch.push(events[j]);
-        j++;
+  function groupActivityEvents(events: Record<string, unknown>[]): ActivityGroup[] {
+    const groups: ActivityGroup[] = [];
+    const used = new Set<string>();
+
+    // Pass 1: group by request_id (strongest link)
+    const byReqId = new Map<string, Record<string, unknown>[]>();
+    for (const log of events) {
+      const rid = log.request_id as string | null;
+      if (rid) {
+        if (!byReqId.has(rid)) byReqId.set(rid, []);
+        byReqId.get(rid)!.push(log);
       }
-      groups.push({ key: log.id as string, domain, logs: batch });
+    }
+    for (const [rid, logs] of byReqId.entries()) {
+      if (logs.length < 2) continue; // single events with request_id fall through to pass 2
+      const sorted = logs.sort((a, b) => new Date(a.created_at as string).getTime() - new Date(b.created_at as string).getTime());
+      const domain = domainFromEventType(sorted[0].event_type as string);
+      const userId = sorted[0].user_id as string | null;
+      groups.push({ key: sorted[0].id as string, domain, logs: sorted, userId, requestId: rid });
+      for (const l of sorted) used.add(l.id as string);
+    }
+
+    // Pass 2: remaining events → group by user_id + domain + 60s time window
+    const remaining = events.filter((e) => !used.has(e.id as string));
+    let i = 0;
+    while (i < remaining.length) {
+      const log = remaining[i];
+      const domain = domainFromEventType(log.event_type as string);
+      const userId = log.user_id as string | null;
+      const ts = new Date(log.created_at as string).getTime();
+      const batch: Record<string, unknown>[] = [log];
+
+      let j = i + 1;
+      while (j < remaining.length) {
+        const next = remaining[j];
+        const nextDomain = domainFromEventType(next.event_type as string);
+        const nextUserId = next.user_id as string | null;
+        const nextTs = new Date(next.created_at as string).getTime();
+        // Same domain + same user (or both null) + within time window
+        if (nextDomain === domain && nextUserId === userId && Math.abs(nextTs - ts) <= TIME_WINDOW) {
+          batch.push(next);
+          j++;
+        } else {
+          break;
+        }
+      }
+      groups.push({ key: log.id as string, domain, logs: batch, userId, requestId: log.request_id as string | null });
       i = j;
     }
+
+    // Sort groups by most recent event timestamp (descending)
+    groups.sort((a, b) => {
+      const aTime = new Date(a.logs[0].created_at as string).getTime();
+      const bTime = new Date(b.logs[0].created_at as string).getTime();
+      return bTime - aTime;
+    });
+
     return groups;
   }
 
-  /** Build a summary line for a domain group */
-  function domainGroupSummary(group: DomainGroup, pMap: Record<string, string>): string {
+  /** Build summary text for a group */
+  function groupSummary(group: ActivityGroup): string {
     const actions = [...new Set(group.logs.map((l) => actionLabel(l.event_type as string)))];
     if (group.domain === "fetch" || group.domain === "cron") {
       const allSuccess = group.logs.every((l) => l.success as boolean);
@@ -288,17 +338,17 @@ export default function AdminLogsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {/* ── ACTIVITY TAB — domain-grouped cards ── */}
+          {/* ── ACTIVITY TAB — smart-grouped cards ── */}
           {logType === "activity" && (
             <div className="space-y-2">
-              {groupByDomain(logs).map((group) => {
+              {groupActivityEvents(logs).map((group) => {
                 const ds = getDomainStyle(group.logs[0].event_type as string);
                 const DIcon = getDomainIcon(group.domain);
                 const isOpen = expandedGroupId === group.key;
                 const firstLog = group.logs[0];
-                const allSuccess = group.logs.every((l) => l.success as boolean);
                 const hasFailure = group.logs.some((l) => !(l.success as boolean));
-                const summary = domainGroupSummary(group, profileMap);
+                const summary = groupSummary(group);
+                const userName = group.userId ? profileMap[group.userId] : null;
 
                 return (
                   <div
@@ -315,7 +365,7 @@ export default function AdminLogsPage() {
                       {/* Status dot */}
                       <span className={`h-2 w-2 shrink-0 rounded-full ${hasFailure ? "bg-[#DC2626] shadow-[0_0_6px_rgba(220,38,38,0.4)]" : "bg-[#22C55E] shadow-[0_0_6px_rgba(34,197,94,0.3)]"}`} />
 
-                      {/* Domain badge */}
+                      {/* Domain badge with icon */}
                       <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase ${ds.badge}`}>
                         <DIcon className="h-3 w-3" />
                         {ds.label}
@@ -332,6 +382,11 @@ export default function AdminLogsPage() {
                       )}
 
                       <span className="flex-1" />
+
+                      {/* User name */}
+                      {userName && (
+                        <span className="hidden md:inline shrink-0 text-[0.75rem] text-[#9CA3AF]">{userName}</span>
+                      )}
 
                       {/* Time */}
                       <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">{relativeTime(firstLog.created_at as string)}</span>
