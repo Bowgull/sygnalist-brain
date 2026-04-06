@@ -128,7 +128,7 @@ function wrapInTemplate(body: string): string {
 
           <!-- Body -->
           <tr>
-            <td class="email-card" style="background-color:#171F28;padding:32px 28px;">
+            <td class="email-card" style="background-color:#171F28;padding:32px 28px;border-radius:20px;">
               <div style="font-size:15px;line-height:1.75;color:#E5E7EB;">
                 ${htmlBody}
               </div>
