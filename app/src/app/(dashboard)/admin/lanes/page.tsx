@@ -342,7 +342,7 @@ function LaneRow({
   lane: Lane;
   isEditing: boolean;
   onEdit: () => void;
-  onUpdate: (patch: Record<string, unknown>) => void;
+  onUpdate: (patch: Record<string, unknown>) => void | Promise<void>;
   onDelete: () => void;
   onCancel: () => void;
 }) {
@@ -475,7 +475,7 @@ function LaneEditModal({
   onCancel,
 }: {
   lane: Lane;
-  onUpdate: (patch: Record<string, unknown>) => void;
+  onUpdate: (patch: Record<string, unknown>) => void | Promise<void>;
   onCancel: () => void;
 }) {
   const [roleName, setRoleName] = useState(lane.role_name);
