@@ -32,26 +32,16 @@ export async function POST(
     return json({ good_fit: entry.good_fit, cached: true });
   }
 
-  // Try to get the full job description from inbox_jobs or global_job_bank
+  // Try to get the full job description from global_job_bank (has description_snippet)
   let jobDescription: string | null = null;
   if (entry.url) {
-    const { data: inboxJob } = await supabase
-      .from("inbox_jobs")
+    const { data: bankJob } = await supabase
+      .from("global_job_bank")
       .select("description_snippet")
       .eq("url", entry.url)
       .limit(1)
       .maybeSingle();
-    jobDescription = inboxJob?.description_snippet ?? null;
-
-    if (!jobDescription) {
-      const { data: bankJob } = await supabase
-        .from("global_job_bank")
-        .select("description_snippet")
-        .eq("url", entry.url)
-        .limit(1)
-        .maybeSingle();
-      jobDescription = bankJob?.description_snippet ?? null;
-    }
+    jobDescription = bankJob?.description_snippet ?? null;
   }
 
   if (!OPENAI_KEY) {
