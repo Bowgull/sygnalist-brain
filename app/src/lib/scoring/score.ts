@@ -221,11 +221,6 @@ function scoreOne(job: RawJob, profile: Profile): ScoredJob {
     }
   }
 
-  // --- Source bonus (free sources get slight penalty vs paid) ---
-  if (job.source === "arbeitnow" || job.source === "himalayas") {
-    score -= 3; // Free sources tend to be less targeted
-  }
-
   // --- Remote bonus (if user prefers remote) ---
   if (isRemote && profile.accept_remote) {
     score += 5;

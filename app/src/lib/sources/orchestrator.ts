@@ -7,6 +7,7 @@ import { fetchJSearch } from "./jsearch";
 import { fetchLinkedIn } from "./linkedin";
 import { fetchArbeitnow } from "./arbeitnow";
 import { fetchHimalayas } from "./himalayas";
+import { fetchHiringCafe } from "./hiringcafe";
 import { scoreJobs, type ScoredJob } from "@/lib/scoring/score";
 import { enrichJobs } from "@/lib/enrichment/enrich";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -166,6 +167,7 @@ export async function runFetchPipeline(
     { name: "jsearch", fn: () => fetchJSearch(ctx) },
     { name: "linkedin", fn: () => fetchLinkedIn(ctx) },
     { name: "himalayas", fn: () => fetchHimalayas(ctx) },
+    { name: "hiringcafe", fn: () => fetchHiringCafe(ctx) },
   ];
 
   if (acceptsGerman) {
