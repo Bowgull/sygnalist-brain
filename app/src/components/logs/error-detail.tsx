@@ -219,17 +219,36 @@ export default function ErrorDetail({ log, profileMap, onTraceRequest, onResolve
         </div>
       )}
 
-      {/* ── Resolve action — right-aligned, prominent ── */}
-      <div className="mt-5 flex items-center justify-end gap-3">
+      {/* ── Resolve section ── */}
+      <div className="mt-5">
         {resolved ? (
-          <div className="flex items-center gap-2">
-            <CheckCircleIcon className="h-4 w-4 text-[#6AD7A3]/60" />
-            <span className="text-[0.75rem] text-[#6AD7A3]/60">
-              Resolved {resolvedAt ? fullTime(resolvedAt) : ""}{resolverName ? ` by ${resolverName}` : ""}
-            </span>
+          <div className="rounded-lg border border-[#6AD7A3]/15 bg-[#6AD7A3]/5 p-3 md:p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="h-4 w-4 text-[#6AD7A3]" />
+              <span className="text-[0.8125rem] font-semibold text-[#6AD7A3]">Resolved</span>
+              {resolverName && <span className="text-[0.75rem] text-[#9CA3AF]">by {resolverName}</span>}
+            </div>
+
+            {/* Resolve note — prominent */}
             {resolveNote && (
-              <span className="ml-2 text-[0.75rem] text-[#9CA3AF]">&mdash; {resolveNote}</span>
+              <p className="text-[0.875rem] leading-relaxed text-white">{resolveNote}</p>
             )}
+
+            {/* Timestamps: occurred → resolved + duration */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.75rem] tabular-nums text-[#9CA3AF]">
+              <span>Occurred: {fullTime(log.created_at as string)}</span>
+              {resolvedAt && <span>Resolved: {fullTime(resolvedAt)}</span>}
+              {resolvedAt && (() => {
+                const diffMs = new Date(resolvedAt).getTime() - new Date(log.created_at as string).getTime();
+                const mins = Math.floor(diffMs / 60000);
+                if (mins < 1) return <span className="text-[#6AD7A3]">Fixed in &lt;1m</span>;
+                if (mins < 60) return <span className="text-[#6AD7A3]">Fixed in {mins}m</span>;
+                const hrs = Math.floor(mins / 60);
+                if (hrs < 24) return <span className="text-[#6AD7A3]">Fixed in {hrs}h {mins % 60}m</span>;
+                const days = Math.floor(hrs / 24);
+                return <span className="text-[#F59E0B]">Fixed in {days}d {hrs % 24}h</span>;
+              })()}
+            </div>
           </div>
         ) : showResolveInput ? (
           <div className="flex w-full items-center gap-2" onClick={(e) => e.stopPropagation()}>
