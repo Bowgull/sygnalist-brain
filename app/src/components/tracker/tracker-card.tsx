@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  Pencil, Check, Trash2, X, ExternalLink, Zap, Send, Clock, ChevronDown,
+  Pencil, Check, Trash2, X, ExternalLink, Send, Clock, ChevronDown,
 } from "lucide-react";
 import StatusPill from "@/components/ui/status-pill";
 import type { Database } from "@/types/database";
@@ -192,12 +192,26 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
 
   /* ── GoodFit generation ── */
 
+  const [fitError, setFitError] = useState<string | null>(null);
+
   async function handleGenerateGoodFit() {
     setGeneratingFit(true);
-    const res = await fetch(`/api/tracker/${entry.id}/goodfit`, { method: "POST" });
-    if (res.ok) {
+    setFitError(null);
+    try {
+      const res = await fetch(`/api/tracker/${entry.id}/goodfit`, { method: "POST" });
+      if (!res.ok) {
+        setFitError("Failed to generate GoodFit");
+        setGeneratingFit(false);
+        return;
+      }
       const data = await res.json();
-      if (data.good_fit) setGoodFit(data.good_fit);
+      if (data.good_fit) {
+        setGoodFit(data.good_fit);
+      } else {
+        setFitError(data.message || "Could not generate GoodFit — check profile and job details");
+      }
+    } catch {
+      setFitError("Network error — try again");
     }
     setGeneratingFit(false);
   }
@@ -477,9 +491,12 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
           <div className="border-t border-[#2A3544] p-4 md:p-6 space-y-4">
             {/* Summary */}
             {entry.job_summary && (
-              <p className="text-[0.9375rem] leading-relaxed text-[#B8BFC8] italic">
-                {entry.job_summary}
-              </p>
+              <div>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-1.5">Job Summary</p>
+                <p className="text-[0.9375rem] leading-relaxed text-[#B8BFC8] italic">
+                  {entry.job_summary}
+                </p>
+              </div>
             )}
 
             {/* GoodFit */}
@@ -495,20 +512,13 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                 type="button"
                 onClick={handleGenerateGoodFit}
                 disabled={generatingFit}
-                className="group/gf w-full rounded-lg bg-gradient-to-r from-[#0A2E1F] to-[#1A3D2E] p-4 ring-1 ring-[#6AD7A3]/40 shadow-[0_0_20px_rgba(106,215,163,0.15)] transition-all hover:ring-[#6AD7A3]/60 hover:shadow-[0_0_30px_rgba(106,215,163,0.25)] disabled:opacity-50 disabled:hover:shadow-[0_0_20px_rgba(106,215,163,0.15)]"
+                className="rounded-md border border-[#6AD7A3]/30 bg-[#0A2E1F]/60 px-4 py-2 text-[0.8125rem] font-medium text-[#6AD7A3] transition-all hover:border-[#6AD7A3]/50 hover:bg-[#0A2E1F] disabled:opacity-50"
               >
-                {generatingFit ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <Zap size={18} strokeWidth={2} className="text-[#FAD76A] animate-pulse" />
-                    <span className="text-[0.875rem] font-bold text-white">Generating GoodFit...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-2">
-                    <Zap size={18} strokeWidth={2} className="text-[#FAD76A] group-hover/gf:drop-shadow-[0_0_6px_rgba(250,215,106,0.5)]" />
-                    <span className="text-[0.875rem] font-bold text-white">Generate GoodFit</span>
-                  </div>
-                )}
+                {generatingFit ? "Generating GoodFit..." : "Generate GoodFit"}
               </button>
+            )}
+            {fitError && (
+              <p className="text-[0.75rem] text-[#DC2626]">{fitError}</p>
             )}
 
             {/* Activity Log */}
