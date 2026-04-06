@@ -3,15 +3,6 @@
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-
-function logAuth(event: string, method?: string, error?: string, email?: string) {
-  fetch("/api/auth/log", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event, method, error, email }),
-  }).catch(() => {});
-}
 
 export default function ForgotPasswordPage() {
   return (
@@ -27,36 +18,25 @@ function ForgotPasswordForm() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
-  const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    // Check access first
-    const res = await fetch("/api/auth/check-access", {
+    const res = await fetch("/api/auth/send-reset-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
     const data = await res.json();
-    if (!data.allowed) {
+
+    if (!res.ok) {
+      setError(data.error || "Something went wrong. Try again.");
+    } else if (data.ok === false && data.reason === "no_access") {
       setError("No account found for this email. Contact your coach to get set up.");
-      setLoading(false);
-      return;
-    }
-
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-
-    if (resetError) {
-      setError(resetError.message);
-      logAuth("password_reset_failed", "password", resetError.message, email);
     } else {
       setSent(true);
-      logAuth("password_reset_requested", "password", undefined, email);
     }
     setLoading(false);
   }
