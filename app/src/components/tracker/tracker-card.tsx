@@ -199,16 +199,16 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
     setFitError(null);
     try {
       const res = await fetch(`/api/tracker/${entry.id}/goodfit`, { method: "POST" });
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setFitError("Failed to generate GoodFit");
+        setFitError(data?.error || "Failed to generate GoodFit");
         setGeneratingFit(false);
         return;
       }
-      const data = await res.json();
-      if (data.good_fit) {
+      if (data?.good_fit) {
         setGoodFit(data.good_fit);
       } else {
-        setFitError(data.message || "Could not generate GoodFit — check profile and job details");
+        setFitError(data?.message || "Could not generate GoodFit — check profile and job details");
       }
     } catch {
       setFitError("Network error — try again");

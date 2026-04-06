@@ -13,7 +13,10 @@ export async function POST(
   const { id } = await params;
   const { supabase, profile, response } = await requireAuth();
   if (response) return response;
-  if (!profile) return error("Profile not found", 404);
+  if (!profile) {
+    logError("GoodFit: profile not found for authenticated user", { severity: "warning", sourceSystem: "api.tracker.goodfit" });
+    return error("Profile not found", 404);
+  }
 
   const { data: entry, error: fetchErr } = await supabase
     .from("tracker_entries")
@@ -23,7 +26,7 @@ export async function POST(
     .maybeSingle();
 
   if (fetchErr || !entry) {
-    if (fetchErr) logError(fetchErr.message, { severity: "warning", sourceSystem: "api.tracker.goodfit", stackTrace: fetchErr.stack });
+    logError(fetchErr?.message ?? `GoodFit: tracker entry ${id} not found for profile ${profile.id}`, { severity: "warning", sourceSystem: "api.tracker.goodfit", stackTrace: fetchErr?.stack });
     return error("Entry not found", 404);
   }
 
@@ -45,6 +48,7 @@ export async function POST(
   }
 
   if (!OPENAI_KEY) {
+    logError("GoodFit: OPENAI_API_KEY not set", { severity: "error", sourceSystem: "api.tracker.goodfit" });
     return json({ good_fit: null, cached: false, message: "AI not configured" });
   }
 
