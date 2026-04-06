@@ -1,6 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { sendEmail } from "@/lib/email";
 import { logEvent, logError } from "@/lib/logger";
+import { buildMergeFields, resolveMergeFields } from "@/lib/merge-fields";
 
 /**
  * GET /api/admin/messages - List sent messages with optional client filter
@@ -64,8 +65,13 @@ export async function POST(request: Request) {
     return error("Client not found or has no email");
   }
 
+  // Resolve merge fields before sending
+  const mergeFields = await buildMergeFields(client_id, service);
+  const resolvedSubject = resolveMergeFields(subject, mergeFields);
+  const resolvedBody = resolveMergeFields(emailBody, mergeFields);
+
   // Send via Gmail SMTP
-  const result = await sendEmail(client.email, subject, emailBody);
+  const result = await sendEmail(client.email, resolvedSubject, resolvedBody);
 
   if (!result.success) {
     await logError(result.error ?? "Email send failed", {
@@ -86,8 +92,8 @@ export async function POST(request: Request) {
       coach_id: profile.id,
       client_id,
       template_id: validTemplateId,
-      subject,
-      body: emailBody,
+      subject: resolvedSubject,
+      body: resolvedBody,
       trigger_event: validTrackerId ? "manual_with_tracker" : "manual",
       tracker_entry_id: validTrackerId,
       smtp_message_id: result.messageId || null,

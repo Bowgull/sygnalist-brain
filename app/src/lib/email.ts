@@ -1,9 +1,9 @@
 import nodemailer from "nodemailer";
 import { randomUUID } from "crypto";
-import path from "path";
 
 const GMAIL_USER = process.env.GMAIL_SMTP_USER;
 const GMAIL_PASS = process.env.GMAIL_SMTP_PASS;
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sygnalist.app";
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -45,13 +45,6 @@ export async function sendEmail(
       subject,
       messageId,
       html: wrapInTemplate(htmlBody),
-      attachments: [
-        {
-          filename: "logo.png",
-          path: path.join(process.cwd(), "public", "email-logo.png"),
-          cid: "sygnalist-logo",
-        },
-      ],
     });
 
     return { success: true, messageId };
@@ -71,52 +64,56 @@ function escapeHtml(text: string): string {
 }
 
 function wrapInTemplate(body: string): string {
-  // If body already contains HTML tags, use it directly (just convert newlines).
-  // Otherwise escape plain text bodies for safe rendering.
   const hasHtml = /<[a-z][\s\S]*>/i.test(body);
   const htmlBody = hasHtml
     ? body.replace(/\n/g, "<br>")
     : escapeHtml(body).replace(/\n/g, "<br>");
+
+  const logoUrl = `${SITE_URL}/apple-touch-icon.png`;
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
   <title>Sygnalist</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f0f2f5;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<body style="margin:0;padding:0;background-color:#0C1016;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
   <!--[if mso]><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center"><![endif]-->
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f2f5;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0C1016;">
     <tr>
       <td align="center" style="padding:40px 16px 32px;">
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
 
           <!-- Header bar -->
           <tr>
-            <td style="background-color:#0C1016;border-radius:12px 12px 0 0;padding:20px 28px;">
+            <td style="background-color:#0C1016;border-radius:12px 12px 0 0;padding:24px 28px;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td style="vertical-align:middle;padding-right:12px;">
-                    <img src="cid:sygnalist-logo" alt="S" width="28" height="28" style="display:block;border:0;outline:none;width:28px;height:28px;border-radius:6px;">
+                  <td style="vertical-align:middle;padding-right:14px;">
+                    <img src="${logoUrl}" alt="Sygnalist" width="36" height="36" style="display:block;border:0;outline:none;width:36px;height:36px;border-radius:8px;">
                   </td>
                   <td style="vertical-align:middle;">
-                    <span style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:#6AD7A3;letter-spacing:3px;">SYGNALIST</span>
+                    <span style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;color:#6AD7A3;letter-spacing:3px;">SYGNALIST</span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
 
-          <!-- Green accent line -->
+          <!-- Gradient accent line -->
           <tr>
-            <td style="background-color:#6AD7A3;height:3px;font-size:0;line-height:0;">&nbsp;</td>
+            <td style="height:3px;font-size:0;line-height:0;background:linear-gradient(90deg,#A9FFB5,#5EF2C7,#39D6FF);">
+              <!--[if mso]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:560px;height:3px;"><v:fill type="gradient" color="#A9FFB5" color2="#39D6FF" angle="90"/></v:rect><![endif]-->
+            </td>
           </tr>
 
           <!-- Body -->
           <tr>
-            <td style="background-color:#ffffff;padding:32px 28px;">
-              <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.75;color:#1a1a1a;">
+            <td style="background-color:#171F28;padding:32px 28px;">
+              <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.75;color:#E5E7EB;">
                 ${htmlBody}
               </div>
             </td>
@@ -124,10 +121,10 @@ function wrapInTemplate(body: string): string {
 
           <!-- Footer -->
           <tr>
-            <td style="background-color:#fafafa;border-radius:0 0 12px 12px;border-top:1px solid #e8e8e8;padding:16px 28px;text-align:center;">
-              <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;">Sent via </span>
+            <td style="background-color:#0C1016;border-radius:0 0 12px 12px;border-top:1px solid rgba(255,255,255,0.06);padding:16px 28px;text-align:center;">
               <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#6AD7A3;font-weight:bold;">Sygnalist</span>
-              <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9ca3af;"> &mdash; Find the Signal</span>
+              <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#4B5563;"> | </span>
+              <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9CA3AF;">Find the Signal</span>
             </td>
           </tr>
 

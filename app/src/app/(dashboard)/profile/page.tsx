@@ -27,16 +27,13 @@ export default function ProfilePage() {
 
   async function handleChangePassword() {
     if (!email) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+    const res = await fetch("/api/auth/send-reset-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
     });
-    if (!error) {
+    if (res.ok) {
       setResetSent(true);
-      fetch("/api/auth/log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: "password_reset_requested", method: "password", email }),
-      }).catch(() => {});
     }
   }
 
