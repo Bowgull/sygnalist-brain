@@ -6,7 +6,13 @@ import { logEvent, logFailure } from "@/lib/logger";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const type = searchParams.get("type");
   const next = searchParams.get("next") ?? "/inbox";
+
+  // Recovery links should go to the reset-password page
+  if (type === "recovery" && code) {
+    return NextResponse.redirect(`${origin}/reset-password?code=${code}`);
+  }
 
   if (code) {
     const supabase = await createServerSupabase();
@@ -54,7 +60,14 @@ export async function GET(request: Request) {
         await logEvent("auth.login", { userId: profile?.id, metadata: { method: "magic_link", email: user.email } });
       }
 
-      return NextResponse.redirect(`${origin}${next}`);
+      const response = NextResponse.redirect(`${origin}${next}`);
+      // Set session start cookie for 3-day expiry
+      response.cookies.set("syg_session_start", String(Math.floor(Date.now() / 1000)), {
+        path: "/",
+        maxAge: 259200,
+        sameSite: "lax",
+      });
+      return response;
     }
   }
 

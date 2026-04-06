@@ -10,6 +10,7 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -24,12 +25,29 @@ export default function ProfilePage() {
     load();
   }, []);
 
+  async function handleChangePassword() {
+    if (!email) return;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (!error) {
+      setResetSent(true);
+      fetch("/api/auth/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "password_reset_requested", method: "password", email }),
+      }).catch(() => {});
+    }
+  }
+
   async function handleSignOut() {
     fetch("/api/auth/log", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event: "logout" }),
     }).catch(() => {});
+    // Clear session start cookie
+    document.cookie = "syg_session_start=;path=/;max-age=0";
     await supabase.auth.signOut();
     router.push("/login");
   }
@@ -57,6 +75,15 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={handleChangePassword}
+        disabled={resetSent}
+        className="w-full rounded-full border border-[#2A3544] py-2.5 text-[0.875rem] font-medium text-[#9CA3AF] transition-all hover:border-[#6AD7A3]/40 hover:text-[#6AD7A3] disabled:opacity-50"
+      >
+        {resetSent ? "Reset link sent — check your email" : "Change Password"}
+      </button>
 
       <button
         type="button"

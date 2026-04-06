@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 function logAuth(event: string, method?: string, error?: string, email?: string) {
@@ -22,9 +23,11 @@ export default function LoginPage() {
 
 function LoginForm() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [denied, setDenied] = useState(false);
+  const [mode, setMode] = useState<"password" | "magic">("password");
   const supabase = createClient();
   const searchParams = useSearchParams();
 
@@ -42,6 +45,36 @@ function LoginForm() {
     });
     const data = await res.json();
     return data.allowed === true;
+  }
+
+  async function handlePasswordLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+    setDenied(false);
+
+    const allowed = await checkAccess(email);
+    if (!allowed) {
+      setDenied(true);
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      const hint = error.message === "Invalid login credentials"
+        ? "Wrong email or password. Haven't set up your password yet?"
+        : error.message;
+      setMessage(hint);
+      logAuth("login_failed", "password", error.message, email);
+    } else {
+      logAuth("login", "password", undefined, email);
+      // Set session start cookie for 3-day expiry
+      document.cookie = `syg_session_start=${Math.floor(Date.now() / 1000)};path=/;max-age=259200;samesite=lax`;
+      window.location.href = "/inbox";
+      return;
+    }
+    setLoading(false);
   }
 
   async function handleMagicLink(e: React.FormEvent) {
@@ -126,7 +159,7 @@ function LoginForm() {
         ) : (
           /* Card */
           <div className="rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-6 shadow-[0_4px_16px_rgba(0,0,0,0.4)]">
-            <form onSubmit={handleMagicLink}>
+            <form onSubmit={mode === "password" ? handlePasswordLogin : handleMagicLink}>
               <div className="mb-4">
                 <label className="mb-1.5 block text-sm font-medium text-[#B8BFC8]">Email</label>
                 <input
@@ -139,24 +172,66 @@ function LoginForm() {
                 />
               </div>
 
+              {mode === "password" && (
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-sm font-medium text-[#B8BFC8]">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="Enter your password"
+                    className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2.5 text-sm text-white placeholder-[#9CA3AF] outline-none transition-colors focus:border-[#6AD7A3]"
+                  />
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-4 py-2.5 text-sm font-semibold text-[#0C1016] transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {loading ? "Checking access..." : "Send Sign-In Link"}
+                {loading
+                  ? "Checking access..."
+                  : mode === "password"
+                  ? "Sign In"
+                  : "Send Sign-In Link"}
               </button>
             </form>
 
             {message && (
-              <p className={`mt-4 text-center text-sm ${message.includes("Check") ? "text-[#6AD7A3]" : "text-[#DC2626]"}`}>
-                {message}
-              </p>
+              <div className="mt-4 text-center text-sm">
+                <p className={message.includes("Check") ? "text-[#6AD7A3]" : "text-[#DC2626]"}>
+                  {message}
+                </p>
+                {message.includes("Haven't set up") && (
+                  <Link href="/forgot-password" className="mt-1 inline-block text-[#6AD7A3] underline underline-offset-2 text-[13px]">
+                    Set up your password
+                  </Link>
+                )}
+              </div>
             )}
 
-            <p className="mt-4 text-center text-[11px] text-[#9CA3AF]">
-              Enter the email your coach set up for you. No password needed - we&apos;ll send you a link.
-            </p>
+            {mode === "password" && (
+              <div className="mt-4 space-y-2 text-center">
+                <Link href="/forgot-password" className="block text-[12px] text-[#9CA3AF] hover:text-white transition-colors">
+                  Forgot password?
+                </Link>
+                <Link href="/forgot-password" className="block text-[12px] text-[#6AD7A3] hover:text-[#A9FFB5] transition-colors">
+                  First time? Set up your password
+                </Link>
+              </div>
+            )}
+
+            <div className="mt-4 border-t border-[rgba(255,255,255,0.06)] pt-3 text-center">
+              <button
+                type="button"
+                onClick={() => { setMode(mode === "password" ? "magic" : "password"); setMessage(""); }}
+                className="text-[11px] text-[#9CA3AF] hover:text-white transition-colors"
+              >
+                {mode === "password" ? "Or sign in with email link" : "Or sign in with password"}
+              </button>
+            </div>
           </div>
         )}
       </div>
