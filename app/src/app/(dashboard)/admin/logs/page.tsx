@@ -573,9 +573,9 @@ export default function AdminLogsPage() {
                       <span className="flex-1" />
                       {/* Status pill */}
                       {group.resolved ? (
-                        <span className="hidden md:inline-flex shrink-0 items-center gap-1 rounded-full border border-[#6AD7A3]/25 bg-[#6AD7A3]/10 px-2 py-0.5 text-[0.625rem] font-semibold text-[#6AD7A3]">Resolved</span>
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#6AD7A3]/25 bg-[#6AD7A3]/10 px-2 py-0.5 text-[0.625rem] font-semibold text-[#6AD7A3]">Resolved</span>
                       ) : (
-                        <span className="hidden md:inline-flex shrink-0 items-center gap-1 rounded-full border border-[#F59E0B]/25 bg-[#F59E0B]/10 px-2 py-0.5 text-[0.625rem] font-semibold text-[#F59E0B]">Open</span>
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#F59E0B]/25 bg-[#F59E0B]/10 px-2 py-0.5 text-[0.625rem] font-semibold text-[#F59E0B]">Open</span>
                       )}
                       {/* Time range */}
                       <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">
