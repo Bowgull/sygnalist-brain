@@ -141,9 +141,10 @@ interface TrackerCardProps {
   entry: TrackerEntry;
   onUpdate: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
+  locked?: boolean;
 }
 
-export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardProps) {
+export default function TrackerCard({ entry, onUpdate, onDelete, locked }: TrackerCardProps) {
   const [spotlight, setSpotlight] = useState(false);
   const [editing, setEditing] = useState(false);
   const [quickEdit, setQuickEdit] = useState(false);
@@ -512,7 +513,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                   {goodFit}
                 </p>
               </div>
-            ) : (
+            ) : !locked ? (
               <button
                 type="button"
                 onClick={() => {
@@ -532,7 +533,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete }: TrackerCardPr
                   {generatingFit ? "Generating..." : "Generate GoodFit"}
                 </span>
               </button>
-            )}
+            ) : null}
             {fitError && (
               <p className="text-[0.75rem] text-[#DC2626]">{fitError}</p>
             )}

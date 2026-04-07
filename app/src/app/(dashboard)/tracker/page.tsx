@@ -42,6 +42,7 @@ export default function TrackerPage() {
   const [scope, setScope] = useState<Scope>(0);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("cards");
   const [showManualAdd, setShowManualAdd] = useState(false);
+  const [profileLocked, setProfileLocked] = useState(false);
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const pillContainerRef = useRef<HTMLDivElement>(null);
@@ -66,6 +67,19 @@ export default function TrackerPage() {
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
+
+  // Check profile lock status
+  useEffect(() => {
+    const url = viewAsId
+      ? `/api/admin/view-as/profile?client_id=${viewAsId}`
+      : "/api/profile";
+    fetch(url).then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        setProfileLocked(data.status === "inactive_soft_locked");
+      }
+    });
+  }, [viewAsId]);
 
   // Scroll active pill into view when scope changes
   useEffect(() => {
@@ -365,6 +379,7 @@ export default function TrackerPage() {
               sortOrder={sortOrder}
               onUpdate={handleUpdate}
               onDelete={handleDelete}
+              locked={profileLocked}
             />
           ) : (
             <AllOpsTable
@@ -385,6 +400,7 @@ export default function TrackerPage() {
             loading={loading}
             onUpdate={handleUpdate}
             onDelete={handleDelete}
+            locked={profileLocked}
           />
         )}
       </div>
@@ -426,6 +442,7 @@ function SingleStageCardsView({
   loading,
   onUpdate,
   onDelete,
+  locked,
 }: {
   stageEntries: TrackerEntry[];
   currentStage: { label: string; display: string; color: string };
@@ -433,6 +450,7 @@ function SingleStageCardsView({
   loading: boolean;
   onUpdate: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
+  locked?: boolean;
 }) {
   return (
     <div className="min-h-[40vh]">
@@ -451,7 +469,7 @@ function SingleStageCardsView({
           </div>
         ) : (
           stageEntries.map((entry) => (
-            <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} />
+            <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} locked={locked} />
           ))
         )}
       </div>
@@ -469,6 +487,7 @@ function AllCardsView({
   sortOrder,
   onUpdate,
   onDelete,
+  locked,
 }: {
   stages: typeof STAGES;
   entries: TrackerEntry[];
@@ -477,6 +496,7 @@ function AllCardsView({
   sortOrder: "newest" | "oldest";
   onUpdate: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
+  locked?: boolean;
 }) {
   if (loading) {
     return <div className="p-3 md:p-6 space-y-3"><SkeletonCard /><SkeletonCard /></div>;
@@ -516,7 +536,7 @@ function AllCardsView({
             </div>
             <div className="space-y-3">
               {stageEntries.map((entry) => (
-                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} />
+                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} locked={locked} />
               ))}
             </div>
           </div>
@@ -546,7 +566,7 @@ function AllCardsView({
             </div>
             <div className="space-y-3">
               {filtered.map((entry) => (
-                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} />
+                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} locked={locked} />
               ))}
             </div>
           </div>

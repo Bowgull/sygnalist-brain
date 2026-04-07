@@ -18,6 +18,10 @@ export async function POST(
     return error("Profile not found", 404);
   }
 
+  if (profile.status === "inactive_soft_locked") {
+    return error("GoodFit is not available — profile is locked", 403);
+  }
+
   const { data: entry, error: fetchErr } = await supabase
     .from("tracker_entries")
     .select("*")
