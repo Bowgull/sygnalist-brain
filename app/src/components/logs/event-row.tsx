@@ -25,7 +25,7 @@ export default function EventRow({ log, isExpanded, onToggle, profileMap }: Prop
   return (
     <div
       className={`cursor-pointer px-3 py-3 md:px-5 transition-colors hover:bg-[#222D3D]/20 ${
-        !success ? "border-l-2 border-l-[#DC2626]/60" : "border-l-2 border-l-transparent"
+        !success ? "border-l-2 border-l-[#DC2626]/40" : "border-l-2 border-l-transparent"
       }`}
       onClick={onToggle}
     >

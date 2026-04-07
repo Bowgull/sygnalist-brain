@@ -440,8 +440,7 @@ export default function AdminLogsPage() {
                 return (
                   <div
                     key={group.key}
-                    className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden"
-                    style={{ borderLeftWidth: "3px", borderLeftColor: ds.color }}
+                    className={`rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden ${ds.borderClass}`}
                   >
                     {/* Group header — click to expand */}
                     <button
@@ -524,7 +523,6 @@ export default function AdminLogsPage() {
                 const SevIcon = getSeverityIcon(group.severity);
                 const isGroupOpen = expandedErrorGroupId === group.key;
                 const isBulkResolving = bulkResolveGroupId === group.key;
-                const borderColor = group.severity === "critical" || group.severity === "error" ? "#DC2626" : group.severity === "warning" ? "#F59E0B" : "#9CA3AF";
                 const newestTime = relativeTime(group.logs[0].created_at as string);
                 const oldestTime = group.logs.length > 1 ? relativeTime(group.logs[group.logs.length - 1].created_at as string) : null;
 
@@ -538,8 +536,7 @@ export default function AdminLogsPage() {
                   return (
                     <div
                       key={id}
-                      className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden"
-                      style={{ borderLeftWidth: "3px", borderLeftColor: borderColor }}
+                      className={`rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden ${sevStyle.borderClass}`}
                     >
                       <ErrorRow log={log} isExpanded={isExpanded} onToggle={() => setExpandedId(isExpanded ? null : id)} batchContext={ctx} />
                       {isExpanded && (
@@ -553,8 +550,7 @@ export default function AdminLogsPage() {
                 return (
                   <div
                     key={group.key}
-                    className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden"
-                    style={{ borderLeftWidth: "3px", borderLeftColor: borderColor }}
+                    className={`rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden ${sevStyle.borderClass}`}
                   >
                     {/* Group header */}
                     <button

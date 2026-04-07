@@ -1,17 +1,17 @@
 // ── Domain badge styles ─────────────────────────────────────────────────
-export const domainStyles: Record<string, { badge: string; dot: string; color: string; label: string }> = {
-  auth:    { badge: "border-[#3B82F6] bg-[#3B82F6]/12 text-[#3B82F6]", dot: "bg-[#3B82F6]", color: "#3B82F6", label: "Auth" },
-  inbox:   { badge: "border-[#22C55E] bg-[#22C55E]/12 text-[#22C55E]", dot: "bg-[#22C55E]", color: "#22C55E", label: "Inbox" },
-  tracker: { badge: "border-[#8B5CF6] bg-[#8B5CF6]/12 text-[#8B5CF6]", dot: "bg-[#8B5CF6]", color: "#8B5CF6", label: "Tracker" },
-  fetch:   { badge: "border-[#22C55E] bg-[#22C55E]/12 text-[#22C55E]", dot: "bg-[#22C55E]", color: "#22C55E", label: "Fetch" },
-  admin:   { badge: "border-[#A855F7] bg-[#A855F7]/12 text-[#A855F7]", dot: "bg-[#A855F7]", color: "#A855F7", label: "Admin" },
-  message: { badge: "border-[#FAD76A] bg-[#FAD76A]/12 text-[#FAD76A]", dot: "bg-[#FAD76A]", color: "#FAD76A", label: "Message" },
-  gmail:   { badge: "border-[#14B8A6] bg-[#14B8A6]/12 text-[#14B8A6]", dot: "bg-[#14B8A6]", color: "#14B8A6", label: "Gmail" },
-  cron:    { badge: "border-[#14B8A6] bg-[#14B8A6]/12 text-[#14B8A6]", dot: "bg-[#14B8A6]", color: "#14B8A6", label: "Cron" },
-  enrich:  { badge: "border-[#38BDF8] bg-[#38BDF8]/12 text-[#38BDF8]", dot: "bg-[#38BDF8]", color: "#38BDF8", label: "Enrich" },
-  system:  { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", color: "#9CA3AF", label: "System" },
+export const domainStyles: Record<string, { badge: string; dot: string; color: string; borderClass: string; label: string }> = {
+  auth:    { badge: "border-[#3B82F6] bg-[#3B82F6]/12 text-[#3B82F6]", dot: "bg-[#3B82F6]", color: "#3B82F6", borderClass: "border-l-[3px] border-l-[#3B82F6]/40", label: "Auth" },
+  inbox:   { badge: "border-[#22C55E] bg-[#22C55E]/12 text-[#22C55E]", dot: "bg-[#22C55E]", color: "#22C55E", borderClass: "border-l-[3px] border-l-[#22C55E]/40", label: "Inbox" },
+  tracker: { badge: "border-[#8B5CF6] bg-[#8B5CF6]/12 text-[#8B5CF6]", dot: "bg-[#8B5CF6]", color: "#8B5CF6", borderClass: "border-l-[3px] border-l-[#8B5CF6]/40", label: "Tracker" },
+  fetch:   { badge: "border-[#22C55E] bg-[#22C55E]/12 text-[#22C55E]", dot: "bg-[#22C55E]", color: "#22C55E", borderClass: "border-l-[3px] border-l-[#22C55E]/40", label: "Fetch" },
+  admin:   { badge: "border-[#A855F7] bg-[#A855F7]/12 text-[#A855F7]", dot: "bg-[#A855F7]", color: "#A855F7", borderClass: "border-l-[3px] border-l-[#A855F7]/40", label: "Admin" },
+  message: { badge: "border-[#FAD76A] bg-[#FAD76A]/12 text-[#FAD76A]", dot: "bg-[#FAD76A]", color: "#FAD76A", borderClass: "border-l-[3px] border-l-[#FAD76A]/40", label: "Message" },
+  gmail:   { badge: "border-[#14B8A6] bg-[#14B8A6]/12 text-[#14B8A6]", dot: "bg-[#14B8A6]", color: "#14B8A6", borderClass: "border-l-[3px] border-l-[#14B8A6]/40", label: "Gmail" },
+  cron:    { badge: "border-[#14B8A6] bg-[#14B8A6]/12 text-[#14B8A6]", dot: "bg-[#14B8A6]", color: "#14B8A6", borderClass: "border-l-[3px] border-l-[#14B8A6]/40", label: "Cron" },
+  enrich:  { badge: "border-[#38BDF8] bg-[#38BDF8]/12 text-[#38BDF8]", dot: "bg-[#38BDF8]", color: "#38BDF8", borderClass: "border-l-[3px] border-l-[#38BDF8]/40", label: "Enrich" },
+  system:  { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", color: "#9CA3AF", borderClass: "border-l-[3px] border-l-[#9CA3AF]/30", label: "System" },
 };
-const defaultDomain = { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", color: "#9CA3AF", label: "Event" };
+const defaultDomain = { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", color: "#9CA3AF", borderClass: "border-l-[3px] border-l-[#9CA3AF]/30", label: "Event" };
 
 export function getDomainStyle(eventType: string) {
   const domain = domainFromEventType(eventType);
@@ -23,11 +23,11 @@ export function domainFromEventType(eventType: string): string {
 }
 
 // ── Severity styles ─────────────────────────────────────────────────────
-export const severityStyles: Record<string, { badge: string; row: string }> = {
-  critical: { badge: "border-[#DC2626] bg-[#DC2626]/20 text-[#DC2626]", row: "bg-[#DC2626]/5" },
-  error:    { badge: "border-[#DC2626] bg-[#DC2626]/12 text-[#DC2626]", row: "" },
-  warning:  { badge: "border-[#F59E0B] bg-[#F59E0B]/12 text-[#F59E0B]", row: "" },
-  info:     { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", row: "" },
+export const severityStyles: Record<string, { badge: string; row: string; borderClass: string }> = {
+  critical: { badge: "border-[#DC2626] bg-[#DC2626]/20 text-[#DC2626]", row: "bg-[#DC2626]/5", borderClass: "border-l-[3px] border-l-[#DC2626]/50" },
+  error:    { badge: "border-[#DC2626] bg-[#DC2626]/12 text-[#DC2626]", row: "", borderClass: "border-l-[3px] border-l-[#DC2626]/40" },
+  warning:  { badge: "border-[#F59E0B] bg-[#F59E0B]/12 text-[#F59E0B]", row: "", borderClass: "border-l-[3px] border-l-[#F59E0B]/40" },
+  info:     { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", row: "", borderClass: "border-l-[3px] border-l-[#9CA3AF]/30" },
 };
 
 export function getSeverityStyle(severity: string) {
