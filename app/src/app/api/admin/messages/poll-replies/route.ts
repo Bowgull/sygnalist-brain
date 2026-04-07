@@ -77,7 +77,7 @@ export async function POST() {
 
 
     // Sent message ID → client mapping (for In-Reply-To matching)
-    const sentByMessageId = new Map<string, { id: string; client_id: string }>();
+    const sentByMessageId = new Map<string, { id: string; client_id: string | null }>();
     for (const s of sentMsgsRes.data ?? []) {
       if (s.smtp_message_id) {
         const normalized = s.smtp_message_id.replace(/^<|>$/g, "");

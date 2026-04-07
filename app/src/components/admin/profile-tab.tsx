@@ -10,17 +10,8 @@ const labelClass = "mb-1 block text-[0.6875rem] font-semibold uppercase tracking
 
 const LANGUAGE_OPTIONS = [
   { code: "en", label: "English" },
-  { code: "de", label: "German" },
   { code: "fr", label: "French" },
   { code: "es", label: "Spanish" },
-  { code: "nl", label: "Dutch" },
-  { code: "it", label: "Italian" },
-  { code: "pt", label: "Portuguese" },
-  { code: "sv", label: "Swedish" },
-  { code: "da", label: "Danish" },
-  { code: "no", label: "Norwegian" },
-  { code: "pl", label: "Polish" },
-  { code: "cs", label: "Czech" },
 ] as const;
 
 export default function ProfileTab({

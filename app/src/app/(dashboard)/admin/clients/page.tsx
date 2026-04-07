@@ -333,11 +333,13 @@ function OverflowMenu({
   onClose: () => void;
   items: MenuItem[];
 }) {
-  const menuRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   const handleClickOutside = useCallback(
     (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         onClose();
       }
     },
@@ -351,9 +353,23 @@ function OverflowMenu({
     }
   }, [isOpen, handleClickOutside]);
 
+  // Calculate fixed position when menu opens
+  useEffect(() => {
+    if (isOpen && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const menuHeight = items.length * 36 + 8; // approx height
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow < menuHeight + 8
+        ? rect.top - menuHeight - 4
+        : rect.bottom + 4;
+      setPos({ top, left: rect.right - 176 }); // 176 = w-44 = 11rem
+    }
+  }, [isOpen, items.length]);
+
   return (
-    <div ref={menuRef} className="relative">
+    <div ref={containerRef} className="relative">
       <button
+        ref={btnRef}
         type="button"
         onClick={onToggle}
         className="rounded-full p-2 text-[#6B7280] transition-all hover:bg-[#222D3D] hover:text-white active:scale-95"
@@ -362,8 +378,11 @@ function OverflowMenu({
         <MoreVertical size={14} strokeWidth={2} />
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-xl border border-[#2A3544] bg-[#171F28] py-1 shadow-xl">
+      {isOpen && pos && (
+        <div
+          className="fixed z-50 w-44 overflow-hidden rounded-xl border border-[#2A3544] bg-[#171F28] py-1 shadow-xl"
+          style={{ top: pos.top, left: Math.max(8, pos.left) }}
+        >
           {items.map((item) => (
             <button
               key={item.label}

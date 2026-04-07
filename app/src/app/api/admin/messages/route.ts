@@ -40,19 +40,77 @@ export async function POST(request: Request) {
   if (!profile) return error("Profile not found", 404);
 
   const body = await request.json();
-  const { client_id, template_id, subject, body: emailBody, tracker_entry_id, in_reply_to } = body;
+  const { client_id, recipient_email, template_id, subject, body: emailBody, tracker_entry_id, in_reply_to } = body;
 
-  if (!client_id || !subject || !emailBody) {
-    return error(`Missing fields: ${!client_id ? "client_id " : ""}${!subject ? "subject " : ""}${!emailBody ? "body" : ""}`);
+  if (!subject || !emailBody) {
+    return error(`Missing fields: ${!subject ? "subject " : ""}${!emailBody ? "body" : ""}`);
+  }
+  if (!client_id && !recipient_email) {
+    return error("Either client_id or recipient_email is required");
   }
 
-  // Validate UUID format
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const service = getServiceClient();
+  const origin = new URL(request.url).origin;
+
+  // --- Free email path (no client profile) ---
+  if (!client_id && recipient_email) {
+    const toEmail = (recipient_email as string).trim().toLowerCase();
+    if (!toEmail || !toEmail.includes("@")) {
+      return error("Invalid recipient_email");
+    }
+
+    const result = await sendEmail(toEmail, subject, emailBody);
+
+    if (!result.success) {
+      await logError(result.error ?? "Email send failed", {
+        severity: "error",
+        sourceSystem: "smtp.send",
+        userId: profile.id,
+        metadata: { recipient_email: toEmail, subject },
+      });
+    }
+
+    const { data: msg, error: insertErr } = await service
+      .from("sent_messages")
+      .insert({
+        coach_id: profile.id,
+        client_id: null,
+        template_id: null,
+        subject,
+        body: emailBody,
+        trigger_event: "manual",
+        smtp_message_id: result.messageId || null,
+        recipient_email: toEmail,
+      })
+      .select()
+      .single();
+
+    if (insertErr) {
+      logError(`Save failed: ${insertErr.message}`, { severity: "error", sourceSystem: "api.admin.messages", stackTrace: insertErr.message });
+      return error(`Save failed: ${insertErr.message}`, 500);
+    }
+
+    if (result.success) {
+      await logEvent("message.sent", {
+        userId: profile.id,
+        metadata: { recipient_email: toEmail, message_id: msg.id },
+      });
+    }
+
+    return json({
+      sent: result.success,
+      saved: true,
+      error: result.error || null,
+      message_id: result.messageId || null,
+      message: msg,
+    });
+  }
+
+  // --- Client profile path (existing flow) ---
   if (!uuidRegex.test(client_id)) {
     return error(`Invalid client_id format: "${client_id}" - expected UUID`);
   }
-
-  const service = getServiceClient();
 
   // Get client info
   const { data: client } = await service
@@ -66,7 +124,6 @@ export async function POST(request: Request) {
   }
 
   // Resolve merge fields before sending
-  const origin = new URL(request.url).origin;
   const mergeFields = await buildMergeFields(client_id, service, { origin });
   const resolvedSubject = resolveMergeFields(subject, mergeFields);
   const resolvedBody = resolveMergeFields(emailBody, mergeFields);
@@ -74,7 +131,6 @@ export async function POST(request: Request) {
   // Build threading headers for replies
   let emailOptions: Parameters<typeof sendEmail>[3] | undefined;
   if (in_reply_to) {
-    // Collect all message IDs for this client to build References chain
     const [sentMsgs, receivedMsgs] = await Promise.all([
       service
         .from("sent_messages")
