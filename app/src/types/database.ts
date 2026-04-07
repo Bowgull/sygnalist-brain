@@ -557,7 +557,7 @@ export interface Database {
         Row: {
           id: string;
           coach_id: string;
-          client_id: string;
+          client_id: string | null;
           template_id: string | null;
           subject: string;
           body: string;
@@ -572,7 +572,7 @@ export interface Database {
         Insert: {
           id?: string;
           coach_id: string;
-          client_id: string;
+          client_id: string | null;
           template_id?: string | null;
           subject: string;
           body: string;

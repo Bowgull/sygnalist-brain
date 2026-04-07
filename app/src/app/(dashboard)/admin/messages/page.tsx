@@ -598,7 +598,8 @@ function ComposeView({
 }) {
   const [step, setStep] = useState<"recipients" | "template" | "editor">("recipients");
   const [selectedClients, setSelectedClients] = useState<Client[]>([]);
-  const [freeEmail, setFreeEmail] = useState("");
+  const [freeEmails, setFreeEmails] = useState<string[]>([]);
+  const [freeEmailInput, setFreeEmailInput] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -698,12 +699,18 @@ function ComposeView({
     setDrafting(false);
   }
 
+  const totalRecipients = selectedClients.length + freeEmails.length;
+
   async function handleSend() {
-    if (!subject || !body || selectedClients.length === 0 || sending) return;
+    if (!subject || !body || totalRecipients === 0 || sending) return;
     setSending(true);
 
-    if (selectedClients.length === 1) {
-      // Single send
+    let sentCount = 0;
+    let failedCount = 0;
+
+    // Send to selected client profiles
+    if (selectedClients.length === 1 && freeEmails.length === 0) {
+      // Single client send
       const res = await fetch("/api/admin/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -717,14 +724,12 @@ function ComposeView({
 
       if (res.ok) {
         const result = await res.json();
-        showToast(result.sent ? "Email sent!" : result.error ? `Saved: ${result.error}` : "Saved");
-        resetCompose();
+        if (result.sent) sentCount++; else failedCount++;
       } else {
-        const err = await res.json().catch(() => ({}));
-        showToast(err.error || "Failed to send");
+        failedCount++;
       }
-    } else {
-      // Bulk send
+    } else if (selectedClients.length > 0) {
+      // Bulk client send
       const res = await fetch("/api/admin/messages/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -737,12 +742,35 @@ function ComposeView({
 
       if (res.ok) {
         const data = await res.json();
-        showToast(`Sent ${data.sent}, ${data.failed} failed`);
-        resetCompose();
+        sentCount += data.sent;
+        failedCount += data.failed;
       } else {
-        showToast("Bulk send failed");
+        failedCount += selectedClients.length;
       }
     }
+
+    // Send to free email addresses
+    for (const email of freeEmails) {
+      const res = await fetch("/api/admin/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipient_email: email, subject, body }),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.sent) sentCount++; else failedCount++;
+      } else {
+        failedCount++;
+      }
+    }
+
+    if (failedCount === 0) {
+      showToast(sentCount === 1 ? "Email sent!" : `${sentCount} emails sent!`);
+    } else {
+      showToast(`Sent ${sentCount}, ${failedCount} failed`);
+    }
+    resetCompose();
     setSending(false);
   }
 
@@ -752,7 +780,8 @@ function ComposeView({
     setSelectedTemplate(null);
     setSubject("");
     setBody("");
-    setFreeEmail("");
+    setFreeEmails([]);
+    setFreeEmailInput("");
     setSearch("");
   }
 
@@ -848,29 +877,66 @@ function ComposeView({
             })}
           </div>
 
+          {/* Free email pills */}
+          {freeEmails.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {freeEmails.map((email) => (
+                <button
+                  key={email}
+                  onClick={() => setFreeEmails((prev) => prev.filter((e) => e !== email))}
+                  className="flex items-center gap-1.5 rounded-full bg-[#B8BFC8]/10 px-3 py-1 text-[12px] text-[#B8BFC8] transition hover:bg-[#B8BFC8]/20"
+                >
+                  {email}
+                  <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Free type email */}
           <div className="mt-2 flex gap-2">
             <input
               type="email"
-              value={freeEmail}
-              onChange={(e) => setFreeEmail(e.target.value)}
+              value={freeEmailInput}
+              onChange={(e) => setFreeEmailInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const email = freeEmailInput.trim().toLowerCase();
+                  if (email && email.includes("@") && !freeEmails.includes(email)) {
+                    setFreeEmails((prev) => [...prev, email]);
+                    setFreeEmailInput("");
+                  }
+                }
+              }}
               className="flex-1 rounded-lg border border-dashed border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
               placeholder="Or type an email address..."
             />
+            <button
+              type="button"
+              onClick={() => {
+                const email = freeEmailInput.trim().toLowerCase();
+                if (email && email.includes("@") && !freeEmails.includes(email)) {
+                  setFreeEmails((prev) => [...prev, email]);
+                  setFreeEmailInput("");
+                }
+              }}
+              disabled={!freeEmailInput.trim() || !freeEmailInput.includes("@")}
+              className="shrink-0 rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm font-medium text-[#6AD7A3] transition hover:bg-[#6AD7A3]/10 disabled:opacity-30 disabled:pointer-events-none"
+            >
+              Add
+            </button>
           </div>
-          {freeEmail && (
-            <p className="text-[11px] text-[#9CA3AF]">
-              Free-typed emails require a client profile in the system.
-            </p>
-          )}
 
           {/* Next button */}
           <button
             onClick={() => setStep("template")}
-            disabled={selectedClients.length === 0}
+            disabled={totalRecipients === 0}
             className="w-full rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] py-2.5 text-sm font-semibold text-[#0C1016] transition disabled:opacity-30"
           >
-            Next - Choose Template ({selectedClients.length} selected)
+            Next - Choose Template ({totalRecipients} selected)
           </button>
         </div>
       )}
@@ -884,6 +950,12 @@ function ComposeView({
               <span key={c.id}>
                 {i > 0 && ", "}
                 <span className="font-medium text-[#6AD7A3]">{c.display_name}</span>
+              </span>
+            ))}
+            {freeEmails.map((email, i) => (
+              <span key={email}>
+                {(i > 0 || selectedClients.length > 0) && ", "}
+                <span className="font-medium text-[#B8BFC8]">{email}</span>
               </span>
             ))}
           </div>
