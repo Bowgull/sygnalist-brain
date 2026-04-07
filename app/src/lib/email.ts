@@ -136,9 +136,11 @@ function wrapInTemplate(body: string): string {
             </td>
           </tr>
 
-          <!-- Accent line (solid green, not gradient - reliable across clients) -->
+          <!-- Accent line (inset to avoid overflow past rounded card corners) -->
           <tr>
-            <td style="height:2px;font-size:0;line-height:0;background-color:#6AD7A3;">&nbsp;</td>
+            <td style="padding:0 28px;background-color:#0C1016;">
+              <div style="height:2px;background-color:#6AD7A3;border-radius:1px;"></div>
+            </td>
           </tr>
 
           <!-- Body -->
