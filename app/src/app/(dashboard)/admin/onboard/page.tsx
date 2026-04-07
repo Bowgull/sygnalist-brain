@@ -976,7 +976,7 @@ function buildWelcomeEmail(name: string, appUrl: string): string {
 
 Welcome aboard. I've set up your Sygnalist profile and your inbox is already working - fresh job matches tailored to your skills, goals, and preferences are on the way.
 
-<a href="${appUrl}" style="display:inline-block;margin:16px 0;padding:14px 32px;background:linear-gradient(135deg,#A9FFB5,#5EF2C7,#39D6FF);color:#0C1016;font-weight:700;font-size:16px;text-decoration:none;border-radius:12px;">Open Sygnalist</a>
+<div style="text-align:center;margin:24px 0;"><a href="${appUrl}" style="display:inline-block;padding:14px 32px;background-color:#6AD7A3;color:#0C1016;font-weight:700;font-size:15px;text-decoration:none;border-radius:12px;">Open Sygnalist</a></div>
 
 When you open the app, tap <strong>"Set up your password"</strong> on the sign-in page. You'll get a quick email to verify - click the link, choose your password, and you're in. After that, just sign in with your email and password anytime.
 

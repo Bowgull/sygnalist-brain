@@ -26,10 +26,18 @@ export interface SendEmailResult {
   messageId?: string;
 }
 
+export interface SendEmailOptions {
+  /** Message-ID of the email being replied to (for threading). */
+  inReplyTo?: string;
+  /** Chain of Message-IDs for the conversation thread. */
+  references?: string[];
+}
+
 export async function sendEmail(
   to: string,
   subject: string,
   htmlBody: string,
+  options?: SendEmailOptions,
 ): Promise<SendEmailResult> {
   const transport = getTransporter();
   if (!transport) {
@@ -45,6 +53,8 @@ export async function sendEmail(
       subject,
       messageId,
       html: wrapInTemplate(htmlBody),
+      ...(options?.inReplyTo && { inReplyTo: options.inReplyTo }),
+      ...(options?.references?.length && { references: options.references.join(" ") }),
       attachments: [
         {
           filename: "logo.png",
@@ -61,6 +71,11 @@ export async function sendEmail(
       error: err instanceof Error ? err.message : "Unknown send error",
     };
   }
+}
+
+/** Branded CTA button for use inside email templates. */
+export function emailButton(label: string, href: string): string {
+  return `<div style="text-align:center;margin:24px 0;"><a href="${href}" style="display:inline-block;padding:14px 32px;background-color:#6AD7A3;color:#0C1016;font-weight:700;font-size:15px;text-decoration:none;border-radius:12px;">${label}</a></div>`;
 }
 
 function escapeHtml(text: string): string {

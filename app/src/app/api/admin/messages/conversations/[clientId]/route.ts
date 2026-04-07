@@ -25,7 +25,7 @@ export async function GET(
       .order("sent_at", { ascending: true }),
     service
       .from("received_messages")
-      .select("id, subject, body_text, body_html, received_at, gmail_thread_id, from_name, from_email, is_read")
+      .select("id, subject, body_text, body_html, received_at, gmail_thread_id, gmail_message_id, from_name, from_email, is_read")
       .eq("client_id", clientId)
       .order("received_at", { ascending: true }),
   ]);
@@ -50,6 +50,7 @@ export async function GET(
     body: string;
     timestamp: string;
     gmail_thread_id: string | null;
+    message_id: string | null;
   };
 
   const messages: ThreadMessage[] = [];
@@ -62,6 +63,7 @@ export async function GET(
       body: msg.body,
       timestamp: msg.sent_at,
       gmail_thread_id: msg.gmail_thread_id,
+      message_id: msg.smtp_message_id || null,
     });
   }
 
@@ -73,6 +75,7 @@ export async function GET(
       body: msg.body_text || msg.body_html || "",
       timestamp: msg.received_at,
       gmail_thread_id: msg.gmail_thread_id,
+      message_id: msg.gmail_message_id || null,
     });
   }
 

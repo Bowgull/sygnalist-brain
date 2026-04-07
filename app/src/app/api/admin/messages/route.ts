@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   if (!profile) return error("Profile not found", 404);
 
   const body = await request.json();
-  const { client_id, template_id, subject, body: emailBody, tracker_entry_id } = body;
+  const { client_id, template_id, subject, body: emailBody, tracker_entry_id, in_reply_to } = body;
 
   if (!client_id || !subject || !emailBody) {
     return error(`Missing fields: ${!client_id ? "client_id " : ""}${!subject ? "subject " : ""}${!emailBody ? "body" : ""}`);
@@ -70,8 +70,41 @@ export async function POST(request: Request) {
   const resolvedSubject = resolveMergeFields(subject, mergeFields);
   const resolvedBody = resolveMergeFields(emailBody, mergeFields);
 
+  // Build threading headers for replies
+  let emailOptions: Parameters<typeof sendEmail>[3] | undefined;
+  if (in_reply_to) {
+    // Collect all message IDs for this client to build References chain
+    const [sentMsgs, receivedMsgs] = await Promise.all([
+      service
+        .from("sent_messages")
+        .select("smtp_message_id")
+        .eq("client_id", client_id)
+        .not("smtp_message_id", "is", null)
+        .order("sent_at", { ascending: true }),
+      service
+        .from("received_messages")
+        .select("gmail_message_id")
+        .eq("client_id", client_id)
+        .not("gmail_message_id", "is", null)
+        .order("received_at", { ascending: true }),
+    ]);
+
+    const refs: string[] = [];
+    for (const m of sentMsgs.data ?? []) {
+      if (m.smtp_message_id) refs.push(m.smtp_message_id);
+    }
+    for (const m of receivedMsgs.data ?? []) {
+      if (m.gmail_message_id) refs.push(m.gmail_message_id);
+    }
+
+    emailOptions = {
+      inReplyTo: in_reply_to,
+      references: refs.length > 0 ? refs : undefined,
+    };
+  }
+
   // Send via Gmail SMTP
-  const result = await sendEmail(client.email, resolvedSubject, resolvedBody);
+  const result = await sendEmail(client.email, resolvedSubject, resolvedBody, emailOptions);
 
   if (!result.success) {
     await logError(result.error ?? "Email send failed", {

@@ -1,6 +1,6 @@
 import { json, error } from "@/lib/api-helpers";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, emailButton } from "@/lib/email";
 import { logEvent, logFailure } from "@/lib/logger";
 
 /** POST /api/auth/send-reset-email - Send a branded password reset email. */
@@ -50,9 +50,7 @@ export async function POST(request: Request) {
 
 Someone (hopefully you) asked to reset your password. If that was you, tap the button below. If it wasn't, well, someone out there is thinking about you.
 
-<div style="text-align:center;margin:24px 0;">
-  <a href="${resetUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#A9FFB5,#5EF2C7,#39D6FF);color:#0C1016;font-weight:700;font-size:15px;text-decoration:none;border-radius:12px;">Set New Password</a>
-</div>
+${emailButton("Set New Password", resetUrl)}
 
 This link expires in 1 hour. After that, it self-destructs like it was never here.
 

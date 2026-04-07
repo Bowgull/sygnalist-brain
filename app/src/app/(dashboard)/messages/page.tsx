@@ -187,7 +187,7 @@ export default function ViewAsMessagesPage() {
 
                 {/* Messages */}
                 {isExpanded && (
-                  <div className="border-t border-[#2A3544]/40 px-3 pb-3 pt-2 space-y-2">
+                  <div className="border-t border-[#2A3544]/40 bg-[#111820] rounded-b-2xl px-3 pb-3 pt-2 space-y-2">
                     {msgs.map((msg) => {
                       const isSent = msg.direction === "sent";
                       const displayBody = isSent ? msg.body : stripQuotedText(msg.body);
@@ -197,14 +197,9 @@ export default function ViewAsMessagesPage() {
                           key={msg.id}
                           className={`rounded-xl p-3 ${
                             isSent
-                              ? "bg-[#171F28]/60 border border-[rgba(255,255,255,0.04)]"
-                              : "bg-[#151C24] border-l-[3px]"
+                              ? "bg-[#171F28] border border-[rgba(255,255,255,0.06)]"
+                              : "bg-[#171F28] border-l-[3px] border-l-[#6AD7A3]"
                           }`}
-                          style={
-                            !isSent
-                              ? { borderImage: "linear-gradient(180deg, #A9FFB5, #5EF2C7, #39D6FF) 1" }
-                              : undefined
-                          }
                         >
                           <div className="mb-1.5 flex items-center justify-between">
                             <div className="flex items-center gap-2">
