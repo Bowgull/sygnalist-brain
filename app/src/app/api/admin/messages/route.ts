@@ -66,7 +66,8 @@ export async function POST(request: Request) {
   }
 
   // Resolve merge fields before sending
-  const mergeFields = await buildMergeFields(client_id, service);
+  const origin = new URL(request.url).origin;
+  const mergeFields = await buildMergeFields(client_id, service, { origin });
   const resolvedSubject = resolveMergeFields(subject, mergeFields);
   const resolvedBody = resolveMergeFields(emailBody, mergeFields);
 

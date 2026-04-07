@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export async function buildMergeFields(
   clientId: string,
   service: SupabaseClient,
+  options?: { origin?: string },
 ): Promise<Record<string, string>> {
   const { data: client } = await service
     .from("profiles")
@@ -43,7 +44,7 @@ export async function buildMergeFields(
     ? (client.role_tracks as Array<{ label?: string }>).map((t) => t.label).filter(Boolean)
     : [];
 
-  return {
+  const fields: Record<string, string> = {
     "{clientName}": client.display_name || "there",
     "{clientEmail}": client.email || "",
     "{coachName}": "Josh",
@@ -54,6 +55,28 @@ export async function buildMergeFields(
     "{topSkills}": (client.top_skills ?? []).join(", ") || "your strengths",
     "{assignedLanes}": tracks.join(", ") || "your target roles",
   };
+
+  if (options?.origin) {
+    fields["{portalLink}"] = `<div style="text-align:center;margin:24px 0;"><a href="${options.origin}/inbox" style="display:inline-block;padding:14px 32px;background-color:#6AD7A3;color:#0C1016;font-weight:700;font-size:15px;text-decoration:none;border-radius:12px;">Open Sygnalist</a></div>`;
+
+    // Generate a real password reset link if the client has an email
+    if (client.email) {
+      try {
+        const { data: linkData } = await service.auth.admin.generateLink({
+          type: "recovery",
+          email: client.email,
+        });
+        if (linkData?.properties?.hashed_token) {
+          const resetUrl = `${options.origin}/reset-password?token_hash=${linkData.properties.hashed_token}`;
+          fields["{resetLink}"] = `<div style="text-align:center;margin:24px 0;"><a href="${resetUrl}" style="display:inline-block;padding:14px 32px;background-color:#6AD7A3;color:#0C1016;font-weight:700;font-size:15px;text-decoration:none;border-radius:12px;">Set New Password</a></div>`;
+        }
+      } catch {
+        // Reset link generation failed — leave placeholder unresolved
+      }
+    }
+  }
+
+  return fields;
 }
 
 /**

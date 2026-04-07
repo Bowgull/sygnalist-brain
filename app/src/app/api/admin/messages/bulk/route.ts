@@ -37,6 +37,7 @@ export async function POST(request: Request) {
 
   if (!template) return error("Template not found", 404);
 
+  const origin = new URL(request.url).origin;
   const results: Array<{ client_id: string; success: boolean; error?: string }> = [];
   let sentCount = 0;
   let failedCount = 0;
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
       }
 
       // Resolve merge fields for this client - no AI, template is the message
-      const mergeFields = await buildMergeFields(client_id, service);
+      const mergeFields = await buildMergeFields(client_id, service, { origin });
       const subject = resolveMergeFields(template.subject, mergeFields);
       const emailBody = resolveMergeFields(template.body, mergeFields);
 

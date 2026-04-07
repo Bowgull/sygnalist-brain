@@ -38,4 +38,18 @@ insert into public.message_templates (name, subject, body, ai_prompt_hint, trigg
  E'Hey {clientName},\n\n{companyName} made an offer. Let that sink in.\n\nThis wasn''t luck. You put in the work, you showed up prepared, and you earned this.\n\nBefore you accept — let''s talk through:\n1. Is the comp where it needs to be?\n2. Any red flags from the interview process?\n3. Do you want to negotiate?\n\nReply when you''re ready to talk next steps.\n\nProud of you.\n\nJosh',
  'Write a celebratory message acknowledging the offer. Include 2-3 practical next-step questions about compensation, negotiation, and fit. Coaching tone — celebratory but grounded.',
  'offer_reached',
+ true),
+
+('Send Link',
+ 'Your Sygnalist link, {clientName}',
+ E'Hey {clientName},\n\nHere''s your link to open Sygnalist. Tap the button below to jump in.\n\n{portalLink}\n\nAdd it to your home screen for one-tap access — it works just like a native app.\n\nJosh',
+ 'Keep it very short. Just direct the client to their portal link.',
+ null,
+ true),
+
+('Password Reset',
+ 'Reset your password, {clientName}',
+ E'Hey {clientName},\n\nTap the button below to reset your Sygnalist password.\n\n{resetLink}\n\nThis link expires in 1 hour. If you didn''t request this, just ignore it.\n\nJosh',
+ 'Keep it very short. Direct the client to reset their password.',
+ null,
  true);

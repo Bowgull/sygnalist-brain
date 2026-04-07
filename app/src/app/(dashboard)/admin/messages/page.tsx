@@ -75,6 +75,8 @@ const MERGE_FIELDS = [
   "{daysSinceLastFetch}",
   "{topSkills}",
   "{assignedLanes}",
+  "{portalLink}",
+  "{resetLink}",
 ];
 
 /* ------------------------------------------------------------------ */
