@@ -7,21 +7,13 @@ export async function extractText(file: File): Promise<string> {
   // PDF
   if (file.name.endsWith(".pdf") || file.type === "application/pdf") {
     const extractPdf = async (): Promise<string> => {
-      const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-      pdfjs.GlobalWorkerOptions.workerSrc = require.resolve(
-        "pdfjs-dist/legacy/build/pdf.worker.mjs",
-      );
-      const data = new Uint8Array(await file.arrayBuffer());
-      const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
-      const pages: string[] = [];
-      for (let i = 1; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i);
-        const content = await page.getTextContent();
-        pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
-      }
-      await doc.destroy();
-      const text = pages.join("\n").trim();
-      if (text.length >= 50) return text.slice(0, 15000);
+      const { extractText: extractPdfText, getDocumentProxy } = await import("unpdf");
+      const buffer = new Uint8Array(await file.arrayBuffer());
+      const pdf = await getDocumentProxy(buffer);
+      const { text } = await extractPdfText(pdf, { mergePages: true });
+      await pdf.destroy();
+      const trimmed = text.trim();
+      if (trimmed.length >= 50) return trimmed.slice(0, 15000);
       throw new Error("Could not extract text from PDF. It may be image-based or scanned. Try pasting the text directly.");
     };
     const timeout = new Promise<never>((_, reject) =>
