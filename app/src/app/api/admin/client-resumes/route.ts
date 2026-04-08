@@ -1,6 +1,6 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { extractText } from "@/lib/resume/extract-text";
-import { parseWithAI } from "@/lib/resume/parse";
+import { parseWithAI, validateParsedResult } from "@/lib/resume/parse";
 import { logEvent, logError } from "@/lib/logger";
 
 /**
@@ -93,7 +93,8 @@ export async function POST(request: Request) {
   const startTime = Date.now();
 
   try {
-    const parsed = await parseWithAI(resumeText);
+    const rawParsed = await parseWithAI(resumeText);
+    const parsed = validateParsedResult(rawParsed, resumeText);
 
     // Log to resume_parse_logs
     await service.from("resume_parse_logs").insert({
