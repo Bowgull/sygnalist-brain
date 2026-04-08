@@ -61,12 +61,17 @@ Rules for skills/stories:
 - If something is unclear, omit it (do not guess).
 
 Rules for suggestedRoles:
-- Suggest 3-6 job titles they're qualified for based on their experience.
-- Include a mix of exact matches and adjacent roles they could pivot to (show options aren't limited to current field).
-- Keywords should be search terms that would find these jobs (job title variations, common abbreviations).
-- Examples: 
-  - {"title": "Customer Success Manager", "keywords": ["customer success", "csm", "client success", "customer success manager"]}
-  - {"title": "Implementation Specialist", "keywords": ["implementation", "onboarding", "solutions consultant"]}
+- Suggest 2-4 job titles (not more). These drive job search directly, so precision matters.
+- The FIRST suggestion (most important) should be the role closest to their last 1-2 positions.
+- Additional suggestions can be adjacent roles they could realistically get hired for.
+- Every title MUST include appropriate seniority level (Junior, Associate, Mid-level, Senior, Staff, Lead, Director, VP) based on years of experience: 0-2y = Junior/Associate, 3-5y = Mid-level, 6-9y = Senior, 10-14y = Staff/Lead, 15+ = Director/VP.
+- Titles must be real job titles found on LinkedIn/Indeed, not invented compound titles.
+- Keywords should be search terms that would find these exact jobs: the title itself, common abbreviations, and 2-3 variations employers use.
+- Do NOT suggest career pivots that require skills or experience the resume doesn't demonstrate.
+- Do NOT include "Manager" in the title unless the person has actually managed people or projects.
+- Examples:
+  - {"title": "Senior Customer Success Manager", "keywords": ["senior customer success manager", "senior csm", "customer success lead", "sr customer success"]}
+  - {"title": "Solutions Engineer", "keywords": ["solutions engineer", "se", "pre-sales engineer", "solutions consultant"]}
 
 Rules for structured fields:
 - yearsExperience: infer from dates; use range like "3-5" or "10+".

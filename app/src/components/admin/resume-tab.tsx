@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Upload, FileText, Download, Check, X, Loader2 } from "lucide-react";
+import FileDropzone from "@/components/ui/file-dropzone";
 import type { Database, Json } from "@/types/database";
 import type { ParsedResume } from "@/types/resume";
 
@@ -69,7 +70,7 @@ export default function ResumeTab({
   const [toast, setToast] = useState<string | null>(null);
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
   const [approving, setApproving] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     loadResumes();
@@ -100,9 +101,8 @@ export default function ResumeTab({
     formData.append("profile_id", profile.id);
 
     if (mode === "file") {
-      const file = fileRef.current?.files?.[0];
-      if (!file) { setUploading(false); return showToast("Select a file"); }
-      formData.append("file", file);
+      if (!selectedFile) { setUploading(false); return showToast("Select a file"); }
+      formData.append("file", selectedFile);
     } else {
       if (pasteText.trim().length < 50) { setUploading(false); return showToast("Text too short (min 50 chars)"); }
       formData.append("text", pasteText);
@@ -111,7 +111,7 @@ export default function ResumeTab({
     const res = await fetch("/api/admin/client-resumes", { method: "POST", body: formData });
     if (res.ok) {
       showToast("Resume parsed successfully");
-      if (fileRef.current) fileRef.current.value = "";
+      setSelectedFile(null);
       setPasteText("");
       await loadResumes();
     } else {
@@ -200,16 +200,19 @@ export default function ResumeTab({
         </div>
 
         {mode === "file" ? (
-          <div className="rounded-xl border border-dashed border-[#2A3544] bg-[#0C1016] p-4 text-center">
+          <FileDropzone
+            accept={[".pdf", ".docx", ".doc", ".txt", ".md"]}
+            onFile={(file) => setSelectedFile(file)}
+            disabled={uploading}
+          >
             <Upload size={20} strokeWidth={2} className="mx-auto mb-2 text-[#6B7280]" />
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".docx,.doc,.txt,.md"
-              className="text-[12px] text-[#9CA3AF] file:mr-3 file:rounded-full file:border-0 file:bg-[#2A3544] file:px-3 file:py-1.5 file:text-[11px] file:font-medium file:text-white"
-            />
-            <p className="mt-1 text-[11px] text-[#6B7280]">.docx, .txt, or .md (max 5MB)</p>
-          </div>
+            {selectedFile ? (
+              <p className="text-[12px] font-medium text-white">{selectedFile.name}</p>
+            ) : (
+              <p className="text-[12px] text-[#9CA3AF]">Drop a file here or click to browse</p>
+            )}
+            <p className="mt-1 text-[11px] text-[#6B7280]">.pdf, .docx, .txt, or .md (max 5MB)</p>
+          </FileDropzone>
         ) : (
           <textarea
             value={pasteText}

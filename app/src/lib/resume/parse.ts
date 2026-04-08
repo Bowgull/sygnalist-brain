@@ -12,14 +12,9 @@ Return a JSON object with these fields:
   "skill_keywords_plus": ["10-15 specific technical skills, tools, frameworks mentioned"],
   "role_tracks": [
     {
-      "label": "Primary role title they're targeting (e.g. 'Product Manager')",
-      "roleKeywords": ["related job title variations they'd match"],
+      "label": "Exact job title as it would appear on a job board, including seniority (e.g. 'Senior Product Manager')",
+      "roleKeywords": ["3-6 title variations and abbreviations that job boards use for this role"],
       "priorityWeight": 1.0
-    },
-    {
-      "label": "Secondary role if applicable",
-      "roleKeywords": ["variations"],
-      "priorityWeight": 0.7
     }
   ],
   "preferred_locations": ["Cities/regions mentioned or implied"],
@@ -35,7 +30,14 @@ Return a JSON object with these fields:
 
 Rules:
 - Extract what's actually in the resume, don't fabricate
-- For role_tracks, infer from job titles and experience what roles they'd target
+- For role_tracks, generate 2-4 tracks (not more). These directly drive job search, so quality matters more than quantity:
+  * The FIRST track (priorityWeight: 1.0) must be their strongest fit - the role title closest to their most recent 1-2 positions
+  * Additional tracks (priorityWeight: 0.6-0.8) should be adjacent roles they could realistically land given their experience
+  * Every label MUST include seniority level (Junior, Associate, Mid-level, Senior, Staff, Lead, Director, VP) calibrated to experience years: 0-2y = Junior/Associate, 3-5y = Mid-level, 6-9y = Senior, 10-14y = Staff/Lead, 15+ = Director/VP
+  * Labels must be real job titles that appear on LinkedIn/Indeed - not invented compound titles
+  * roleKeywords must include: the exact label lowercased, common abbreviations (e.g. SWE, PM, CSM), and 2-3 title variations employers actually use
+  * Do NOT suggest wildly different career pivots without supporting experience
+  * Do NOT include "Manager" in the title unless the person has actually managed people or projects
 - If location preferences aren't clear, set all accept_* to true
 - For salary_estimate, give a market-rate range based on role + experience
 - Keep arrays concise - quality over quantity
@@ -57,7 +59,7 @@ export async function parseWithAI(resumeText: string): Promise<ParsedResume> {
         { role: "user", content: `Parse this resume:\n\n${resumeText}` },
       ],
       temperature: 0.3,
-      max_tokens: 1500,
+      max_tokens: 2000,
       response_format: { type: "json_object" },
     }),
     signal: AbortSignal.timeout(30000),

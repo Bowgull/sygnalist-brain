@@ -53,10 +53,10 @@ export async function POST(request: Request) {
   if (file && file.size > 0) {
     if (file.size > 5 * 1024 * 1024) return error("File too large (max 5MB)");
 
-    const accepted = [".docx", ".doc", ".txt", ".md"];
+    const accepted = [".pdf", ".docx", ".doc", ".txt", ".md"];
     const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-    if (!accepted.includes(ext) && !file.type.startsWith("text/") && !file.type.includes("wordprocessingml")) {
-      return error(`Unsupported file type. Accepted: Word (.docx) or plain text (.txt). Got: ${ext}`);
+    if (!accepted.includes(ext) && !file.type.startsWith("text/") && !file.type.includes("wordprocessingml") && file.type !== "application/pdf") {
+      return error(`Unsupported file type. Accepted: PDF, Word (.docx), or plain text (.txt). Got: ${ext}`);
     }
 
     resumeText = await extractText(file);
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     fileName = "pasted-text";
     fileSize = resumeText.length;
   } else {
-    return error("Upload a file (.docx, .txt, .md) or paste resume text (min 50 chars)");
+    return error("Upload a file (.pdf, .docx, .txt, .md) or paste resume text (min 50 chars)");
   }
 
   if (!resumeText || resumeText.length < 50) {

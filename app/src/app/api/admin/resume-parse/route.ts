@@ -35,17 +35,17 @@ export async function POST(request: Request) {
     } else if (file) {
       if (file.size > 5 * 1024 * 1024) return error("File too large (max 5MB)");
 
-      const accepted = [".docx", ".doc", ".txt", ".md"];
+      const accepted = [".pdf", ".docx", ".doc", ".txt", ".md"];
       const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-      if (!accepted.includes(ext) && !file.type.startsWith("text/") && !file.type.includes("wordprocessingml")) {
-        return error(`Unsupported file type. Accepted: Word (.docx) or plain text (.txt). Got: ${ext}`);
+      if (!accepted.includes(ext) && !file.type.startsWith("text/") && !file.type.includes("wordprocessingml") && file.type !== "application/pdf") {
+        return error(`Unsupported file type. Accepted: PDF, Word (.docx), or plain text (.txt). Got: ${ext}`);
       }
 
       resumeText = await extractText(file);
       fileName = file.name;
       fileSize = file.size;
     } else {
-      return error("Upload a Word document (.docx) or paste resume text");
+      return error("Upload a PDF, Word document (.docx), or paste resume text");
     }
   } else {
     // JSON body with { text: "..." }

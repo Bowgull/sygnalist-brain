@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import FileDropzone from "@/components/ui/file-dropzone";
 
 interface ParsedResume {
   display_name: string;
@@ -31,7 +32,6 @@ export default function OnboardPage() {
   const [email, setEmail] = useState("");
 
   // Step 2: Resume
-  const fileRef = useRef<HTMLInputElement>(null);
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState("");
   const [parsed, setParsed] = useState<ParsedResume | null>(null);
@@ -406,7 +406,7 @@ export default function OnboardPage() {
                     : "bg-[#151C24] text-[#9CA3AF] ring-1 ring-[#2A3544]"
                 }`}
               >
-                Upload Word Doc
+                Upload File
               </button>
               <button
                 type="button"
@@ -421,17 +421,6 @@ export default function OnboardPage() {
               </button>
             </div>
 
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".docx,.doc,.txt"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFileUpload(f);
-              }}
-            />
-
             {parsing ? (
               <div className="flex flex-col items-center gap-3 py-12">
                 <div className="h-10 w-10 animate-spin rounded-full border-3 border-[#6AD7A3] border-t-transparent" />
@@ -439,20 +428,23 @@ export default function OnboardPage() {
                 <p className="text-[11px] text-[#6B7280]">Extracting skills, roles, and preferences</p>
               </div>
             ) : resumeMode === "upload" ? (
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed border-[#2A3544] bg-[#0C1016]/50 py-12 transition hover:border-[#6AD7A3]/40 hover:bg-[#6AD7A3]/5"
+              <FileDropzone
+                accept={[".pdf", ".docx", ".doc", ".txt"]}
+                onFile={(file) => handleFileUpload(file)}
+                disabled={parsing}
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#6AD7A3]/10">
-                  <svg viewBox="0 0 24 24" className="h-7 w-7 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                  </svg>
+                <div className="flex flex-col items-center gap-3 py-6">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#6AD7A3]/10">
+                    <svg viewBox="0 0 24 24" className="h-7 w-7 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                    </svg>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-white">Drop resume here or tap to upload</p>
+                    <p className="mt-0.5 text-[11px] text-[#6B7280]">PDF, Word (.docx), or plain text (.txt) - Max 5MB</p>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-white">Tap to upload resume</p>
-                  <p className="mt-0.5 text-[11px] text-[#6B7280]">Word (.docx) or plain text (.txt) - Max 5MB</p>
-                </div>
-              </button>
+              </FileDropzone>
             ) : (
               <div className="space-y-3">
                 <textarea
