@@ -6,12 +6,17 @@ export async function extractText(file: File): Promise<string> {
 
   // PDF
   if (file.name.endsWith(".pdf") || file.type === "application/pdf") {
-    const { PDFParse } = await import("pdf-parse");
+    const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const data = new Uint8Array(await file.arrayBuffer());
-    const parser = new PDFParse({ data });
-    const result = await parser.getText();
-    await parser.destroy();
-    const text = result.text?.trim() ?? "";
+    const doc = await getDocument({ data, useSystemFonts: true }).promise;
+    const pages: string[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      pages.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+    }
+    await doc.destroy();
+    const text = pages.join("\n").trim();
     if (text.length >= 50) return text.slice(0, 15000);
     throw new Error("Could not extract text from PDF. It may be image-based or scanned. Try pasting the text directly.");
   }
