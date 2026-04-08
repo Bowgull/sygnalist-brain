@@ -8,7 +8,6 @@ const tabs = [
   { label: "Clients", href: "/admin/clients" },
   { label: "Messages", href: "/admin/messages" },
   { label: "Ingest", href: "/admin/ingest" },
-  { label: "Review", href: "/admin/review" },
   { label: "Job Bank", href: "/admin/job-bank" },
   { label: "Lanes", href: "/admin/lanes" },
   { label: "Logs", href: "/admin/logs" },
