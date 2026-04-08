@@ -121,10 +121,12 @@ export async function POST() {
     }
 
     // --- Step 4: Load existing URLs for dedup ---
+    // Exclude rejected jobs so they can be re-ingested after reset
     const { data: existingInbox } = await service
       .from("jobs_inbox")
       .select("url")
-      .not("url", "is", null);
+      .not("url", "is", null)
+      .neq("review_status", "rejected");
     const { data: existingBank } = await service
       .from("global_job_bank")
       .select("url")
@@ -389,6 +391,8 @@ function isGarbageTitle(title: string): boolean {
   // Mostly non-alphabetic (real job titles are mostly letters/spaces)
   const alphaLen = title.replace(/[^a-zA-Z\s]/g, "").length;
   if (title.length > 10 && alphaLen / title.length < 0.4) return true;
+  // Too short to be a real job title (single word under 8 chars like "Apply", "Jobs")
+  if (title.length < 8 && !/\s/.test(title)) return true;
 
   return false;
 }
@@ -398,10 +402,10 @@ function isNoiseUrl(url: string): boolean {
   return NOISE_URL_PATTERN.test(url);
 }
 
-const NOISE_URL_PATTERN = /\/(unsubscribe|privacy|settings|preferences|manage|optout|opt-out|terms|help|faq|about|contact|pixel|track|open|beacon|impression)\b/i;
+const NOISE_URL_PATTERN = /\/(unsubscribe|privacy|settings|preferences|manage|optout|opt-out|terms|help|faq|about|contact|pixel|track|open|beacon|impression|click|redirect|email-preferences|notifications|account|login|signin|signup|register|profile|download|app-download|share|social|referral|invite|upgrade|premium|subscription|billing|payment|receipt|confirm|verify|password|reset|deactivate|feedback|survey|rate|review|nps)\b/i;
 
 /** Shared blocklist for anchor text that is clearly not a job title */
-const NOISE_TITLE_PATTERN = /^(unsubscribe|privacy|view in browser|click here|learn more|view online|manage preferences|update preferences|see all jobs|view all|apply now|more jobs|terms of use|terms of service|contact us|help center)$/i;
+const NOISE_TITLE_PATTERN = /^(unsubscribe|privacy|view in browser|click here|learn more|view online|manage preferences|update preferences|see all jobs|view all|apply now|apply here|apply today|apply|more jobs|terms of use|terms of service|contact us|help center|view job|view jobs|view details|view listing|see details|see job|see more|see this job|job details|get started|sign up|sign in|log in|register|download app|download|get the app|open app|open in app|view in app|go to site|visit site|visit website|read more|find out more|explore|browse jobs|browse|search jobs|search|create alert|create job alert|job alert|set alert|save search|save job|saved jobs|similar jobs|recommended jobs|top picks|your matches|new for you|daily digest|weekly digest|job picks|hot jobs|trending|featured|sponsored|promoted|advertisement|ad|free trial|upgrade|premium|pro|subscribe|buy now|shop now|order now|claim|redeem|confirm|verify|update now|update|action required|important|reminder|notification|alert|warning|resume|profile|account|settings|edit profile|complete profile|update resume|update profile)$/i;
 
 /** Strip inner HTML tags from anchor text */
 function stripTags(html: string): string {

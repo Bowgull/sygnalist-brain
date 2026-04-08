@@ -301,17 +301,8 @@ export default function AdminIngestPage() {
 
       {/* ═══ INGESTED JOBS BANK ═══ */}
       <div>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3">
           <h2 className="text-[15px] font-semibold">Ingested Jobs</h2>
-          {counts.rejected > 0 && (
-            <button
-              onClick={handleResetRejected}
-              disabled={resetting}
-              className="rounded-full border border-[#FAD76A]/30 px-3 py-1 text-[11px] font-medium text-[#FAD76A] transition hover:bg-[#FAD76A]/10 disabled:opacity-40"
-            >
-              {resetting ? "Resetting..." : `Reset ${counts.rejected} rejected`}
-            </button>
-          )}
         </div>
 
         {/* Stage Filter Pills */}
@@ -415,6 +406,22 @@ export default function AdminIngestPage() {
                 ? "Run Gmail ingest to populate the queue"
                 : "Move jobs from Needs Review after editing"}
             </p>
+            {currentStage.key === "pending" && counts.rejected > 0 && (
+              <button
+                onClick={handleResetRejected}
+                disabled={resetting}
+                className="mt-4 w-full rounded-xl bg-[#FAD76A]/10 px-4 py-3 text-[13px] font-medium text-[#FAD76A] transition hover:bg-[#FAD76A]/20 disabled:opacity-40"
+              >
+                {resetting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#FAD76A] border-t-transparent" />
+                    Resetting...
+                  </span>
+                ) : (
+                  `Reset ${counts.rejected} rejected jobs back to review`
+                )}
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
