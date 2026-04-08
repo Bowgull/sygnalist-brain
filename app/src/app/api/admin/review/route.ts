@@ -25,6 +25,12 @@ export async function GET() {
     return error("Failed to load review queue", 500);
   }
 
+  // Count rejected jobs (for reset button)
+  const { count: rejectedCount } = await service
+    .from("jobs_inbox")
+    .select("*", { count: "exact", head: true })
+    .eq("review_status", "rejected");
+
   // Get available lane keys
   const { data: lanes } = await service
     .from("lane_role_bank")
@@ -40,7 +46,7 @@ export async function GET() {
   return json({
     jobs: jobs ?? [],
     lanes: uniqueLanes,
-    counts: { pending, ready },
+    counts: { pending, ready, rejected: rejectedCount ?? 0 },
   });
 }
 
@@ -117,12 +123,36 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const { action, job_ids } = body as {
-    action: "move_to_ready" | "reject" | "approve" | "back_to_review";
-    job_ids: string[];
+    action: "move_to_ready" | "reject" | "approve" | "back_to_review" | "reset_rejected";
+    job_ids?: string[];
   };
 
-  if (!action || !Array.isArray(job_ids) || job_ids.length === 0) {
-    return error("Missing action or job_ids", 400);
+  if (!action) {
+    return error("Missing action", 400);
+  }
+
+  // --- RESET REJECTED (no job_ids needed) ---
+  if (action === "reset_rejected") {
+    const { data, error: updateErr } = await service
+      .from("jobs_inbox")
+      .update({ review_status: "pending", reviewed_at: null, reviewed_by: null })
+      .eq("review_status", "rejected")
+      .select("id");
+
+    if (updateErr) return error("Failed to reset rejected jobs", 500);
+
+    const count = data?.length ?? 0;
+    await logEvent("admin.review_reset_rejected", {
+      userId: profile.id,
+      success: true,
+      metadata: { count },
+    });
+
+    return json({ action, count });
+  }
+
+  if (!Array.isArray(job_ids) || job_ids.length === 0) {
+    return error("Missing job_ids", 400);
   }
 
   const service = getServiceClient();
