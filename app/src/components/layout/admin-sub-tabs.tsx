@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { label: "Clients", href: "/admin/clients" },
-  { label: "Logs", href: "/admin/logs" },
-  { label: "Ingest", href: "/admin/ingest" },
-  { label: "Messages", href: "/admin/messages" },
   { label: "Ops", href: "/admin" },
+  { label: "Clients", href: "/admin/clients" },
+  { label: "Messages", href: "/admin/messages" },
+  { label: "Ingest", href: "/admin/ingest" },
+  { label: "Review", href: "/admin/review" },
   { label: "Job Bank", href: "/admin/job-bank" },
   { label: "Lanes", href: "/admin/lanes" },
+  { label: "Logs", href: "/admin/logs" },
 ];
 
 export default function AdminSubTabs() {
