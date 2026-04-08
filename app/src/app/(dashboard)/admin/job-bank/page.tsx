@@ -5,6 +5,7 @@ import {
   Plus, Pencil, Trash2, ExternalLink, Search, Check, X,
   ChevronLeft, ChevronRight, ArrowUpDown, Sparkles, RotateCcw, Archive,
 } from "lucide-react";
+import { BoardPill } from "@/components/ui/board-pill";
 
 interface JobBankEntry {
   id: string;
@@ -767,11 +768,7 @@ function JobBankCard({
                 {job.work_mode}
               </span>
             )}
-            {job.source && (
-              <span className="rounded-full bg-[#151C24] px-2 py-0.5 text-[11px] text-[#6B7280] ring-1 ring-[#2A3544]">
-                {job.source}
-              </span>
-            )}
+            <BoardPill url={job.url} source={job.source} />
             {job.job_family && (
               <span className="rounded-full bg-[#6AD7A3]/10 px-2 py-0.5 text-[11px] text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20">
                 {job.job_family}

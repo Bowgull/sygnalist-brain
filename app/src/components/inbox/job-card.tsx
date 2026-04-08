@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ExternalLink, Plus, Check, X } from "lucide-react";
 import TierBadge from "@/components/ui/tier-badge";
+import { BoardPill } from "@/components/ui/board-pill";
 import type { Database } from "@/types/database";
 
 type InboxJob = Database["public"]["Tables"]["inbox_jobs"]["Row"];
@@ -89,11 +90,7 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
                 {job.lane_label}
               </span>
             )}
-            {job.source && (
-              <span className="inline-flex h-[26px] items-center rounded-full border border-[#2A3544] bg-[#151C24] px-3 text-[0.6875rem] text-[#9CA3AF]">
-                {job.source}
-              </span>
-            )}
+            <BoardPill url={job.url} source={job.source} />
           </div>
         </button>
 

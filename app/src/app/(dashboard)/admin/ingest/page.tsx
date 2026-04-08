@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { BoardPill } from "@/components/ui/board-pill";
 
 /* ── Interfaces ───────────────────────────────────────── */
 
@@ -560,7 +561,7 @@ function ReviewCard({
           <div className="truncate text-[13px] font-medium text-white">{job.title || "Untitled — tap to edit"}</div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="text-[11px] text-[#6B7280]">{job.company || "Unknown"}</span>
-            {job.source && <span className={`text-[9px] font-medium ${sourceBadge[job.source] ?? "text-[#6B7280]"}`}>{sourceLabel(job.source)}</span>}
+            <BoardPill url={job.url} source={job.source} />
             <span className="text-[9px] text-[#4B5563]">{timeAgo(job.created_at)}</span>
           </div>
           {job.url && <div className="mt-0.5 truncate text-[10px] text-[#4B5563]">{urlDomain(job.url)}</div>}
@@ -593,7 +594,7 @@ function ReviewCard({
           {job.title || <span className="text-[#4B5563] italic">Untitled</span>}
         </div>
         <div className="truncate text-[12px] text-[#9CA3AF]">{job.company || "Unknown"}</div>
-        <span className={`text-[10px] font-medium ${sourceBadge[job.source ?? ""] ?? "text-[#6B7280]"}`}>{sourceLabel(job.source)}</span>
+        <BoardPill url={job.url} source={job.source} />
         <div className="truncate text-[11px] text-[#6B7280]">{job.location || "—"}</div>
         <div className="truncate text-[10px] text-[#4B5563]">{urlDomain(job.url)}</div>
 

@@ -5,6 +5,7 @@ import {
   Pencil, Check, Trash2, X, ExternalLink, Send, Clock, ChevronDown,
 } from "lucide-react";
 import StatusPill from "@/components/ui/status-pill";
+import { BoardPill } from "@/components/ui/board-pill";
 import type { Database } from "@/types/database";
 
 type TrackerEntry = Database["public"]["Tables"]["tracker_entries"]["Row"];
@@ -405,10 +406,8 @@ export default function TrackerCard({ entry, onUpdate, onDelete, locked }: Track
                 {entry.lane_label}
               </span>
             )}
-            {entry.source && entry.source !== "manual" && (
-              <span className="inline-flex h-[24px] items-center rounded-full border border-[#9CA3AF]/15 bg-[#9CA3AF]/5 px-2.5 text-[0.6875rem] text-[#9CA3AF]/70">
-                {entry.source}
-              </span>
+            {entry.source !== "manual" && (
+              <BoardPill url={entry.url} source={entry.source} />
             )}
           </div>
         </div>
