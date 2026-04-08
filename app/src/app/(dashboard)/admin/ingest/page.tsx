@@ -541,10 +541,11 @@ function ReviewCard({
 
   const sourceBadge: Record<string, string> = {
     ziprecruiter_email: "text-[#818CF8]", linkedin_email: "text-[#38BDF8]",
-    indeed_email: "text-[#60A5FA]", glassdoor_email: "text-[#6AD7A3]",
-    wellfound_email: "text-[#F97316]", email_generic: "text-[#9CA3AF]",
+    linkedin_post: "text-[#A78BFA]", indeed_email: "text-[#60A5FA]",
+    glassdoor_email: "text-[#6AD7A3]", wellfound_email: "text-[#F97316]",
+    email_generic: "text-[#9CA3AF]",
   };
-  const sourceLabel = (s: string | null) => s?.replace(/_email$/, "") ?? "";
+  const sourceLabel = (s: string | null) => s === "linkedin_post" ? "li post" : (s?.replace(/_email$/, "") ?? "");
 
   const inputClass = "w-full rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-2 text-[12px] text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3]";
 
@@ -562,6 +563,7 @@ function ReviewCard({
             {job.source && <span className={`text-[9px] font-medium ${sourceBadge[job.source] ?? "text-[#6B7280]"}`}>{sourceLabel(job.source)}</span>}
             <span className="text-[9px] text-[#4B5563]">{timeAgo(job.created_at)}</span>
           </div>
+          {job.url && <div className="mt-0.5 truncate text-[10px] text-[#4B5563]">{urlDomain(job.url)}</div>}
         </div>
 
         <div className="flex shrink-0 items-center gap-1">

@@ -484,22 +484,27 @@ function parseLinkedIn(html: string): ParsedJob[] {
     const contextAfter = html.slice(match.index + match[0].length, match.index + match[0].length + 1000);
     const company = extractCompanyFromContext(contextAfter);
 
+    const isPost = /\/posts\/|\/feed\/update\//i.test(url);
     jobs.push({
       title,
       company: company || "Unknown",
       url: cleanUrl(url),
       location: extractLocationFromContext(contextAfter),
       work_mode: detectWorkMode(contextAfter),
-      source: "linkedin_email",
+      source: isPost ? "linkedin_post" : "linkedin_email",
     });
   }
   return jobs;
 }
 
-/** Check if a LinkedIn URL points to an individual job posting */
+/** Check if a LinkedIn URL is a job posting or a social post about hiring */
 function isLinkedInJobUrl(url: string): boolean {
+  // Individual job postings
   if (/\/jobs\/view\/\d+/i.test(url)) return true;
   if (/\/comm\/jobs\/view\/\d+/i.test(url)) return true;
+  // Social posts (people sharing job opportunities)
+  if (/\/posts\//i.test(url)) return true;
+  if (/\/feed\/update\//i.test(url)) return true;
   return false;
 }
 
