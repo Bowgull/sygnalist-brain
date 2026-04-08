@@ -6,9 +6,13 @@ export async function extractText(file: File): Promise<string> {
 
   // PDF
   if (file.name.endsWith(".pdf") || file.type === "application/pdf") {
-    const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/legacy/build/pdf.worker.mjs",
+      import.meta.url,
+    ).href;
     const data = new Uint8Array(await file.arrayBuffer());
-    const doc = await getDocument({ data, useSystemFonts: true }).promise;
+    const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
     const pages: string[] = [];
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
