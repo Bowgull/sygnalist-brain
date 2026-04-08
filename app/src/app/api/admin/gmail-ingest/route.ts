@@ -193,6 +193,8 @@ export async function POST() {
         parsed = parseIndeed(body);
       } else if (from.includes("glassdoor")) {
         parsed = parseGlassdoor(body);
+      } else if (from.includes("wellfound") || from.includes("angellist") || from.includes("angel.co")) {
+        parsed = parseWellfound(body);
       } else {
         parsed = parseGeneric(body);
       }
@@ -393,6 +395,8 @@ function isGarbageTitle(title: string): boolean {
   if (title.length > 10 && alphaLen / title.length < 0.4) return true;
   // Too short to be a real job title (single word under 8 chars like "Apply", "Jobs")
   if (title.length < 8 && !/\s/.test(title)) return true;
+  // Section headers like "Remote jobs", "Business Operations jobs", "Hybrid jobs"
+  if (/^[\w\s]{1,40}\bjobs?\s*$/i.test(title) && title.split(/\s+/).length <= 5) return true;
 
   return false;
 }
@@ -405,7 +409,7 @@ function isNoiseUrl(url: string): boolean {
 const NOISE_URL_PATTERN = /\/(unsubscribe|privacy|settings|preferences|manage|optout|opt-out|terms|help|faq|about|contact|pixel|track|open|beacon|impression|click|redirect|email-preferences|notifications|account|login|signin|signup|register|profile|download|app-download|share|social|referral|invite|upgrade|premium|subscription|billing|payment|receipt|confirm|verify|password|reset|deactivate|feedback|survey|rate|review|nps)\b/i;
 
 /** Shared blocklist for anchor text that is clearly not a job title */
-const NOISE_TITLE_PATTERN = /^(unsubscribe|privacy|view in browser|click here|learn more|view online|manage preferences|update preferences|see all jobs|view all|apply now|apply here|apply today|apply|more jobs|terms of use|terms of service|contact us|help center|view job|view jobs|view details|view listing|see details|see job|see more|see this job|job details|get started|sign up|sign in|log in|register|download app|download|get the app|open app|open in app|view in app|go to site|visit site|visit website|read more|find out more|explore|browse jobs|browse|search jobs|search|create alert|create job alert|job alert|set alert|save search|save job|saved jobs|similar jobs|recommended jobs|top picks|your matches|new for you|daily digest|weekly digest|job picks|hot jobs|trending|featured|sponsored|promoted|advertisement|ad|free trial|upgrade|premium|pro|subscribe|buy now|shop now|order now|claim|redeem|confirm|verify|update now|update|action required|important|reminder|notification|alert|warning|resume|profile|account|settings|edit profile|complete profile|update resume|update profile)$/i;
+const NOISE_TITLE_PATTERN = /^(unsubscribe|privacy|view in browser|click here|learn more|view online|manage preferences|update preferences|see all jobs|view all|view all jobs|apply now|apply here|apply today|apply|more jobs|terms of use|terms of service|contact us|help center|view job|view jobs|view details|view listing|see details|see job|see more|see this job|job details|get started|sign up|sign in|log in|register|download app|download|get the app|get the new linkedin.*|open app|open in app|view in app|go to site|visit site|visit website|read more|find out more|explore|browse jobs|browse|search jobs|search|create alert|create job alert|job alert|set alert|save search|save job|saved jobs|similar jobs|recommended jobs|top picks|your matches|new for you|daily digest|weekly digest|job picks|hot jobs|trending|featured|sponsored|promoted|advertisement|ad|free trial|upgrade|premium|pro|subscribe|buy now|shop now|order now|claim|redeem|confirm|verify|update now|update|action required|important|reminder|notification|alert|warning|resume|profile|account|settings|edit profile|complete profile|update resume|update profile|expand your search|recommendations based on.*|people also viewed|you might like|jobs you might like|top picks for you|follow|manage)$/i;
 
 /** Strip inner HTML tags from anchor text */
 function stripTags(html: string): string {
@@ -460,15 +464,16 @@ function parseZipRecruiter(html: string): ParsedJob[] {
   return jobs;
 }
 
-/** LinkedIn digest parser */
+/** LinkedIn digest parser — only match actual job posting URLs */
 function parseLinkedIn(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
-  // Match links containing linkedin.com — we already know the sender
-  const linkRegex = /<a[^>]+href="([^"]*linkedin\.com[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  const linkRegex = /<a[^>]+href="(https?:\/\/[^"]*linkedin\.com[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
 
   while ((match = linkRegex.exec(html)) !== null) {
     const url = match[1];
+    // Only keep individual job posting URLs
+    if (!isLinkedInJobUrl(url)) continue;
     if (isNoiseUrl(url)) continue;
 
     const title = stripTags(match[2]).trim();
@@ -489,6 +494,13 @@ function parseLinkedIn(html: string): ParsedJob[] {
     });
   }
   return jobs;
+}
+
+/** Check if a LinkedIn URL points to an individual job posting */
+function isLinkedInJobUrl(url: string): boolean {
+  if (/\/jobs\/view\/\d+/i.test(url)) return true;
+  if (/\/comm\/jobs\/view\/\d+/i.test(url)) return true;
+  return false;
 }
 
 /** Indeed alert parser */
@@ -552,7 +564,36 @@ function parseGlassdoor(html: string): ParsedJob[] {
   return jobs;
 }
 
-/** Generic URL extractor for unknown newsletter formats */
+/** Wellfound / AngelList parser */
+function parseWellfound(html: string): ParsedJob[] {
+  const jobs: ParsedJob[] = [];
+  const linkRegex = /<a[^>]+href="(https?:\/\/[^"]*(?:wellfound\.com|angel\.co)[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+
+  while ((match = linkRegex.exec(html)) !== null) {
+    const url = match[1];
+    if (isNoiseUrl(url)) continue;
+
+    const title = stripTags(match[2]).trim();
+    if (!title || title.length < 3 || title.length > 200) continue;
+    if (NOISE_TITLE_PATTERN.test(title)) continue;
+    if (isGarbageTitle(title)) continue;
+
+    const contextAfter = html.slice(match.index + match[0].length, match.index + match[0].length + 1000);
+
+    jobs.push({
+      title,
+      company: extractCompanyFromContext(contextAfter) || "Unknown",
+      url: cleanUrl(url),
+      location: extractLocationFromContext(contextAfter),
+      work_mode: detectWorkMode(contextAfter),
+      source: "wellfound_email",
+    });
+  }
+  return jobs;
+}
+
+/** Generic URL extractor for unknown newsletter formats and forwarded emails */
 function parseGeneric(html: string): ParsedJob[] {
   const jobs: ParsedJob[] = [];
   const linkRegex = /<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
@@ -562,8 +603,9 @@ function parseGeneric(html: string): ParsedJob[] {
     const url = match[1];
     if (isNoiseUrl(url)) continue;
 
+    // Accept URLs from known job domains OR with job-like URL paths
     const matchedDomain = JOB_DOMAINS.find((d) => url.includes(d));
-    if (!matchedDomain) continue;
+    if (!matchedDomain && !isJobLikeUrl(url)) continue;
 
     const title = stripTags(match[2]).trim();
     if (!title || title.length < 5 || title.length > 200) continue;
@@ -571,7 +613,7 @@ function parseGeneric(html: string): ParsedJob[] {
     if (isGarbageTitle(title)) continue;
 
     // Try to extract company from the URL hostname for ATS platforms
-    const company = extractCompanyFromAtsUrl(url, matchedDomain) || "Unknown";
+    const company = (matchedDomain ? extractCompanyFromAtsUrl(url, matchedDomain) : null) || "Unknown";
 
     jobs.push({
       title,
@@ -600,8 +642,28 @@ const JOB_DOMAINS = [
   "bamboohr.com",
   "jazz.co",
   "applytojob.com",
+  "wellfound.com",
+  "angel.co",
+  "otta.com",
+  "builtin.com",
+  "dice.com",
+  "remoteok.com",
+  "weworkremotely.com",
+  "hired.com",
+  "linkedin.com/jobs/view",
   "jobs.",
 ];
+
+/** Check if a URL path suggests a job/careers page (for forwarded emails) */
+function isJobLikeUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.toLowerCase();
+    return /\/(jobs?|careers?|positions?|openings?|opportunities|vacancies|hiring|roles?)(\/|$)/i.test(path);
+  } catch {
+    return false;
+  }
+}
 
 // ============================================================================
 // Context extraction helpers

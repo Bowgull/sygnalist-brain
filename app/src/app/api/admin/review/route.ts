@@ -4,7 +4,7 @@ import { enrichBankJob } from "@/lib/enrichment/enrich-bank";
 
 /**
  * GET /api/admin/review - Fetch the review queue.
- * Returns jobs grouped by review_status (pending + ready) and available lanes.
+ * Returns pending jobs and available lanes.
  */
 export async function GET() {
   const { profile, response } = await requireAdmin();
@@ -13,11 +13,11 @@ export async function GET() {
 
   const service = getServiceClient();
 
-  // Get all active review jobs (pending + ready)
+  // Get pending review jobs
   const { data: jobs, error: jobsErr } = await service
     .from("jobs_inbox")
     .select("*")
-    .in("review_status", ["pending", "ready"])
+    .eq("review_status", "pending")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -39,14 +39,10 @@ export async function GET() {
 
   const uniqueLanes = [...new Set((lanes ?? []).map((l: { lane_key: string }) => l.lane_key))].sort();
 
-  // Get counts
-  const pending = (jobs ?? []).filter((j) => j.review_status === "pending").length;
-  const ready = (jobs ?? []).filter((j) => j.review_status === "ready").length;
-
   return json({
     jobs: jobs ?? [],
     lanes: uniqueLanes,
-    counts: { pending, ready, rejected: rejectedCount ?? 0 },
+    counts: { pending: (jobs ?? []).length, rejected: rejectedCount ?? 0 },
   });
 }
 
@@ -113,8 +109,8 @@ export async function PATCH(request: Request) {
 }
 
 /**
- * POST /api/admin/review - Stage transitions and batch actions.
- * Body: { action: "move_to_ready" | "reject" | "approve" | "back_to_review", job_ids: string[] }
+ * POST /api/admin/review - Batch actions.
+ * Body: { action: "reject" | "approve" | "reset_rejected", job_ids?: string[] }
  */
 export async function POST(request: Request) {
   const { profile, response } = await requireAdmin();
@@ -123,13 +119,16 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const { action, job_ids } = body as {
-    action: "move_to_ready" | "reject" | "approve" | "back_to_review" | "reset_rejected";
+    action: "reject" | "approve" | "reset_rejected";
     job_ids?: string[];
   };
 
   if (!action) {
     return error("Missing action", 400);
   }
+
+  const service = getServiceClient();
+  const now = new Date().toISOString();
 
   // --- RESET REJECTED (no job_ids needed) ---
   if (action === "reset_rejected") {
@@ -155,33 +154,6 @@ export async function POST(request: Request) {
     return error("Missing job_ids", 400);
   }
 
-  const service = getServiceClient();
-  const now = new Date().toISOString();
-
-  // --- MOVE TO READY ---
-  if (action === "move_to_ready") {
-    const { error: updateErr } = await service
-      .from("jobs_inbox")
-      .update({ review_status: "ready" })
-      .in("id", job_ids)
-      .eq("review_status", "pending");
-
-    if (updateErr) return error("Failed to move jobs to ready", 500);
-    return json({ action, count: job_ids.length });
-  }
-
-  // --- BACK TO REVIEW ---
-  if (action === "back_to_review") {
-    const { error: updateErr } = await service
-      .from("jobs_inbox")
-      .update({ review_status: "pending" })
-      .in("id", job_ids)
-      .eq("review_status", "ready");
-
-    if (updateErr) return error("Failed to move jobs back to review", 500);
-    return json({ action, count: job_ids.length });
-  }
-
   // --- REJECT ---
   if (action === "reject") {
     const { error: updateErr } = await service
@@ -204,23 +176,16 @@ export async function POST(request: Request) {
     return json({ action, count: job_ids.length });
   }
 
-  // --- APPROVE ---
+  // --- APPROVE (directly from pending) ---
   if (action === "approve") {
-    // Fetch jobs being approved (must be in ready state with lane assigned)
     const { data: jobsToApprove, error: fetchErr } = await service
       .from("jobs_inbox")
       .select("*")
       .in("id", job_ids)
-      .eq("review_status", "ready");
+      .eq("review_status", "pending");
 
     if (fetchErr || !jobsToApprove) {
       return error("Failed to fetch jobs for approval", 500);
-    }
-
-    // Check all have lanes assigned
-    const missingLane = jobsToApprove.filter((j) => !j.lane_key);
-    if (missingLane.length > 0) {
-      return error(`${missingLane.length} job(s) missing lane assignment. Assign lanes before approving.`, 400);
     }
 
     // Mark as approved
@@ -233,11 +198,11 @@ export async function POST(request: Request) {
         enrichment_status: "APPROVED",
       })
       .in("id", job_ids)
-      .eq("review_status", "ready");
+      .eq("review_status", "pending");
 
     if (updateErr) return error("Failed to approve jobs", 500);
 
-    // Upsert into global_job_bank with per-job lane
+    // Upsert into global_job_bank
     let bankInserted = 0;
     for (const job of jobsToApprove) {
       if (!job.url) continue;

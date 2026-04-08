@@ -37,11 +37,6 @@ interface ReviewJob {
   created_at: string;
 }
 
-const STAGES = [
-  { key: "pending", label: "Needs Review", color: "#FAD76A" },
-  { key: "ready", label: "Ready to Approve", color: "#3B82F6" },
-];
-
 /* ── Helpers ──────────────────────────────────────────── */
 
 function timeAgo(dateStr: string): string {
@@ -54,29 +49,30 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function urlDomain(url: string | null): string {
+  if (!url) return "";
+  try { return new URL(url).hostname.replace("www.", ""); } catch { return ""; }
+}
+
 /* ── Main Page ────────────────────────────────────────── */
 
 export default function AdminIngestPage() {
   /* ingest state */
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<IngestResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [ingestError, setIngestError] = useState<string | null>(null);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
 
   /* review state */
   const [jobs, setJobs] = useState<ReviewJob[]>([]);
   const [lanes, setLanes] = useState<string[]>([]);
-  const [counts, setCounts] = useState({ pending: 0, ready: 0, rejected: 0 });
+  const [counts, setCounts] = useState({ pending: 0, rejected: 0 });
   const [reviewLoading, setReviewLoading] = useState(true);
-  const [activeStage, setActiveStage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<string | null>(null);
   const [acting, setActing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
-
-  const currentStage = STAGES[activeStage];
-  const filtered = jobs.filter((j) => j.review_status === currentStage.key);
 
   /* load on mount */
   useEffect(() => {
@@ -96,7 +92,7 @@ export default function AdminIngestPage() {
 
   async function handleGmailIngest() {
     setRunning(true);
-    setError(null);
+    setIngestError(null);
     setResult(null);
 
     const res = await fetch("/api/admin/gmail-ingest", { method: "POST" });
@@ -107,7 +103,7 @@ export default function AdminIngestPage() {
       await loadQueue();
     } else {
       const data = await res.json();
-      setError(data.error || "Ingest failed");
+      setIngestError(data.error || "Ingest failed");
     }
     setRunning(false);
   }
@@ -126,7 +122,7 @@ export default function AdminIngestPage() {
       const data = await res.json();
       setJobs(data.jobs ?? []);
       setLanes(data.lanes ?? []);
-      setCounts(data.counts ?? { pending: 0, ready: 0, rejected: 0 });
+      setCounts(data.counts ?? { pending: 0, rejected: 0 });
     }
     setReviewLoading(false);
   }
@@ -141,10 +137,10 @@ export default function AdminIngestPage() {
   }
 
   function toggleSelectAll() {
-    if (selected.size === filtered.length) {
+    if (selected.size === jobs.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(filtered.map((j: ReviewJob) => j.id)));
+      setSelected(new Set(jobs.map((j: ReviewJob) => j.id)));
     }
   }
 
@@ -161,22 +157,39 @@ export default function AdminIngestPage() {
     if (res.ok) {
       const data = await res.json();
       if (action === "approve") {
-        showToast(`Approved ${data.count} jobs -> Job Bank (${data.enriched} enriched)`);
+        showToast(`Approved ${data.count} jobs -> Job Bank`);
       } else if (action === "reject") {
         showToast(`Rejected ${data.count} jobs`);
-      } else if (action === "move_to_ready") {
-        showToast(`Moved ${data.count} jobs to Ready`);
-      } else if (action === "back_to_review") {
-        showToast(`Moved ${data.count} jobs back to Review`);
       }
       setSelected(new Set());
       await loadQueue();
       await loadReceipts();
     } else {
       const data = await res.json().catch(() => ({}));
-      showToast(data.error ?? `Action failed`);
+      showToast(data.error ?? "Action failed");
     }
     setActing(false);
+  }
+
+  async function handleSingleAction(jobId: string, action: "approve" | "reject") {
+    // Optimistic removal
+    setJobs((prev) => prev.filter((j) => j.id !== jobId));
+    setSelected((prev) => { const next = new Set(prev); next.delete(jobId); return next; });
+
+    const res = await fetch("/api/admin/review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, job_ids: [jobId] }),
+    });
+
+    if (res.ok) {
+      showToast(action === "approve" ? "Approved -> Job Bank" : "Rejected");
+      await loadQueue();
+      await loadReceipts();
+    } else {
+      showToast("Action failed");
+      await loadQueue();
+    }
   }
 
   async function handleResetRejected() {
@@ -188,10 +201,10 @@ export default function AdminIngestPage() {
     });
     if (res.ok) {
       const data = await res.json();
-      showToast(`Reset ${data.count} rejected jobs back to review`);
+      showToast(`Reset ${data.count} jobs back to review`);
       await loadQueue();
     } else {
-      showToast("Failed to reset rejected jobs");
+      showToast("Failed to reset");
     }
     setResetting(false);
   }
@@ -234,9 +247,7 @@ export default function AdminIngestPage() {
             </div>
             <div>
               <h2 className="text-[15px] font-bold">Gmail Email Ingest</h2>
-              <p className="text-[12px] text-[#9CA3AF]">
-                Scan labeled emails and add jobs to the review queue
-              </p>
+              <p className="text-[12px] text-[#9CA3AF]">Scan labeled emails and add jobs to the review queue</p>
             </div>
           </div>
         </div>
@@ -252,19 +263,14 @@ export default function AdminIngestPage() {
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0C1016] border-t-transparent" />
                 Scanning Gmail...
               </span>
-            ) : (
-              "Run Gmail Ingest"
-            )}
+            ) : "Run Gmail Ingest"}
           </button>
 
-          {/* Ingest Result */}
           {result && (
             <div className="mt-3 rounded-xl bg-[#6AD7A3]/10 p-4">
               <div className="grid grid-cols-2 gap-y-2 text-[12px]">
                 <div className="text-[#B8BFC8]">Messages scanned</div>
                 <div className="text-right font-medium text-white">{result.messages_scanned}</div>
-                <div className="text-[#B8BFC8]">Messages skipped</div>
-                <div className="text-right font-medium text-white">{result.messages_skipped}</div>
                 <div className="text-[#B8BFC8]">Jobs found</div>
                 <div className="text-right font-medium text-white">{result.jobs_found}</div>
                 <div className="text-[#B8BFC8]">New (added to queue)</div>
@@ -275,70 +281,36 @@ export default function AdminIngestPage() {
               {result.jobs_capped && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#FAD76A]/10 px-3 py-2">
                   <div className="h-2 w-2 rounded-full bg-[#FAD76A]" />
-                  <span className="text-[11px] font-medium text-[#FAD76A]">
-                    Capped at {result.jobs_cap_limit} jobs per run - more available
-                  </span>
-                </div>
-              )}
-              {result.backlog_detected && !result.jobs_capped && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#FAD76A]/10 px-3 py-2">
-                  <div className="h-2 w-2 rounded-full bg-[#FAD76A]" />
-                  <span className="text-[11px] font-medium text-[#FAD76A]">
-                    Backlog detected - ~{result.queue_remaining} more messages waiting
-                  </span>
+                  <span className="text-[11px] font-medium text-[#FAD76A]">Capped at {result.jobs_cap_limit} — more available</span>
                 </div>
               )}
             </div>
           )}
 
-          {error && (
+          {ingestError && (
             <div className="mt-3 rounded-xl bg-[#DC2626]/10 p-3">
-              <p className="text-[13px] text-[#DC2626]">{error}</p>
+              <p className="text-[13px] text-[#DC2626]">{ingestError}</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* ═══ INGESTED JOBS BANK ═══ */}
+      {/* ═══ INGESTED JOBS ═══ */}
       <div>
-        <div className="mb-3">
-          <h2 className="text-[15px] font-semibold">Ingested Jobs</h2>
-        </div>
-
-        {/* Stage Filter Pills */}
-        <div className="mb-3 flex gap-2 overflow-x-auto scrollbar-none">
-          {STAGES.map((stage, i) => {
-            const count = stage.key === "pending" ? counts.pending : counts.ready;
-            const isActive = i === activeStage;
-            return (
-              <button
-                key={stage.key}
-                onClick={() => { setActiveStage(i); setSelected(new Set()); setExpanded(null); }}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[12px] font-medium transition-colors ${
-                  isActive ? "ring-1" : "opacity-60 hover:opacity-80"
-                }`}
-                style={{
-                  color: stage.color,
-                  backgroundColor: isActive ? `${stage.color}15` : "transparent",
-                  ...(isActive ? { boxShadow: `inset 0 0 0 1px ${stage.color}40` } : {}),
-                }}
-              >
-                {stage.label}
-                <span className="rounded-full bg-[#0C1016] px-2 py-0.5 text-[10px] font-bold" style={{ color: stage.color }}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[15px] font-semibold">
+            Ingested Jobs
+            {counts.pending > 0 && <span className="ml-2 text-[12px] font-normal text-[#6B7280]">{counts.pending} to review</span>}
+          </h2>
         </div>
 
         {/* Batch Action Bar */}
-        {filtered.length > 0 && (
+        {jobs.length > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] px-4 py-2.5">
             <label className="flex items-center gap-2 text-[12px] text-[#9CA3AF] cursor-pointer">
               <input
                 type="checkbox"
-                checked={selected.size === filtered.length && filtered.length > 0}
+                checked={selected.size === jobs.length && jobs.length > 0}
                 onChange={toggleSelectAll}
                 className="h-3.5 w-3.5 rounded border-[#2A3544] bg-[#0C1016] text-[#6AD7A3] focus:ring-[#6AD7A3]"
               />
@@ -347,66 +319,49 @@ export default function AdminIngestPage() {
 
             <div className="h-4 w-px bg-[#2A3544]" />
 
-            {currentStage.key === "pending" && (
-              <>
-                <button
-                  onClick={() => handleBatchAction("move_to_ready")}
-                  disabled={acting || selected.size === 0}
-                  className="rounded-full px-3 py-1.5 text-[11px] font-semibold text-[#0C1016] disabled:opacity-40"
-                  style={{ background: `linear-gradient(to right, #A9FFB5, #5EF2C7, #39D6FF)` }}
-                >
-                  {acting ? "..." : `Move to Ready (${selected.size})`}
-                </button>
-                <button
-                  onClick={() => handleBatchAction("reject")}
-                  disabled={acting || selected.size === 0}
-                  className="rounded-full border border-[#DC2626]/30 px-3 py-1.5 text-[11px] font-medium text-[#DC2626] hover:bg-[#DC2626]/10 disabled:opacity-40"
-                >
-                  Reject ({selected.size})
-                </button>
-              </>
-            )}
-
-            {currentStage.key === "ready" && (
-              <>
-                <button
-                  onClick={() => handleBatchAction("approve")}
-                  disabled={acting || selected.size === 0}
-                  className="rounded-full px-3 py-1.5 text-[11px] font-semibold text-[#0C1016] disabled:opacity-40"
-                  style={{ background: `linear-gradient(to right, #A9FFB5, #5EF2C7, #39D6FF)` }}
-                >
-                  {acting ? "Approving..." : `Approve to Job Bank (${selected.size})`}
-                </button>
-                <button
-                  onClick={() => handleBatchAction("back_to_review")}
-                  disabled={acting || selected.size === 0}
-                  className="rounded-full border border-[#2A3544] px-3 py-1.5 text-[11px] font-medium text-[#9CA3AF] disabled:opacity-40"
-                >
-                  Back to Review ({selected.size})
-                </button>
-              </>
-            )}
+            <button
+              onClick={() => handleBatchAction("approve")}
+              disabled={acting || selected.size === 0}
+              className="rounded-full px-3 py-1.5 text-[11px] font-semibold text-[#0C1016] disabled:opacity-40"
+              style={{ background: "linear-gradient(to right, #A9FFB5, #5EF2C7, #39D6FF)" }}
+            >
+              {acting ? "..." : `Approve (${selected.size})`}
+            </button>
+            <button
+              onClick={() => handleBatchAction("reject")}
+              disabled={acting || selected.size === 0}
+              className="rounded-full border border-[#DC2626]/30 px-3 py-1.5 text-[11px] font-medium text-[#DC2626] hover:bg-[#DC2626]/10 disabled:opacity-40"
+            >
+              Reject ({selected.size})
+            </button>
           </div>
         )}
 
-        {/* Job Cards */}
+        {/* Desktop Table Header */}
+        {jobs.length > 0 && (
+          <div className="mb-1 hidden md:grid md:grid-cols-[2rem_1fr_1fr_6rem_6rem_8rem_5.5rem] gap-3 px-4 text-[10px] font-semibold uppercase text-[#6B7280]">
+            <div />
+            <div>Title</div>
+            <div>Company</div>
+            <div>Source</div>
+            <div>Location</div>
+            <div>URL</div>
+            <div className="text-right">Actions</div>
+          </div>
+        )}
+
+        {/* Job Cards / Rows */}
         {reviewLoading ? (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-16 animate-pulse rounded-2xl bg-[#171F28]" />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : jobs.length === 0 ? (
           <div className="flex flex-col items-center rounded-2xl bg-[#171F28] p-10 text-center">
-            <p className="text-sm font-medium text-[#B8BFC8]">
-              {currentStage.key === "pending" ? "No jobs pending review" : "No jobs ready to approve"}
-            </p>
-            <p className="mt-1 text-[11px] text-[#6B7280]">
-              {currentStage.key === "pending"
-                ? "Run Gmail ingest to populate the queue"
-                : "Move jobs from Needs Review after editing"}
-            </p>
-            {currentStage.key === "pending" && counts.rejected > 0 && (
+            <p className="text-sm font-medium text-[#B8BFC8]">No jobs pending review</p>
+            <p className="mt-1 text-[11px] text-[#6B7280]">Run Gmail ingest to populate the queue</p>
+            {counts.rejected > 0 && (
               <button
                 onClick={handleResetRejected}
                 disabled={resetting}
@@ -417,15 +372,13 @@ export default function AdminIngestPage() {
                     <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#FAD76A] border-t-transparent" />
                     Resetting...
                   </span>
-                ) : (
-                  `Reset ${counts.rejected} rejected jobs back to review`
-                )}
+                ) : `Reset ${counts.rejected} rejected jobs back to review`}
               </button>
             )}
           </div>
         ) : (
-          <div className="space-y-2">
-            {filtered.map((job) => (
+          <div className="space-y-1.5">
+            {jobs.map((job) => (
               <ReviewCard
                 key={job.id}
                 job={job}
@@ -435,6 +388,8 @@ export default function AdminIngestPage() {
                 onToggleSelect={() => toggleSelect(job.id)}
                 onToggleExpand={() => setExpanded(expanded === job.id ? null : job.id)}
                 onSave={(patch) => handleSaveJob(job.id, patch)}
+                onApprove={() => handleSingleAction(job.id, "approve")}
+                onReject={() => handleSingleAction(job.id, "reject")}
               />
             ))}
           </div>
@@ -479,7 +434,6 @@ function ReceiptRow({ receipt }: { receipt: Receipt }) {
           <span className="text-[#6AD7A3]">New: {meta.jobs_new ?? 0}</span>
           <span>Dupes: {meta.jobs_duplicate ?? 0}</span>
           {meta.backlog_detected && <span className="text-[#FAD76A]">Backlog</span>}
-          {meta.jobs_capped && <span className="text-[#FAD76A]">Capped</span>}
         </div>
       </div>
     );
@@ -498,9 +452,6 @@ function ReceiptRow({ receipt }: { receipt: Receipt }) {
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 pl-4 text-[11px] text-[#6B7280]">
           <span>Profiles: {meta.profiles_processed ?? 0}</span>
           <span className="text-[#6AD7A3]">Jobs: {meta.total_jobs ?? 0}</span>
-          {Number(meta.profiles_failed) > 0 && (
-            <span className="text-[#DC2626]">Failed: {meta.profiles_failed}</span>
-          )}
         </div>
       </div>
     );
@@ -512,9 +463,7 @@ function ReceiptRow({ receipt }: { receipt: Receipt }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-[#22C55E]" />
-            <span className="text-[12px] font-medium text-white">
-              Approved {meta.count ?? 0} jobs
-            </span>
+            <span className="text-[12px] font-medium text-white">Approved {meta.count ?? 0} jobs</span>
           </div>
           <span className="text-[10px] text-[#4B5563]">{timeAgo(receipt.created_at)}</span>
         </div>
@@ -542,11 +491,12 @@ function ReceiptRow({ receipt }: { receipt: Receipt }) {
 /* ── Review Card ──────────────────────────────────────── */
 
 function ReviewCard({
-  job, lanes, isSelected, isExpanded, onToggleSelect, onToggleExpand, onSave,
+  job, lanes, isSelected, isExpanded, onToggleSelect, onToggleExpand, onSave, onApprove, onReject,
 }: {
   job: ReviewJob; lanes: string[]; isSelected: boolean; isExpanded: boolean;
   onToggleSelect: () => void; onToggleExpand: () => void;
   onSave: (patch: Record<string, unknown>) => void;
+  onApprove: () => void; onReject: () => void;
 }) {
   const [title, setTitle] = useState(job.title ?? "");
   const [company, setCompany] = useState(job.company ?? "");
@@ -574,10 +524,7 @@ function ReviewCard({
   const showCreateOption = laneSearch && !lanes.some((l) => l.toLowerCase() === laneSearch.toLowerCase());
 
   function selectLane(value: string) {
-    setLaneKey(value);
-    setLaneSearch("");
-    setLaneOpen(false);
-    markDirty();
+    setLaneKey(value); setLaneSearch(""); setLaneOpen(false); markDirty();
   }
 
   function handleSave() {
@@ -594,46 +541,79 @@ function ReviewCard({
 
   const sourceBadge: Record<string, string> = {
     ziprecruiter_email: "text-[#818CF8]", linkedin_email: "text-[#38BDF8]",
-    indeed_email: "text-[#60A5FA]", glassdoor_email: "text-[#6AD7A3]", email_generic: "text-[#9CA3AF]",
+    indeed_email: "text-[#60A5FA]", glassdoor_email: "text-[#6AD7A3]",
+    wellfound_email: "text-[#F97316]", email_generic: "text-[#9CA3AF]",
   };
+  const sourceLabel = (s: string | null) => s?.replace(/_email$/, "") ?? "";
 
   const inputClass = "w-full rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-2 text-[12px] text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3]";
 
   return (
     <div className={`rounded-xl border transition ${isSelected ? "border-[#6AD7A3]/30 bg-[#6AD7A3]/5" : "border-[rgba(255,255,255,0.06)] bg-[#171F28] hover:border-[rgba(255,255,255,0.12)]"}`}>
-      <div className="flex items-center gap-3 px-4 py-3">
+      {/* ── Mobile collapsed ── */}
+      <div className="flex items-center gap-3 px-4 py-3 md:hidden">
         <input type="checkbox" checked={isSelected} onChange={onToggleSelect} onClick={(e) => e.stopPropagation()}
           className="h-3.5 w-3.5 shrink-0 rounded border-[#2A3544] bg-[#0C1016] text-[#6AD7A3] focus:ring-[#6AD7A3]" />
 
         <div className="min-w-0 flex-1 cursor-pointer" onClick={onToggleExpand}>
-          <div className="flex items-center gap-2">
-            <span className="truncate text-[13px] font-medium text-white">{job.title || "Untitled"}</span>
-          </div>
-          <div className="mt-0.5 flex items-center gap-2">
+          <div className="truncate text-[13px] font-medium text-white">{job.title || "Untitled — tap to edit"}</div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="text-[11px] text-[#6B7280]">{job.company || "Unknown"}</span>
-            {job.lane_key && (
-              <span className="rounded-full bg-[#6AD7A3]/10 px-1.5 py-0.5 text-[9px] font-medium text-[#6AD7A3]">
-                {job.lane_key.replace(/_/g, " ")}
-              </span>
-            )}
-            {job.source && (
-              <span className={`text-[9px] font-medium ${sourceBadge[job.source] ?? "text-[#6B7280]"}`}>
-                {job.source.replace(/_email$/, "")}
-              </span>
-            )}
+            {job.source && <span className={`text-[9px] font-medium ${sourceBadge[job.source] ?? "text-[#6B7280]"}`}>{sourceLabel(job.source)}</span>}
+            <span className="text-[9px] text-[#4B5563]">{timeAgo(job.created_at)}</span>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="text-[10px] text-[#4B5563]">{timeAgo(job.created_at)}</span>
-          <button onClick={onToggleExpand} className="p-1 text-[#4B5563] hover:text-[#9CA3AF]">
-            <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M6 9l6 6 6-6" />
-            </svg>
+        <div className="flex shrink-0 items-center gap-1">
+          {job.url && (
+            <a href={job.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="rounded p-1.5 text-[#38BDF8] hover:bg-[#38BDF8]/10" title="Open link">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" /></svg>
+            </a>
+          )}
+          <button onClick={(e) => { e.stopPropagation(); onApprove(); }} className="rounded p-1.5 text-[#6AD7A3] hover:bg-[#6AD7A3]/10" title="Approve">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5" /></svg>
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onReject(); }} className="rounded p-1.5 text-[#DC2626] hover:bg-[#DC2626]/10" title="Reject">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+          <button onClick={onToggleExpand} className="p-1.5 text-[#4B5563] hover:text-[#9CA3AF]">
+            <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 9l6 6 6-6" /></svg>
           </button>
         </div>
       </div>
 
+      {/* ── Desktop row ── */}
+      <div className="hidden md:grid md:grid-cols-[2rem_1fr_1fr_6rem_6rem_8rem_5.5rem] items-center gap-3 px-4 py-2.5">
+        <input type="checkbox" checked={isSelected} onChange={onToggleSelect}
+          className="h-3.5 w-3.5 rounded border-[#2A3544] bg-[#0C1016] text-[#6AD7A3] focus:ring-[#6AD7A3]" />
+
+        <div className="truncate text-[12px] font-medium text-white cursor-pointer" onClick={onToggleExpand}>
+          {job.title || <span className="text-[#4B5563] italic">Untitled</span>}
+        </div>
+        <div className="truncate text-[12px] text-[#9CA3AF]">{job.company || "Unknown"}</div>
+        <span className={`text-[10px] font-medium ${sourceBadge[job.source ?? ""] ?? "text-[#6B7280]"}`}>{sourceLabel(job.source)}</span>
+        <div className="truncate text-[11px] text-[#6B7280]">{job.location || "—"}</div>
+        <div className="truncate text-[10px] text-[#4B5563]">{urlDomain(job.url)}</div>
+
+        <div className="flex items-center justify-end gap-1">
+          {job.url && (
+            <a href={job.url} target="_blank" rel="noopener noreferrer" className="rounded p-1 text-[#38BDF8] hover:bg-[#38BDF8]/10">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" /></svg>
+            </a>
+          )}
+          <button onClick={onApprove} className="rounded p-1 text-[#6AD7A3] hover:bg-[#6AD7A3]/10" title="Approve">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M20 6L9 17l-5-5" /></svg>
+          </button>
+          <button onClick={onReject} className="rounded p-1 text-[#DC2626] hover:bg-[#DC2626]/10" title="Reject">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+          <button onClick={onToggleExpand} className="p-1 text-[#4B5563] hover:text-[#9CA3AF]">
+            <svg viewBox="0 0 24 24" className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 9l6 6 6-6" /></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Expanded edit form ── */}
       {isExpanded && (
         <div className="border-t border-[#2A3544]/50 px-4 py-4">
           <div className="grid grid-cols-2 gap-3">
@@ -660,43 +640,20 @@ function ReviewCard({
             </div>
             <div className="relative">
               <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Lane</label>
-              <div
-                onClick={() => setLaneOpen(!laneOpen)}
-                className={`${inputClass} cursor-pointer flex items-center justify-between`}
-              >
-                <span className={laneKey ? "text-white" : "text-[#4B5563]"}>
-                  {laneKey ? laneKey.replace(/_/g, " ") : "Select or type lane..."}
-                </span>
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#4B5563]" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
+              <div onClick={() => setLaneOpen(!laneOpen)} className={`${inputClass} cursor-pointer flex items-center justify-between`}>
+                <span className={laneKey ? "text-white" : "text-[#4B5563]"}>{laneKey ? laneKey.replace(/_/g, " ") : "Select or type lane..."}</span>
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#4B5563]" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 9l6 6 6-6" /></svg>
               </div>
               {laneOpen && (
                 <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border border-[#2A3544] bg-[#0C1016] shadow-lg">
-                  <input
-                    autoFocus
-                    value={laneSearch}
-                    onChange={(e) => setLaneSearch(e.target.value)}
-                    placeholder="Type to search or create..."
-                    className="w-full border-b border-[#2A3544] bg-transparent px-3 py-2 text-[12px] text-white placeholder-[#4B5563] outline-none"
-                  />
+                  <input autoFocus value={laneSearch} onChange={(e) => setLaneSearch(e.target.value)} placeholder="Type to search or create..."
+                    className="w-full border-b border-[#2A3544] bg-transparent px-3 py-2 text-[12px] text-white placeholder-[#4B5563] outline-none" />
                   <div className="max-h-40 overflow-y-auto">
                     {filteredLanes.map((l) => (
-                      <button
-                        key={l}
-                        onClick={() => selectLane(l)}
-                        className={`w-full px-3 py-2 text-left text-[12px] hover:bg-[#171F28] ${laneKey === l ? "text-[#6AD7A3]" : "text-[#B8BFC8]"}`}
-                      >
-                        {l.replace(/_/g, " ")}
-                      </button>
+                      <button key={l} onClick={() => selectLane(l)} className={`w-full px-3 py-2 text-left text-[12px] hover:bg-[#171F28] ${laneKey === l ? "text-[#6AD7A3]" : "text-[#B8BFC8]"}`}>{l.replace(/_/g, " ")}</button>
                     ))}
                     {showCreateOption && (
-                      <button
-                        onClick={() => selectLane(laneSearch.toLowerCase().replace(/\s+/g, "_"))}
-                        className="w-full px-3 py-2 text-left text-[12px] text-[#FAD76A] hover:bg-[#171F28]"
-                      >
-                        + Create &ldquo;{laneSearch}&rdquo;
-                      </button>
+                      <button onClick={() => selectLane(laneSearch.toLowerCase().replace(/\s+/g, "_"))} className="w-full px-3 py-2 text-left text-[12px] text-[#FAD76A] hover:bg-[#171F28]">+ Create &ldquo;{laneSearch}&rdquo;</button>
                     )}
                     {filteredLanes.length === 0 && !showCreateOption && (
                       <div className="px-3 py-2 text-[11px] text-[#4B5563]">No lanes found</div>
@@ -711,17 +668,15 @@ function ReviewCard({
                 <input value={url} onChange={(e) => { setUrl(e.target.value); markDirty(); }} className={inputClass} />
                 {url && (
                   <a href={url} target="_blank" rel="noopener noreferrer" className="flex shrink-0 items-center rounded-lg border border-[#2A3544] px-2 text-[#38BDF8] hover:border-[#38BDF8]/50">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
-                    </svg>
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" /></svg>
                   </a>
                 )}
               </div>
             </div>
           </div>
           <div className="mt-3">
-            <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Job Description</label>
-            <textarea value={description} onChange={(e) => { setDescription(e.target.value); markDirty(); }} rows={4} className={inputClass} placeholder="Paste the job description here - used for AI enrichment on approval" />
+            <label className="mb-1 block text-[10px] font-semibold uppercase text-[#6B7280]">Notes / Description</label>
+            <textarea value={description} onChange={(e) => { setDescription(e.target.value); markDirty(); }} rows={3} className={inputClass} placeholder="Paste job description or notes" />
           </div>
           {dirty && (
             <div className="mt-3 flex gap-2">
