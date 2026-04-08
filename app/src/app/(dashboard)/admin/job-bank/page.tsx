@@ -413,7 +413,7 @@ export default function AdminJobBankPage() {
             <option value="archived">Archived</option>
           </select>
           {/* Sort buttons */}
-          <div className="ml-auto flex items-center gap-1">
+          <div className="flex items-center gap-1 sm:ml-auto">
             {[
               { key: "created_at", label: "Date" },
               { key: "title", label: "Title" },
@@ -440,7 +440,7 @@ export default function AdminJobBankPage() {
 
       {/* Bulk actions bar */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 rounded-xl border border-[#6AD7A3]/30 bg-[#6AD7A3]/5 px-4 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#6AD7A3]/30 bg-[#6AD7A3]/5 px-4 py-2">
           <span className="text-[12px] font-medium text-[#6AD7A3]">{selected.size} selected</span>
           <select
             onChange={(e) => {
@@ -473,7 +473,7 @@ export default function AdminJobBankPage() {
           </button>
           <button
             onClick={() => setBulkDeleteConfirm(true)}
-            className="ml-auto flex items-center gap-1 rounded-full border border-[#DC2626]/30 px-3 py-1 text-[11px] text-[#DC2626] hover:bg-[#DC2626]/10"
+            className="flex items-center gap-1 rounded-full border border-[#DC2626]/30 px-3 py-1 text-[11px] text-[#DC2626] hover:bg-[#DC2626]/10"
           >
             <Trash2 size={12} strokeWidth={2} />
             Delete
@@ -754,12 +754,12 @@ function JobBankCard({
 
           <div className="mt-2 flex flex-wrap gap-1.5">
             {job.salary && (
-              <span className="rounded-full bg-[rgba(0,245,212,0.08)] px-2 py-0.5 text-[11px] text-white ring-1 ring-[rgba(0,245,212,0.2)]">
+              <span className="max-w-[11rem] truncate rounded-full bg-[rgba(0,245,212,0.08)] px-2 py-0.5 text-[11px] text-white ring-1 ring-[rgba(0,245,212,0.2)]" title={job.salary}>
                 {job.salary}
               </span>
             )}
             {job.location && (
-              <span className="rounded-full bg-[#151C24] px-2 py-0.5 text-[11px] text-[#B8BFC8] ring-1 ring-[#2A3544]">
+              <span className="max-w-[10rem] truncate rounded-full bg-[#151C24] px-2 py-0.5 text-[11px] text-[#B8BFC8] ring-1 ring-[#2A3544]" title={job.location}>
                 {job.location}
               </span>
             )}
