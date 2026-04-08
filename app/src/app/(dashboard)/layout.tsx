@@ -34,7 +34,7 @@ export default async function DashboardLayout({
         <div className="flex min-h-dvh flex-col">
           <Header displayName={profile?.display_name} role={profile?.role} />
 
-          <div className="mx-auto w-full max-w-[var(--layout-max-width)] flex-1 px-3 md:px-6 py-3 md:py-5">
+          <div className="mx-auto w-full max-w-[var(--layout-max-width)] flex-1 px-3 md:px-6 py-3 md:py-5 pb-20 md:pb-5">
             {/* Desktop: 2-column grid */}
             <div className="md:grid md:grid-cols-[minmax(0,2fr)_var(--sidebar-width)] md:gap-8">
               {/* Content bay */}
@@ -50,8 +50,6 @@ export default async function DashboardLayout({
             </div>
           </div>
 
-          {/* Mobile bottom nav + safe area padding */}
-          <div className="pb-16 md:pb-0" />
           <BottomNav isAdmin={isAdmin} />
         </div>
       </ViewAsProvider>
