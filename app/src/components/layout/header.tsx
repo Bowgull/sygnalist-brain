@@ -161,8 +161,8 @@ export default function Header({
         </div>
       </div>
 
-      {/* Glow seam — relative z-0 so it doesn't overlap sticky filter bars below */}
-      <div className={`relative z-0 h-px bg-gradient-to-r from-transparent ${viewAsActive ? "via-[#FAD76A]/40" : "via-[#00ffc3]/40"} to-transparent animate-seam-glow`} />
+      {/* Glow seam */}
+      <div className={`h-px bg-gradient-to-r from-transparent ${viewAsActive ? "via-[#FAD76A]/40" : "via-[#00ffc3]/40"} to-transparent animate-seam-glow`} />
     </header>
   );
 }

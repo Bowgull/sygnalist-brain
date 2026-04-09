@@ -169,7 +169,7 @@ export default function InboxPage() {
 
           {/* Lane filter pills */}
           {lanes.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-none" style={{ maskImage: "linear-gradient(to right, black calc(100% - 24px), transparent)", WebkitMaskImage: "linear-gradient(to right, black calc(100% - 24px), transparent)" }}>
               {["All", ...lanes].map((lane) => (
                 <button
                   key={lane}
