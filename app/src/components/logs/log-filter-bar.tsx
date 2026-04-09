@@ -2,7 +2,7 @@
 
 import { allDomains } from "./log-utils";
 
-type LogType = "activity" | "errors" | "fetches";
+type LogType = "activity" | "errors" | "fetches" | "tickets";
 
 type Filters = {
   domain?: string;
