@@ -143,9 +143,10 @@ interface TrackerCardProps {
   onUpdate: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
   locked?: boolean;
+  viewAsId?: string | null;
 }
 
-export default function TrackerCard({ entry, onUpdate, onDelete, locked }: TrackerCardProps) {
+export default function TrackerCard({ entry, onUpdate, onDelete, locked, viewAsId }: TrackerCardProps) {
   const [spotlight, setSpotlight] = useState(false);
   const [editing, setEditing] = useState(false);
   const [quickEdit, setQuickEdit] = useState(false);
@@ -201,7 +202,10 @@ export default function TrackerCard({ entry, onUpdate, onDelete, locked }: Track
     setGeneratingFit(true);
     setFitError(null);
     try {
-      const res = await fetch(`/api/tracker/${entry.id}/goodfit`, { method: "POST" });
+      const url = viewAsId
+        ? `/api/admin/view-as/tracker/${entry.id}/goodfit?client_id=${viewAsId}`
+        : `/api/tracker/${entry.id}/goodfit`;
+      const res = await fetch(url, { method: "POST" });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setFitError(data?.error || "Failed to generate GoodFit");

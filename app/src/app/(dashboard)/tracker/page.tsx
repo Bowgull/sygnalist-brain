@@ -380,6 +380,7 @@ export default function TrackerPage() {
               onUpdate={handleUpdate}
               onDelete={handleDelete}
               locked={profileLocked}
+              viewAsId={viewAsId}
             />
           ) : (
             <AllOpsTable
@@ -401,6 +402,7 @@ export default function TrackerPage() {
             onUpdate={handleUpdate}
             onDelete={handleDelete}
             locked={profileLocked}
+            viewAsId={viewAsId}
           />
         )}
       </div>
@@ -443,6 +445,7 @@ function SingleStageCardsView({
   onUpdate,
   onDelete,
   locked,
+  viewAsId,
 }: {
   stageEntries: TrackerEntry[];
   currentStage: { label: string; display: string; color: string };
@@ -451,6 +454,7 @@ function SingleStageCardsView({
   onUpdate: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
   locked?: boolean;
+  viewAsId?: string | null;
 }) {
   return (
     <div className="min-h-[40vh]">
@@ -469,7 +473,7 @@ function SingleStageCardsView({
           </div>
         ) : (
           stageEntries.map((entry) => (
-            <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} locked={locked} />
+            <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} locked={locked} viewAsId={viewAsId} />
           ))
         )}
       </div>
@@ -488,6 +492,7 @@ function AllCardsView({
   onUpdate,
   onDelete,
   locked,
+  viewAsId,
 }: {
   stages: typeof STAGES;
   entries: TrackerEntry[];
@@ -497,6 +502,7 @@ function AllCardsView({
   onUpdate: (id: string, patch: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
   locked?: boolean;
+  viewAsId?: string | null;
 }) {
   if (loading) {
     return <div className="p-3 md:p-6 space-y-3"><SkeletonCard /><SkeletonCard /></div>;
@@ -536,7 +542,7 @@ function AllCardsView({
             </div>
             <div className="space-y-3">
               {stageEntries.map((entry) => (
-                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} locked={locked} />
+                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} locked={locked} viewAsId={viewAsId} />
               ))}
             </div>
           </div>
@@ -566,7 +572,7 @@ function AllCardsView({
             </div>
             <div className="space-y-3">
               {filtered.map((entry) => (
-                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} locked={locked} />
+                <TrackerCard key={entry.id} entry={entry} onUpdate={onUpdate} onDelete={onDelete} locked={locked} viewAsId={viewAsId} />
               ))}
             </div>
           </div>
