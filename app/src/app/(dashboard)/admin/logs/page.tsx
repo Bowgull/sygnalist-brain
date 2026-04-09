@@ -543,7 +543,9 @@ export default function AdminLogsPage() {
       </div>
 
       {/* Filter bar */}
-      <LogFilterBar logType={logType} filters={filters} onFilterChange={handleFilterChange} />
+      {logType !== "tickets" && (
+        <LogFilterBar logType={logType} filters={filters} onFilterChange={handleFilterChange} />
+      )}
 
       {/* Loading */}
       {loading ? (
