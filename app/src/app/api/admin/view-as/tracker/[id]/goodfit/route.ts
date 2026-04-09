@@ -134,10 +134,6 @@ Output only the 3 paragraph blocks, each separated by a single blank line. Nothi
         body: JSON.stringify({
           model: "gpt-4o-mini",
           messages: [
-            {
-              role: "system",
-              content: "You are a sharp ops/account person. Write GoodFit assessments in plain language. No corporate tone, no coaching tone, no resume summary style. Short sentences. Plain verbs.",
-            },
             { role: "user", content: prompt },
           ],
           temperature: 0.7,
