@@ -1,13 +1,13 @@
 import type { RawJob, SourceResult, FetchContext } from "./types";
 
 const API_KEY = process.env.RAPIDAPI_KEY;
-const HOST = process.env.RAPIDAPI_HOST_LINKEDIN ?? "linkedin-job-search-api.p.rapidapi.com";
+const HOST = process.env.RAPIDAPI_HOST_ATS ?? "active-jobs-db.p.rapidapi.com";
 
-/** LinkedIn — Recent LinkedIn job postings via RapidAPI. */
-export async function fetchLinkedIn(ctx: FetchContext): Promise<SourceResult> {
+/** ATS — Direct from company career pages (Greenhouse, Lever, Workday, etc.) via RapidAPI. */
+export async function fetchATS(ctx: FetchContext): Promise<SourceResult> {
   const start = Date.now();
   if (!API_KEY) {
-    return { source: "linkedin", jobs: [], error: "Missing RapidAPI key", duration_ms: 0 };
+    return { source: "ats", jobs: [], error: "Missing RapidAPI key", duration_ms: 0 };
   }
 
   const jobs: RawJob[] = [];
@@ -24,7 +24,7 @@ export async function fetchLinkedIn(ctx: FetchContext): Promise<SourceResult> {
         params.set("location_filter", ctx.location);
       }
 
-      const res = await fetch(`https://${HOST}/active-jb-7d?${params}`, {
+      const res = await fetch(`https://${HOST}/active-ats-7d?${params}`, {
         headers: {
           "X-RapidAPI-Key": API_KEY,
           "X-RapidAPI-Host": HOST,
@@ -41,8 +41,8 @@ export async function fetchLinkedIn(ctx: FetchContext): Promise<SourceResult> {
         const url = j.url || j.link || j.apply_url || j.job_url;
         if (!url) continue;
 
-        const title = j.title || j.job_title || j.name || "";
-        const company = j.company || j.company_name || j.employer || j.organization || "";
+        const title = j.title || j.job_title || j.name || j.position || "";
+        const company = j.company || j.company_name || j.employer || "";
         if (!title && !company) continue;
 
         const loc = j.location || j.place || null;
@@ -52,18 +52,16 @@ export async function fetchLinkedIn(ctx: FetchContext): Promise<SourceResult> {
           const min = j.salary.min ? `$${Number(j.salary.min).toLocaleString()}` : "";
           const max = j.salary.max ? `$${Number(j.salary.max).toLocaleString()}` : "";
           salary = min && max ? `${min} - ${max}` : min || max;
-        } else if (typeof j.salary === "string" && j.salary.trim()) {
-          salary = j.salary;
         }
 
         jobs.push({
-          title: title || "Untitled",
+          title,
           company: company || "Unknown",
           url,
           location: loc,
           salary,
           work_mode: j.remote || j.is_remote || (loc && /remote/i.test(loc)) ? "remote" : null,
-          source: "linkedin",
+          source: "ats",
           description_snippet: (j.description || j.desc || j.summary || "").slice(0, 300),
         });
       }
@@ -72,5 +70,5 @@ export async function fetchLinkedIn(ctx: FetchContext): Promise<SourceResult> {
     }
   }
 
-  return { source: "linkedin", jobs, duration_ms: Date.now() - start };
+  return { source: "ats", jobs, duration_ms: Date.now() - start };
 }

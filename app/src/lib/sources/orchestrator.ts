@@ -5,6 +5,7 @@ import { fetchAdzuna } from "./adzuna";
 import { fetchJooble } from "./jooble";
 import { fetchJSearch } from "./jsearch";
 import { fetchLinkedIn } from "./linkedin";
+import { fetchATS } from "./ats";
 import { fetchHimalayas } from "./himalayas";
 import { fetchHiringCafe } from "./hiringcafe";
 import { fetchRemotive } from "./remotive";
@@ -160,6 +161,7 @@ export async function runFetchPipeline(
     { name: "jooble", fn: () => fetchJooble(ctx) },
     { name: "jsearch", fn: () => fetchJSearch(ctx) },
     { name: "linkedin", fn: () => fetchLinkedIn(ctx) },
+    { name: "ats", fn: () => fetchATS(ctx) },
     { name: "himalayas", fn: () => fetchHimalayas(ctx) },
     { name: "hiringcafe", fn: () => fetchHiringCafe(ctx) },
     { name: "remotive", fn: () => fetchRemotive(ctx) },

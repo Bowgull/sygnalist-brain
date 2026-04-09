@@ -1,8 +1,9 @@
 import type { RawJob, SourceResult, FetchContext } from "./types";
 
 const API_KEY = process.env.RAPIDAPI_KEY;
-const HOST = process.env.RAPIDAPI_HOST_JSEARCH ?? "active-jobs-db.p.rapidapi.com";
+const HOST = process.env.RAPIDAPI_HOST_JSEARCH ?? "jsearch.p.rapidapi.com";
 
+/** JSearch — Google Jobs aggregator via RapidAPI. Broadest coverage, generous free tier. */
 export async function fetchJSearch(ctx: FetchContext): Promise<SourceResult> {
   const start = Date.now();
   if (!API_KEY) {
@@ -10,17 +11,20 @@ export async function fetchJSearch(ctx: FetchContext): Promise<SourceResult> {
   }
 
   const jobs: RawJob[] = [];
+  const country = ctx.country?.toLowerCase() === "canada" ? "ca" : "us";
 
-  for (const term of ctx.searchTerms) {
+  for (const term of ctx.searchTerms.slice(0, 4)) {
     try {
       const query = ctx.location ? `${term} in ${ctx.location}` : term;
       const params = new URLSearchParams({
         query,
         page: "1",
         num_pages: "1",
+        country,
+        date_posted: "all",
       });
 
-      const res = await fetch(`https://${HOST}/active-ats-7d?${params}`, {
+      const res = await fetch(`https://${HOST}/search?${params}`, {
         headers: {
           "X-RapidAPI-Key": API_KEY,
           "X-RapidAPI-Host": HOST,
