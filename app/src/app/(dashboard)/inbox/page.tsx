@@ -86,14 +86,15 @@ export default function InboxPage() {
         const count = data.jobs_delivered ?? 0;
         toast.success(`${count} new role${count !== 1 ? "s" : ""} found`, {
           description: `${data.total_raw ?? 0} scanned, ${data.after_dedupe ?? 0} unique, ${count} delivered (${((data.duration_ms ?? 0) / 1000).toFixed(1)}s)`,
+          duration: 5000,
         });
         fetchJobs(activeLane);
       } else {
         const err = await res.json().catch(() => null);
-        toast.error(err?.error ?? "Scan failed");
+        toast.error(err?.error ?? "Scan failed", { duration: 5000 });
       }
     } catch {
-      toast.error("Scan failed - check your connection");
+      toast.error("Scan failed - check your connection", { duration: 5000 });
     } finally {
       setScanning(false);
     }

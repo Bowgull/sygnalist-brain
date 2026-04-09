@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useViewAs } from "@/components/view-as/view-as-context";
-import { Eye, LogOut } from "lucide-react";
+import { ArrowLeft, Eye, LogOut } from "lucide-react";
 
 function useRelativeTime(iso: string | null) {
   const [text, setText] = useState("");
@@ -130,6 +130,13 @@ export default function Header({
           <div className="flex md:hidden items-center gap-1.5">
             {viewAsActive ? (
               <>
+                <button
+                  onClick={() => router.push("/admin/clients")}
+                  title="Back to Admin"
+                  className="p-1 rounded-md text-[#FAD76A] hover:bg-[#FAD76A]/10 transition-colors"
+                >
+                  <ArrowLeft size={14} strokeWidth={2} />
+                </button>
                 <Eye size={12} strokeWidth={2} className="text-[#FAD76A]" />
                 <span className="text-[0.6875rem] text-[#FAD76A] max-w-[100px] truncate">{viewAsLoading ? "..." : clientName}</span>
                 <span className="h-1.5 w-1.5 rounded-full bg-[#FAD76A] animate-dot-pulse" />
@@ -154,8 +161,8 @@ export default function Header({
         </div>
       </div>
 
-      {/* Glow seam */}
-      <div className={`h-px bg-gradient-to-r from-transparent ${viewAsActive ? "via-[#FAD76A]/40" : "via-[#00ffc3]/40"} to-transparent animate-seam-glow`} />
+      {/* Glow seam — relative z-0 so it doesn't overlap sticky filter bars below */}
+      <div className={`relative z-0 h-px bg-gradient-to-r from-transparent ${viewAsActive ? "via-[#FAD76A]/40" : "via-[#00ffc3]/40"} to-transparent animate-seam-glow`} />
     </header>
   );
 }
