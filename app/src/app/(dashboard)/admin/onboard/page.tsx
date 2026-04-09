@@ -51,6 +51,7 @@ export default function OnboardPage() {
   const [acceptRemote, setAcceptRemote] = useState(true);
   const [acceptHybrid, setAcceptHybrid] = useState(true);
   const [acceptOnsite, setAcceptOnsite] = useState(false);
+  const [preferredCountries, setPreferredCountries] = useState<string[]>([]);
   const [preferredLocations, setPreferredLocations] = useState<string[]>([]);
   const [bannedKeywords, setBannedKeywords] = useState<string[]>([]);
   const [distanceKm, setDistanceKm] = useState(50);
@@ -246,7 +247,7 @@ export default function OnboardPage() {
         accept_hybrid: acceptHybrid,
         accept_onsite: acceptOnsite,
         preferred_locations: preferredLocations,
-        preferred_countries: [],
+        preferred_countries: preferredCountries,
         preferred_cities: city ? [city] : [],
         top_skills: topSkills,
         skill_keywords_plus: skillPlus,
@@ -607,6 +608,27 @@ export default function OnboardPage() {
               ))}
             </div>
 
+            {/* Preferred countries */}
+            <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Preferred Countries</label>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {(["Canada", "United States", "United Kingdom", "Australia", "Germany", "France"] as const).map((c) => {
+                const active = preferredCountries.includes(c);
+                return (
+                  <button
+                    key={c}
+                    onClick={() => setPreferredCountries((prev) => active ? prev.filter((x) => x !== c) : [...prev, c])}
+                    className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                      active
+                        ? "bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30"
+                        : "bg-[#0C1016] text-[#6B7280] ring-1 ring-[#2A3544]"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Salary */}
             <div className="mb-4">
               <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Min Salary (annual)</label>
@@ -698,6 +720,10 @@ export default function OnboardPage() {
               <SummaryRow
                 label="Work Mode"
                 value={[acceptRemote && "Remote", acceptHybrid && "Hybrid", acceptOnsite && "Onsite"].filter(Boolean).join(", ") || "Any"}
+              />
+              <SummaryRow
+                label="Countries"
+                value={preferredCountries.length > 0 ? preferredCountries.join(", ") : "Any"}
               />
               <SummaryRow
                 label="Roles"
