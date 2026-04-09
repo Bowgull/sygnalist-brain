@@ -13,4 +13,5 @@ export interface ParsedResume {
   signature_stories: string[];
   experience_years: number;
   education: string;
+  lane_controls?: Array<{ laneKey: string; laneLabel: string; enabled: boolean; roles: string[] }>;
 }

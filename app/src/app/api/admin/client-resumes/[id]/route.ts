@@ -59,6 +59,7 @@ export async function PATCH(
     salary_min: parsed.salary_estimate ? parseSalaryMin(parsed.salary_estimate) : undefined,
     skill_profile_text: parsed.summary || undefined,
     signature_stories: parsed.signature_stories?.length ? parsed.signature_stories : undefined,
+    lane_controls: parsed.lane_controls?.length ? parsed.lane_controls : undefined,
   };
 
   const patch: Record<string, unknown> = {};

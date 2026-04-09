@@ -38,6 +38,7 @@ const DIFF_FIELDS: Array<{
   { key: "accept_onsite", label: "Onsite", profileKey: "accept_onsite", format: (v) => v ? "Yes" : "No" },
   { key: "salary_estimate", label: "Salary Min", profileKey: "salary_min", format: (v) => typeof v === "number" ? `$${v.toLocaleString()}` : String(v) },
   { key: "summary", label: "Profile Summary", profileKey: "skill_profile_text", format: String },
+  { key: "lane_controls", label: "Lanes", profileKey: "lane_controls", format: (v) => Array.isArray(v) ? v.filter((l: { enabled?: boolean }) => l.enabled).map((l: { laneLabel?: string }) => l.laneLabel ?? "").join(", ") : String(v) },
 ];
 
 // Map parsed field keys to profile column names for the approve API
@@ -53,6 +54,7 @@ const PARSED_TO_PROFILE: Record<string, string> = {
   accept_onsite: "accept_onsite",
   salary_estimate: "salary_min",
   summary: "skill_profile_text",
+  lane_controls: "lane_controls",
 };
 
 export default function ResumeTab({

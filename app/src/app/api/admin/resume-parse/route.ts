@@ -1,6 +1,7 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { extractText } from "@/lib/resume/extract-text";
 import { parseWithAI, validateParsedResult } from "@/lib/resume/parse";
+import { matchLanes } from "@/lib/resume/match-lanes";
 
 /**
  * POST /api/admin/resume-parse - Parse a resume with AI
@@ -68,6 +69,11 @@ export async function POST(request: Request) {
   try {
     const rawParsed = await parseWithAI(resumeText);
     const parsed = validateParsedResult(rawParsed, resumeText);
+
+    // Match role_tracks against lane_role_bank
+    if (parsed.role_tracks?.length) {
+      parsed.lane_controls = await matchLanes(parsed.role_tracks);
+    }
 
     await service.from("resume_parse_logs").insert({
       user_id: profile.id,
