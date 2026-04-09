@@ -137,11 +137,20 @@ function scoreOne(job: RawJob, profile: Profile): ScoredJob {
     }
   }
 
-  // Remote: just check blacklist, no location requirement
+  // Remote: check blacklist + enforce preferred countries
   if (isRemote && job.location) {
     const blacklist = (profile.location_blacklist ?? []).map((l) => l.toLowerCase());
     for (const bl of blacklist) {
       if (bl && locationLower.includes(bl)) {
+        return makeScoredJob(job, -999, "F", 0, false, null, null);
+      }
+    }
+
+    // Enforce preferred countries for remote jobs (jobs with no location pass through)
+    const countries = (profile.preferred_countries ?? []).map((c) => c.toLowerCase());
+    if (countries.length > 0) {
+      const countryMatch = countries.some((c) => locationLower.includes(c));
+      if (!countryMatch) {
         return makeScoredJob(job, -999, "F", 0, false, null, null);
       }
     }

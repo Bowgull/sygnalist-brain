@@ -52,6 +52,7 @@ export async function fetchHiringCafe(ctx: FetchContext): Promise<SourceResult> 
       },
       body: JSON.stringify({
         searchQuery: ctx.searchTerms.slice(0, 3).join(" "),
+        location: ctx.location || undefined,
         dateFetchedPastNDays: 14,
         sortBy: "relevance",
         size: 50,

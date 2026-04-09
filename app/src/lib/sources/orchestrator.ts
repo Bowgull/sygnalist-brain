@@ -11,6 +11,8 @@ import { fetchHiringCafe } from "./hiringcafe";
 import { fetchRemotive } from "./remotive";
 import { fetchRemoteOK } from "./remoteok";
 import { fetchTheMuse } from "./themuse";
+import { fetchJobicy } from "./jobicy";
+import { fetchWeWorkRemotely } from "./weworkremotely";
 import { scoreJobs, type ScoredJob } from "@/lib/scoring/score";
 import { enrichJobs } from "@/lib/enrichment/enrich";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -174,6 +176,8 @@ export async function runFetchPipeline(
     { name: "remotive", fn: () => fetchRemotive(ctx) },
     { name: "remoteok", fn: () => fetchRemoteOK(ctx) },
     { name: "themuse", fn: () => fetchTheMuse(ctx) },
+    { name: "jobicy", fn: () => fetchJobicy(ctx) },
+    { name: "weworkremotely", fn: () => fetchWeWorkRemotely(ctx) },
   ];
 
   if (acceptsGerman) {

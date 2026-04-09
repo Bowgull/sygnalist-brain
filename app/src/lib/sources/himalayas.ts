@@ -7,8 +7,12 @@ export async function fetchHimalayas(ctx: FetchContext): Promise<SourceResult> {
 
   try {
     const params = new URLSearchParams({ limit: "50" });
-    if (ctx.searchTerms.length > 0) {
-      params.set("q", ctx.searchTerms.slice(0, 3).join(" "));
+    const queryParts = ctx.searchTerms.slice(0, 3);
+    if (ctx.country) {
+      queryParts.push(ctx.country);
+    }
+    if (queryParts.length > 0) {
+      params.set("q", queryParts.join(" "));
     }
 
     const res = await fetch(`https://himalayas.app/jobs/api?${params}`, {
