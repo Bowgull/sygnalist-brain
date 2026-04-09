@@ -82,14 +82,19 @@ FORMAT:
 - Each block: 2-3 short sentences. Separate each block with a single blank line.
 
 Structure (exactly 3 blocks):
-- Block 1 (Why they fit): Why this candidate is a good fit for this role. Connect specific profile facts and experience to job requirements. Draw on the candidate's proof points implicitly without naming them as "stories." Plain, factual, no praise.
-- Block 2 (Skill gaps): What specific skills or experience the candidate might lack for this role. Be honest and direct. If no clear gap exists, note what is ambiguous in the posting and why it matters operationally. Do not fabricate missing skills.
-- Block 3 (Bridge the gap): How the candidate would close those gaps. Frame as either an interview talking point written in first person (e.g. "I'd work closely with the dev team to learn...") or a concrete action they would take early in the role to build the missing skill. Practical only, not advice or coaching.
+- Block 1 (Concrete match): One specific fact from the candidate profile and one specific requirement from the job. Connect them plainly. Calm observation, not praise.
+- Block 2 (Clear gap or unknown): A real gap, missing signal, or ambiguity. If no clear gap, state what is unclear in the posting and why it matters operationally. Do not fabricate missing skills.
+- Block 3 (Realistic framing): How the candidate would speak to this in conversation; what evidence they would point to; how they would handle it early. Practical positioning only. Not advice, coaching, or encouragement.
 
 TONE (non-negotiable):
 - Sharp ops/account person thinking out loud next to the candidate. Not resume writer, motivational coach, LinkedIn post, chatbot, polished essay, or corporate HR. Short sentences (most under 18 words). Plain verbs: handled, ran, owned, fixed, tracked, escalated, coordinated. No motivational tone. No corporate tone. No resume summary language. Do not invent missing profile skills. If you cannot find a concrete profile fact, state "Profile signal missing on X" rather than fabricating alignment.
 
 BANNED words and phrases (do not use): aligns, alignment, demonstrates, suggests, indicates, highlights, showcases, leverages, utilizes, transferable, dynamic, fast paced, passionate, self starter, rockstar, great fit, perfect fit, ideal candidate, consider, you should, try to, make sure, ability to, open question, interview answer, your experience, we're excited, don't worry, you're amazing, personal brand, 10x, dream role. No em dashes. No filler like "This is a great opportunity", "This position offers", "You would be well suited".
+
+Example style (tone only; do not copy verbatim):
+Block 1: "You've handled high volume customer interactions and kept the desk steady during busy shifts. The posting focuses on inbound questions and quick issue resolution. The pace looks similar."
+Block 2: "The job mentions CRM tracking and structured reporting. Your profile does not clearly show system ownership. If reporting is central to the role, that could matter."
+Block 3: "You would frame your strength in triage and follow through. Point to moments where you tracked issues from start to finish. Then explain how you would learn their system quickly and keep records clean from day one."
 
 Candidate Skill Profile:
 ${skillProfileText || "(No skill profile text provided yet.)"}
