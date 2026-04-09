@@ -5,7 +5,6 @@ import { fetchAdzuna } from "./adzuna";
 import { fetchJooble } from "./jooble";
 import { fetchJSearch } from "./jsearch";
 import { fetchLinkedIn } from "./linkedin";
-import { fetchArbeitnow } from "./arbeitnow";
 import { fetchHimalayas } from "./himalayas";
 import { fetchHiringCafe } from "./hiringcafe";
 import { fetchRemotive } from "./remotive";
@@ -19,10 +18,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const MAX_SEARCH_TERMS = 8;
 const MAX_INBOX_JOBS = 8;
-
-/** German-market sources that should only run when client accepts German */
-const GERMAN_MARKET_SOURCES = new Set(["arbeitnow"]);
-const GERMAN_LANGUAGE_CODES = new Set(["de"]);
 
 interface RoleTrack {
   label?: string;
@@ -160,12 +155,6 @@ export async function runFetchPipeline(
   const { location, country } = resolveLocation(profile);
   const ctx: FetchContext = { searchTerms, location, country };
 
-  // Build source list - skip market-specific sources based on language preferences
-  const acceptedLanguages = new Set(
-    (profile.preferred_languages?.length ? profile.preferred_languages : ["en"]).map((l) => l.toLowerCase()),
-  );
-  const acceptsGerman = [...acceptedLanguages].some((l) => GERMAN_LANGUAGE_CODES.has(l));
-
   const allSources: Array<{ name: string; fn: () => Promise<SourceResult> }> = [
     { name: "adzuna", fn: () => fetchAdzuna(ctx) },
     { name: "jooble", fn: () => fetchJooble(ctx) },
@@ -179,10 +168,6 @@ export async function runFetchPipeline(
     { name: "jobicy", fn: () => fetchJobicy(ctx) },
     { name: "weworkremotely", fn: () => fetchWeWorkRemotely(ctx) },
   ];
-
-  if (acceptsGerman) {
-    allSources.push({ name: "arbeitnow", fn: () => fetchArbeitnow(ctx) });
-  }
 
   // Run all sources in parallel
   const sourcePromises = allSources.map((s) => s.fn());

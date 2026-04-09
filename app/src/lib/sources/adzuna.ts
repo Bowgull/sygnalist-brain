@@ -4,8 +4,8 @@ const APP_ID = process.env.ADZUNA_APP_ID;
 const APP_KEY = process.env.ADZUNA_APP_KEY;
 
 const COUNTRY_MAP: Record<string, string> = {
-  US: "us", CA: "ca", GB: "gb", AU: "au", DE: "de", FR: "fr",
-  "United States": "us", Canada: "ca", "United Kingdom": "gb",
+  US: "us", CA: "ca",
+  "United States": "us", Canada: "ca",
 };
 
 export async function fetchAdzuna(ctx: FetchContext): Promise<SourceResult> {

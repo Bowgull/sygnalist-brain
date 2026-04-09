@@ -2,17 +2,8 @@ import type { RawJob, SourceResult, FetchContext } from "./types";
 
 /** Map common country names to Jobicy geo codes */
 const GEO_MAP: Record<string, string> = {
-  "United States": "usa",
-  US: "usa",
-  Canada: "canada",
-  "United Kingdom": "uk",
-  GB: "uk",
-  Germany: "germany",
-  DE: "germany",
-  France: "france",
-  FR: "france",
-  Australia: "australia",
-  AU: "australia",
+  "United States": "usa", US: "usa",
+  Canada: "canada", CA: "canada",
 };
 
 /** Jobicy - free remote job API, no auth required */

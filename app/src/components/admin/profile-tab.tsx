@@ -11,10 +11,6 @@ const labelClass = "mb-1 block text-[0.6875rem] font-semibold uppercase tracking
 const COUNTRY_OPTIONS = [
   { code: "Canada", label: "Canada" },
   { code: "United States", label: "United States" },
-  { code: "United Kingdom", label: "United Kingdom" },
-  { code: "Australia", label: "Australia" },
-  { code: "Germany", label: "Germany" },
-  { code: "France", label: "France" },
 ] as const;
 
 const LANGUAGE_OPTIONS = [

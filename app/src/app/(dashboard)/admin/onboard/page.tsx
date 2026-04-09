@@ -611,7 +611,7 @@ export default function OnboardPage() {
             {/* Preferred countries */}
             <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Preferred Countries</label>
             <div className="mb-4 flex flex-wrap gap-2">
-              {(["Canada", "United States", "United Kingdom", "Australia", "Germany", "France"] as const).map((c) => {
+              {(["Canada", "United States"] as const).map((c) => {
                 const active = preferredCountries.includes(c);
                 return (
                   <button
