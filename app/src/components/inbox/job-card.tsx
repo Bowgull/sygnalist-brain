@@ -151,16 +151,6 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
               </p>
             )}
 
-            {job.why_fit && (
-              <div className="rounded-lg border-l-[3px] border-l-[#2F8A63] bg-[#6AD7A3]/5 p-4">
-                <p className="text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-[#6AD7A3]">
-                  WHY IT FITS
-                </p>
-                <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-[#B8BFC8]">
-                  {job.why_fit}
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>
