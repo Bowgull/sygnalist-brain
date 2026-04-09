@@ -9,10 +9,13 @@ import ErrorDetail from "@/components/logs/error-detail";
 import FetchBatchGroup from "@/components/logs/fetch-batch-group";
 import FetchSummaryStrip from "@/components/logs/fetch-summary-strip";
 import LogFilterBar from "@/components/logs/log-filter-bar";
+import TicketsPanel from "@/components/logs/tickets-panel";
+import TicketPickerModal from "@/components/logs/ticket-picker-modal";
 import { getDomainIcon, getSeverityIcon } from "@/components/logs/log-icons";
 import { domainFromEventType, getDomainStyle, actionLabel, relativeTime, fullTime, getSeverityStyle, shortBatchId } from "@/components/logs/log-utils";
+import { toast } from "sonner";
 
-type LogType = "activity" | "errors" | "fetches";
+type LogType = "activity" | "errors" | "fetches" | "tickets";
 type Filters = { domain?: string; severity?: string; success?: string; resolved?: string; search?: string };
 
 export default function AdminLogsPage() {
@@ -56,6 +59,12 @@ export default function AdminLogsPage() {
   // Batch context map for errors tab (request_id -> { profileName, batchId })
   const [batchContextMap, setBatchContextMap] = useState<Record<string, { profileName: string; batchId: string }>>({});
 
+  // Selection mode for creating/linking tickets
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showTicketPicker, setShowTicketPicker] = useState(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Persist filters in URL ────────────────────────────────────────────
   const updateUrl = useCallback((tab: LogType, f: Filters) => {
     const params = new URLSearchParams();
@@ -70,8 +79,10 @@ export default function AdminLogsPage() {
 
   // ── Fetch logs ────────────────────────────────────────────────────────
   useEffect(() => {
+    if (logType === "tickets") { setLoading(false); return; }
     setLoading(true);
     setExpandedId(null);
+    exitSelectionMode();
 
     // Map "activity" back to "events" for API
     const apiType = logType === "activity" ? "events" : logType;
@@ -379,12 +390,132 @@ export default function AdminLogsPage() {
     return batches;
   }
 
+  // ── Selection mode helpers ─────────────────────────────────────────────
+  function toggleSelection(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function selectGroup(ids: string[]) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = ids.every((id) => next.has(id));
+      if (allSelected) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  function exitSelectionMode() {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }
+
+  function handleItemLongPress(id: string) {
+    if (selectionMode) return;
+    setSelectionMode(true);
+    setSelectedIds(new Set([id]));
+  }
+
+  async function createTicketFromSelection() {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const isErrorTab = logType === "errors";
+
+    const body: Record<string, unknown> = {
+      title: `${isErrorTab ? "Error" : "Activity"} group (${ids.length} items)`,
+      source: isErrorTab ? "error" : "activity",
+    };
+    if (isErrorTab) body.errorIds = ids;
+    else body.eventIds = ids;
+
+    const res = await fetch("/api/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      toast.success(`Ticket created with ${ids.length} items`);
+      exitSelectionMode();
+    } else {
+      toast.error("Failed to create ticket");
+    }
+  }
+
+  async function addSelectionToTicket(ticketId: string) {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const isErrorTab = logType === "errors";
+
+    const body: Record<string, unknown> = {};
+    if (isErrorTab) body.errorIds = ids;
+    else body.eventIds = ids;
+
+    const res = await fetch(`/api/tickets/${ticketId}/link`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      toast.success(`${ids.length} items linked to ticket`);
+      exitSelectionMode();
+      setShowTicketPicker(false);
+    } else {
+      toast.error("Failed to link items");
+      setShowTicketPicker(false);
+    }
+  }
+
+  async function createTicketFromActivityGroup(group: ActivityGroup) {
+    const eventIds = group.logs.map((l) => l.id as string);
+    const res = await fetch("/api/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: groupSummary(group),
+        source: "activity",
+        eventIds,
+      }),
+    });
+    if (res.ok) {
+      toast.success(`Ticket created with ${eventIds.length} events`);
+    } else {
+      toast.error("Failed to create ticket");
+    }
+  }
+
+  async function createTicketFromErrorGroup(group: ErrorGroup) {
+    const errorIds = group.logs.map((l) => l.id as string);
+    const res = await fetch("/api/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `${group.sourceSystem}: ${group.message.slice(0, 60)}`,
+        source: "error",
+        errorIds,
+      }),
+    });
+    if (res.ok) {
+      toast.success(`Ticket created with ${errorIds.length} errors`);
+    } else {
+      toast.error("Failed to create ticket");
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
       {/* Tab pills */}
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-        {(["activity", "errors", "fetches"] as LogType[]).map((t) => (
+        {(["activity", "errors", "fetches", "tickets"] as LogType[]).map((t) => (
           <button
             key={t}
             type="button"
@@ -405,7 +536,7 @@ export default function AdminLogsPage() {
           </button>
         ))}
         <span className="ml-auto shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">
-          {logType === "errors" && logs.length > 0
+          {logType === "tickets" ? "" : logType === "errors" && logs.length > 0
             ? `${logs.length} errors · ${groupErrorLogs(logs).length} groups`
             : `${logs.length} entries`}
         </span>
@@ -485,7 +616,19 @@ export default function AdminLogsPage() {
 
                     {/* Expanded — nested child events */}
                     {isOpen && (
-                      <div className="border-t border-[#2A3544]/30 ml-3 md:ml-5 bg-[#0C1016]/40">
+                      <div className="border-t border-[#2A3544]/30">
+                        {/* Create Ticket action bar */}
+                        <div className="px-3 py-2 md:px-5 bg-[#0C1016]/60 border-b border-[#2A3544]/20 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); createTicketFromActivityGroup(group); }}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-[#F472B6]/10 px-3 py-1.5 text-[0.75rem] font-semibold text-[#F472B6] ring-1 ring-[#F472B6]/25 hover:bg-[#F472B6]/20 transition-colors"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
+                            Create Ticket
+                          </button>
+                        </div>
+                        <div className="ml-3 md:ml-5 bg-[#0C1016]/40">
                         {group.logs.map((log, logIdx) => {
                           const id = log.id as string;
                           const isExpanded = expandedId === id;
@@ -496,6 +639,10 @@ export default function AdminLogsPage() {
                                 isExpanded={isExpanded}
                                 onToggle={() => setExpandedId(isExpanded ? null : id)}
                                 profileMap={profileMap}
+                                selectionMode={selectionMode}
+                                isSelected={selectedIds.has(id)}
+                                onSelect={() => toggleSelection(id)}
+                                onLongPress={() => handleItemLongPress(id)}
                               />
                               {isExpanded && (
                                 <EventDetail
@@ -507,6 +654,7 @@ export default function AdminLogsPage() {
                             </div>
                           );
                         })}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -538,7 +686,7 @@ export default function AdminLogsPage() {
                       key={id}
                       className={`rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] bg-[#171F28] overflow-hidden ${sevStyle.borderClass}`}
                     >
-                      <ErrorRow log={log} isExpanded={isExpanded} onToggle={() => setExpandedId(isExpanded ? null : id)} batchContext={ctx} />
+                      <ErrorRow log={log} isExpanded={isExpanded} onToggle={() => setExpandedId(isExpanded ? null : id)} batchContext={ctx} selectionMode={selectionMode} isSelected={selectedIds.has(id)} onSelect={() => toggleSelection(id)} onLongPress={() => handleItemLongPress(id)} />
                       {isExpanded && (
                         <ErrorDetail log={log} profileMap={profileMap} onTraceRequest={handleTraceRequest} onResolve={handleResolve} />
                       )}
@@ -590,6 +738,17 @@ export default function AdminLogsPage() {
                     {/* Expanded — nested child errors */}
                     {isGroupOpen && (
                       <div className="border-t border-[#2A3544]/30">
+                        {/* Action bar */}
+                        <div className="px-3 py-2 md:px-5 bg-[#0C1016]/60 border-b border-[#2A3544]/20 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); createTicketFromErrorGroup(group); }}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-[#F472B6]/10 px-3 py-1.5 text-[0.75rem] font-semibold text-[#F472B6] ring-1 ring-[#F472B6]/25 hover:bg-[#F472B6]/20 transition-colors"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
+                            Create Ticket
+                          </button>
+                        </div>
                         {/* Bulk resolve bar */}
                         {!group.resolved && (
                           <div className="px-3 py-2.5 md:px-5 bg-[#0C1016]/60 border-b border-[#2A3544]/20">
@@ -650,7 +809,7 @@ export default function AdminLogsPage() {
                             const ctx = reqId ? batchContextMap[reqId] ?? null : null;
                             return (
                               <div key={id} className={logIdx > 0 ? "border-t border-[#2A3544]/15" : ""}>
-                                <ErrorRow log={log} isExpanded={isExpanded} onToggle={() => setExpandedId(isExpanded ? null : id)} batchContext={ctx} />
+                                <ErrorRow log={log} isExpanded={isExpanded} onToggle={() => setExpandedId(isExpanded ? null : id)} batchContext={ctx} selectionMode={selectionMode} isSelected={selectedIds.has(id)} onSelect={() => toggleSelection(id)} onLongPress={() => handleItemLongPress(id)} />
                                 {isExpanded && (
                                   <ErrorDetail log={log} profileMap={profileMap} onTraceRequest={handleTraceRequest} onResolve={handleResolve} />
                                 )}
@@ -665,6 +824,9 @@ export default function AdminLogsPage() {
               })}
             </div>
           )}
+
+          {/* ── TICKETS TAB ── */}
+          {logType === "tickets" && <TicketsPanel />}
 
           {/* ── FETCHES TAB ── */}
           {logType === "fetches" && (() => {
@@ -794,6 +956,45 @@ export default function AdminLogsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Selection Mode Floating Action Bar ── */}
+      {selectionMode && (
+        <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full border border-[rgba(255,255,255,0.12)] bg-[#171F28]/95 px-4 py-2.5 shadow-2xl backdrop-blur-md animate-slide-up">
+          <span className="text-[0.75rem] font-semibold tabular-nums text-white">{selectedIds.size} selected</span>
+          <span className="h-4 w-px bg-[#2A3544]" />
+          <button
+            type="button"
+            onClick={createTicketFromSelection}
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#6AD7A3]/15 px-3 py-1.5 text-[0.75rem] font-semibold text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30 hover:bg-[#6AD7A3]/25 transition-colors"
+          >
+            Create Ticket
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowTicketPicker(true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#F472B6]/10 px-3 py-1.5 text-[0.75rem] font-semibold text-[#F472B6] ring-1 ring-[#F472B6]/25 hover:bg-[#F472B6]/20 transition-colors"
+          >
+            Add to Ticket
+          </button>
+          <button
+            type="button"
+            onClick={exitSelectionMode}
+            className="p-1 text-[#9CA3AF] hover:text-white transition-colors"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* ── Ticket Picker for selection mode ── */}
+      {showTicketPicker && (
+        <TicketPickerModal
+          onSelect={addSelectionToTicket}
+          onClose={() => setShowTicketPicker(false)}
+        />
       )}
     </div>
   );

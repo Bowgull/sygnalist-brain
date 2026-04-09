@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useViewAs } from "@/components/view-as/view-as-context";
 import { ArrowLeft, Eye, LogOut } from "lucide-react";
+import FeedbackSheet from "@/components/feedback/feedback-sheet";
 
 function useRelativeTime(iso: string | null) {
   const [text, setText] = useState("");
@@ -38,7 +39,27 @@ export default function Header({
   const { active: viewAsActive, clientName, loading: viewAsLoading } = useViewAs();
   const [lastFetch, setLastFetch] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [logoHolding, setLogoHolding] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastScanText = useRelativeTime(lastFetch);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setLogoHolding(false);
+  }, []);
+
+  const startLongPress = useCallback(() => {
+    setLogoHolding(true);
+    longPressTimer.current = setTimeout(() => {
+      setLogoHolding(false);
+      setFeedbackOpen(true);
+      longPressTimer.current = null;
+    }, 800);
+  }, []);
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -65,7 +86,13 @@ export default function Header({
       <div className="mx-auto flex min-h-[56px] md:min-h-[var(--header-height)] max-w-[var(--layout-max-width)] items-center justify-between gap-3 md:gap-4 px-4 md:px-6 py-2 md:py-3">
         {/* Zone 1: Brand */}
         <div className="flex items-center gap-2 md:gap-3 shrink-0">
-          <div className="flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-gradient-to-br from-[#0B1512] to-[#0F2A23] ring-1 ring-[#6AD7A3]/20 animate-pulse-glow">
+          <div
+            className={`flex h-9 w-9 md:h-12 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-gradient-to-br from-[#0B1512] to-[#0F2A23] ring-1 ring-[#6AD7A3]/20 animate-pulse-glow select-none transition-transform ${logoHolding ? "scale-90" : ""}`}
+            onPointerDown={startLongPress}
+            onPointerUp={clearLongPress}
+            onPointerLeave={clearLongPress}
+            onContextMenu={(e) => e.preventDefault()}
+          >
             <svg viewBox="0 0 64 64" className="h-6 w-6 md:h-8 md:w-8">
               <circle cx="32" cy="32" r="17" fill="none" stroke="url(#hGrad)" strokeWidth="3.8" opacity="0.95" />
               <circle cx="32" cy="32" r="10" fill="none" stroke="#A9FFB5" strokeWidth="2" opacity="0.16" />
@@ -163,6 +190,8 @@ export default function Header({
 
       {/* Glow seam */}
       <div className={`h-px bg-gradient-to-r from-transparent ${viewAsActive ? "via-[#FAD76A]/40" : "via-[#00ffc3]/40"} to-transparent animate-seam-glow`} />
+
+      {feedbackOpen && <FeedbackSheet onClose={() => setFeedbackOpen(false)} />}
     </header>
   );
 }

@@ -607,6 +607,7 @@ export interface Database {
           metadata: Json;
           request_id: string | null;
           success: boolean;
+          ticket_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -616,6 +617,7 @@ export interface Database {
           metadata?: Json;
           request_id?: string | null;
           success?: boolean;
+          ticket_id?: string | null;
         };
         Update: {
           id?: string;
@@ -624,6 +626,7 @@ export interface Database {
           metadata?: Json;
           request_id?: string | null;
           success?: boolean;
+          ticket_id?: string | null;
         };
         Relationships: [];
       };
@@ -689,6 +692,7 @@ export interface Database {
           resolved: boolean;
           resolved_at: string | null;
           resolved_by: string | null;
+          ticket_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -703,6 +707,7 @@ export interface Database {
           resolved?: boolean;
           resolved_at?: string | null;
           resolved_by?: string | null;
+          ticket_id?: string | null;
         };
         Update: {
           id?: string;
@@ -716,6 +721,7 @@ export interface Database {
           resolved?: boolean;
           resolved_at?: string | null;
           resolved_by?: string | null;
+          ticket_id?: string | null;
         };
         Relationships: [];
       };
@@ -914,6 +920,60 @@ export interface Database {
           parsed_data?: Json | null;
           status?: string;
           applied_at?: string | null;
+        };
+        Relationships: [];
+      };
+      tickets: {
+        Row: {
+          id: string;
+          title: string;
+          status: string;
+          priority: string;
+          source: string;
+          reporter_id: string | null;
+          message: string | null;
+          page_url: string | null;
+          user_agent: string | null;
+          screen_size: string | null;
+          metadata: Json;
+          notes: Json;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          status?: string;
+          priority?: string;
+          source?: string;
+          reporter_id?: string | null;
+          message?: string | null;
+          page_url?: string | null;
+          user_agent?: string | null;
+          screen_size?: string | null;
+          metadata?: Json;
+          notes?: Json;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          status?: string;
+          priority?: string;
+          source?: string;
+          reporter_id?: string | null;
+          message?: string | null;
+          page_url?: string | null;
+          user_agent?: string | null;
+          screen_size?: string | null;
+          metadata?: Json;
+          notes?: Json;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          updated_at?: string;
         };
         Relationships: [];
       };

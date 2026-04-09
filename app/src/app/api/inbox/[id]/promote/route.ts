@@ -63,6 +63,9 @@ export async function POST(
     return error(insertErr.message, 500);
   }
 
+  // Remove from inbox (same pattern as dismiss)
+  await supabase.from("inbox_jobs").delete().eq("id", id);
+
   // Also upsert to global job bank (if URL exists)
   if (job.url) {
     const service = getServiceClient();

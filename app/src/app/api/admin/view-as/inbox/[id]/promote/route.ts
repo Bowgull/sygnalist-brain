@@ -65,6 +65,9 @@ export async function POST(
     return error(insertErr.message, 500);
   }
 
+  // Remove from inbox
+  await service.from("inbox_jobs").delete().eq("id", id);
+
   if (job.url) {
     await service.from("global_job_bank").upsert(
       {

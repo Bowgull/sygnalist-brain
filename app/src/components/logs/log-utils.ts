@@ -10,6 +10,7 @@ export const domainStyles: Record<string, { badge: string; dot: string; color: s
   cron:    { badge: "border-[#14B8A6] bg-[#14B8A6]/12 text-[#14B8A6]", dot: "bg-[#14B8A6]", color: "#14B8A6", borderClass: "border-l-[3px] border-l-[#14B8A6]/40", label: "Cron" },
   enrich:  { badge: "border-[#38BDF8] bg-[#38BDF8]/12 text-[#38BDF8]", dot: "bg-[#38BDF8]", color: "#38BDF8", borderClass: "border-l-[3px] border-l-[#38BDF8]/40", label: "Enrich" },
   system:  { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", color: "#9CA3AF", borderClass: "border-l-[3px] border-l-[#9CA3AF]/30", label: "System" },
+  ticket:  { badge: "border-[#F472B6] bg-[#F472B6]/12 text-[#F472B6]", dot: "bg-[#F472B6]", color: "#F472B6", borderClass: "border-l-[3px] border-l-[#F472B6]/40", label: "Ticket" },
 };
 const defaultDomain = { badge: "border-[#9CA3AF] bg-[#9CA3AF]/10 text-[#9CA3AF]", dot: "bg-[#9CA3AF]", color: "#9CA3AF", borderClass: "border-l-[3px] border-l-[#9CA3AF]/30", label: "Event" };
 

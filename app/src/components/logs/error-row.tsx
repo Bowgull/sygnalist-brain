@@ -8,9 +8,13 @@ type Props = {
   isExpanded: boolean;
   onToggle: () => void;
   batchContext?: { profileName: string; batchId: string } | null;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  onLongPress?: () => void;
 };
 
-export default function ErrorRow({ log, isExpanded, onToggle, batchContext }: Props) {
+export default function ErrorRow({ log, isExpanded, onToggle, batchContext, selectionMode, isSelected, onSelect, onLongPress }: Props) {
   const severity = log.severity as string;
   const source = log.source_system as string;
   const message = log.message as string;
@@ -20,20 +24,48 @@ export default function ErrorRow({ log, isExpanded, onToggle, batchContext }: Pr
   const sevStyle = getSeverityStyle(severity);
   const SevIcon = getSeverityIcon(severity);
   const StatusIcon = getStatusIcon(resolved ? "resolved" : "unresolved");
+  const ticketId = log.ticket_id as string | null;
+  const hasTicket = !!ticketId;
+
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  function handlePointerDown() {
+    if (selectionMode || !onLongPress) return;
+    longPressTimer = setTimeout(() => { onLongPress(); longPressTimer = null; }, 600);
+  }
+  function handlePointerUp() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }
+
+  function handleClick() {
+    if (selectionMode && onSelect) { onSelect(); return; }
+    onToggle();
+  }
 
   return (
     <div
-      className={`cursor-pointer px-3 py-3 md:px-5 md:py-4 transition-colors hover:bg-[#222D3D]/20 ${sevStyle.row}`}
-      onClick={onToggle}
+      className={`cursor-pointer px-3 py-3 md:px-5 md:py-4 transition-colors hover:bg-[#222D3D]/20 ${sevStyle.row} ${hasTicket ? "border-l-2 border-l-[#F472B6]/40" : ""} ${isSelected ? "bg-[#F472B6]/5" : ""}`}
+      onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
     >
       {/* Row 1: severity badge + source + time + chevron */}
       <div className="flex items-center gap-2 md:gap-3">
+        {/* Selection checkbox */}
+        {selectionMode && (
+          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${isSelected ? "border-[#F472B6] bg-[#F472B6]" : "border-[#2A3544]"}`}>
+            {isSelected && (
+              <svg viewBox="0 0 24 24" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth={3}><polyline points="20 6 9 17 4 12" /></svg>
+            )}
+          </span>
+        )}
         <span className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase ${sevStyle.badge}`}>
           <SevIcon className="h-3 w-3" />
           {severity}
         </span>
         <span className="min-w-0 truncate text-[0.75rem] md:text-[0.8125rem] font-medium text-[#B8BFC8]">{source}</span>
         <span className="flex-1" />
+        {hasTicket && (
+          <span className="shrink-0 rounded bg-[#F472B6]/10 px-1.5 py-0.5 text-[0.5625rem] font-semibold text-[#F472B6] ring-1 ring-[#F472B6]/20">Ticket</span>
+        )}
         <span className="shrink-0 text-[0.75rem] tabular-nums text-[#9CA3AF]">{rel}</span>
         <svg
           viewBox="0 0 24 24"
