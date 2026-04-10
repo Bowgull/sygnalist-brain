@@ -47,6 +47,8 @@ export default function ErrorRow({ log, isExpanded, onToggle, batchContext, sele
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      onContextMenu={(e) => { if (onLongPress) e.preventDefault(); }}
+      style={{ WebkitTouchCallout: "none" }}
     >
       {/* Row 1: severity badge + source + time + chevron */}
       <div className="flex items-center gap-2 md:gap-3">

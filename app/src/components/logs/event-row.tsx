@@ -51,6 +51,8 @@ export default function EventRow({ log, isExpanded, onToggle, profileMap, select
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      onContextMenu={(e) => { if (onLongPress) e.preventDefault(); }}
+      style={{ WebkitTouchCallout: "none" }}
     >
       {/* Row: badge + action + meta */}
       <div className="flex items-center gap-2 md:gap-3">
