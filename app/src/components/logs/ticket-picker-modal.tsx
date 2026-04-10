@@ -52,14 +52,18 @@ export default function TicketPickerModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center pt-[env(safe-area-inset-top,12px)] md:pt-20"
-      style={{ background: "rgba(5, 6, 10, 0.85)" }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-2 md:p-4 bg-[rgba(5,6,10,0.9)]"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md mx-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 max-h-[60vh] flex flex-col"
+        className="w-full max-w-md max-h-[min(85vh,720px)] overflow-y-auto animate-slide-up rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 md:p-6 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Drag handle */}
+        <div className="mb-3 flex justify-center md:hidden">
+          <div className="h-1 w-10 rounded-full bg-white/20" />
+        </div>
+
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-[0.875rem] font-semibold text-white">Merge into...</h3>
           <button type="button" onClick={onClose} className="text-[#9CA3AF] hover:text-white">
