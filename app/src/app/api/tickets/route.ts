@@ -7,13 +7,27 @@ const VALID_PRIORITIES = ["low", "medium", "high", "critical"];
 const VALID_SOURCES = ["user_report", "activity", "error", "manual"];
 
 const ANIME_NAMES = [
-  "goku", "naruto", "luffy", "ichigo", "levi", "mikasa", "spike", "gon",
-  "killua", "eren", "saitama", "tanjiro", "nezuko", "hinata", "vegeta",
-  "kakashi", "zoro", "sanji", "rem", "emilia", "edward", "light", "ryuk",
-  "lelouch", "itachi", "jotaro", "dio", "deku", "todoroki", "bakugo",
-  "sasuke", "erza", "natsu", "genos", "megumin", "asta", "yuno",
-  "touka", "shinji", "rei", "asuka", "motoko", "mugen", "jin", "gintoki",
-  "saber", "lain", "vash", "alucard",
+  // Dragon Ball Z
+  "goku", "vegeta", "gohan", "piccolo", "trunks", "krillin", "frieza", "cell", "beerus", "broly",
+  // Naruto
+  "naruto", "sasuke", "kakashi", "itachi", "hinata", "sakura", "gaara", "jiraiya", "tsunade",
+  "madara", "obito", "minato", "lee", "shikamaru",
+  // One Piece
+  "luffy", "zoro", "sanji", "nami", "robin", "chopper", "franky", "jinbe", "ace", "law", "shanks",
+  // Demon Slayer
+  "tanjiro", "nezuko", "zenitsu", "inosuke", "rengoku", "tengen", "muzan", "akaza", "giyu",
+  // My Hero Academia
+  "deku", "bakugo", "todoroki", "allmight", "aizawa", "uraraka", "hawks", "endeavor", "toga", "dabi",
+  // Jujutsu Kaisen
+  "gojo", "yuji", "megumi", "nobara", "sukuna", "todo", "nanami", "maki", "toge",
+  // Hunter x Hunter
+  "gon", "killua", "hisoka", "kurapika", "leorio", "chrollo", "meruem", "netero", "illumi",
+  // Fullmetal Alchemist
+  "edward", "alphonse", "mustang", "hawkeye", "scar", "winry", "bradley", "envy", "greed",
+  // Cowboy Bebop
+  "spike", "jet", "faye", "vicious", "julia",
+  // Avatar TLA
+  "aang", "zuko", "katara", "sokka", "toph", "iroh", "azula", "appa",
 ];
 
 /** Generate a unique ticket name like "killua-3" using sequential numbering */
