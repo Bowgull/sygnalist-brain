@@ -1,37 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { relativeTime } from "@/components/logs/log-utils";
 
 type PickerTicket = {
   id: string;
+  ticket_name: string | null;
   title: string;
   status: string;
   priority: string;
   created_at: string;
-  linked_events: number;
-  linked_errors: number;
 };
 
-const statusLabels: Record<string, string> = {
-  open: "Open",
-  in_progress: "In Progress",
-  resolved: "Resolved",
-  closed: "Closed",
-};
-
-const statusColors: Record<string, string> = {
-  open: "text-[#F59E0B]",
-  in_progress: "text-[#3B82F6]",
-  resolved: "text-[#22C55E]",
-  closed: "text-[#9CA3AF]",
-};
-
-const priorityMap: Record<string, string> = {
-  critical: "#DC2626",
-  high: "#F59E0B",
-  medium: "#3B82F6",
-  low: "#9CA3AF",
+const statusDot: Record<string, string> = {
+  open: "bg-[#F59E0B]",
+  in_progress: "bg-[#3B82F6]",
+  resolved: "bg-[#22C55E]",
 };
 
 export default function TicketPickerModal({
@@ -54,7 +37,7 @@ export default function TicketPickerModal({
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ limit: "20" });
+    const params = new URLSearchParams({ limit: "50" });
     if (search) params.set("search", search);
 
     fetch(`/api/tickets?${params}`)
@@ -69,16 +52,16 @@ export default function TicketPickerModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end md:items-center justify-center"
+      className="fixed inset-0 z-[60] flex items-start justify-center pt-[env(safe-area-inset-top,12px)] md:pt-20"
       style={{ background: "rgba(5, 6, 10, 0.85)" }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg animate-slide-up rounded-t-[20px] md:rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-5 max-h-[70vh] flex flex-col"
+        className="w-full max-w-md mx-3 rounded-[16px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 max-h-[60vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-[0.875rem] font-semibold text-white">Select Ticket</h3>
+          <h3 className="text-[0.875rem] font-semibold text-white">Merge into...</h3>
           <button type="button" onClick={onClose} className="text-[#9CA3AF] hover:text-white">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -91,41 +74,34 @@ export default function TicketPickerModal({
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search tickets..."
-          className="mb-3 w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3] transition-colors"
+          placeholder="Search by name..."
+          className="mb-3 w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-[16px] text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3] transition-colors"
         />
 
-        <div className="flex-1 overflow-y-auto space-y-1">
+        <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-[#0C1016]" />)}
+            <div className="space-y-2 p-2">
+              {[1, 2, 3].map((i) => <div key={i} className="h-8 animate-pulse rounded-full bg-[#0C1016]" />)}
             </div>
           ) : tickets.length === 0 ? (
             <p className="py-8 text-center text-[0.8125rem] text-[#9CA3AF]">No tickets found</p>
           ) : (
-            tickets.map((t) => {
-              const linkedTotal = t.linked_events + t.linked_errors;
-              const pc = priorityMap[t.priority] ?? "#9CA3AF";
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => onSelect(t.id)}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[rgba(255,255,255,0.04)]"
-                >
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: pc }} />
-                  <span className="min-w-0 truncate text-[0.8125rem] font-medium text-white">{t.title}</span>
-                  <span className="flex-1" />
-                  {linkedTotal > 0 && (
-                    <span className="shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">{linkedTotal} linked</span>
-                  )}
-                  <span className={`shrink-0 text-[0.6875rem] font-semibold ${statusColors[t.status] ?? "text-[#9CA3AF]"}`}>
-                    {statusLabels[t.status] ?? t.status}
-                  </span>
-                  <span className="shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">{relativeTime(t.created_at)}</span>
-                </button>
-              );
-            })
+            <div className="flex flex-wrap gap-2 p-1">
+              {tickets.map((t) => {
+                const dotClass = statusDot[t.status] ?? "bg-[#9CA3AF]";
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => onSelect(t.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#818CF8]/25 bg-[#818CF8]/10 px-3 py-1.5 text-[0.75rem] font-semibold text-[#818CF8] transition-all hover:bg-[#818CF8]/20 hover:border-[#818CF8]/40 active:scale-[0.96]"
+                  >
+                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
+                    {t.ticket_name || t.title}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

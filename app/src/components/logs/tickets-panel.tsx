@@ -6,6 +6,7 @@ import TicketDetail from "@/components/logs/ticket-detail";
 
 type Ticket = {
   id: string;
+  ticket_name: string | null;
   title: string;
   status: string;
   priority: string;
@@ -183,8 +184,11 @@ export default function TicketsPanel() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-[1rem] md:text-[1.0625rem] font-bold leading-tight text-white">{ticket.title}</h3>
-                      {ticket.message && (
-                        <p className="mt-0.5 text-[0.8125rem] text-[#B8BFC8] line-clamp-1">{ticket.message}</p>
+                      {/* Ticket name chip */}
+                      {ticket.ticket_name && (
+                        <span className="mt-1.5 inline-flex items-center rounded-full border border-[#818CF8]/25 bg-[#818CF8]/10 px-2 py-0.5 text-[0.625rem] font-semibold text-[#818CF8]">
+                          {ticket.ticket_name}
+                        </span>
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">

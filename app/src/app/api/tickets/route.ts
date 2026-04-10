@@ -11,14 +11,18 @@ const ANIME_NAMES = [
   "killua", "eren", "saitama", "tanjiro", "nezuko", "hinata", "vegeta",
   "kakashi", "zoro", "sanji", "rem", "emilia", "edward", "light", "ryuk",
   "lelouch", "itachi", "jotaro", "dio", "deku", "todoroki", "bakugo",
-  "sasuke", "erza", "natsu", "genos", "megumin", "asta", "yuno", "senku",
+  "sasuke", "erza", "natsu", "genos", "megumin", "asta", "yuno",
   "touka", "shinji", "rei", "asuka", "motoko", "mugen", "jin", "gintoki",
   "saber", "lain", "vash", "alucard",
 ];
 
-function animePrefix(id: string): string {
+/** Generate a unique ticket name like "killua-3" using sequential numbering */
+async function generateTicketName(service: ReturnType<typeof getServiceClient>): Promise<string> {
+  // Count existing tickets to get the next number
+  const { count } = await service.from("tickets").select("id", { count: "exact", head: true });
+  const num = (count ?? 0) + 1;
   const name = ANIME_NAMES[Math.floor(Math.random() * ANIME_NAMES.length)];
-  return `${name}-${id.slice(0, 4)}`;
+  return `${name}-${num}`;
 }
 
 /** POST /api/tickets - create a ticket (any authenticated user for reports, admin for other sources) */
@@ -39,12 +43,13 @@ export async function POST(request: Request) {
       return error("Message is required (1-5000 characters)", 400);
     }
 
-    const tempId = crypto.randomUUID();
-    const prefix = animePrefix(tempId);
-    const ticketTitle = title || `${prefix}: ${message.slice(0, 60)}`;
-    const { data: ticket, error: insertErr } = await supabase
+    const service = getServiceClient();
+    const ticketName = await generateTicketName(service);
+    const ticketTitle = title || message.slice(0, 80);
+    const { data: ticket, error: insertErr } = await service
       .from("tickets")
       .insert({
+        ticket_name: ticketName,
         title: ticketTitle,
         source: "user_report",
         reporter_id: profile.id,
@@ -58,7 +63,7 @@ export async function POST(request: Request) {
 
     if (insertErr) return error(insertErr.message, 500);
 
-    logEvent("ticket.created", { userId: profile.id, requestId, metadata: { ticket_id: ticket.id, source: "user_report" } });
+    logEvent("ticket.created", { userId: profile.id, requestId, metadata: { ticket_id: ticket.id, ticket_name: ticketName, source: "user_report" } });
 
     // Fire-and-forget alert email
     const feedbackTo = process.env.FEEDBACK_EMAIL_TO ?? process.env.GMAIL_SMTP_USER;
@@ -89,12 +94,12 @@ export async function POST(request: Request) {
   if (!title && !message) return error("Title or message required", 400);
 
   const service = getServiceClient();
-  const adminTempId = crypto.randomUUID();
-  const adminPrefix = animePrefix(adminTempId);
+  const ticketName = await generateTicketName(service);
   const { data: ticket, error: insertErr } = await service
     .from("tickets")
     .insert({
-      title: title ? `${adminPrefix}: ${title}` : (message ? `${adminPrefix}: ${message.slice(0, 60)}` : `${adminPrefix}: Untitled`),
+      ticket_name: ticketName,
+      title: title || (message ? message.slice(0, 80) : "Untitled ticket"),
       source: source || "manual",
       priority: priority || "medium",
       reporter_id: profile.id,
@@ -113,7 +118,7 @@ export async function POST(request: Request) {
     await service.from("error_logs").update({ ticket_id: ticket.id }).in("id", errorIds);
   }
 
-  logEvent("ticket.created", { userId: profile.id, requestId, metadata: { ticket_id: ticket.id, source: source || "manual", linked_events: eventIds?.length ?? 0, linked_errors: errorIds?.length ?? 0 } });
+  logEvent("ticket.created", { userId: profile.id, requestId, metadata: { ticket_id: ticket.id, ticket_name: ticketName, source: source || "manual", linked_events: eventIds?.length ?? 0, linked_errors: errorIds?.length ?? 0 } });
 
   return json({ ok: true, ticket_id: ticket.id }, 201);
 }
@@ -143,7 +148,7 @@ export async function GET(request: Request) {
   if (status && VALID_STATUSES.includes(status)) query = query.eq("status", status);
   if (priority && VALID_PRIORITIES.includes(priority)) query = query.eq("priority", priority);
   if (source && VALID_SOURCES.includes(source)) query = query.eq("source", source);
-  if (search) query = query.or(`title.ilike.%${search}%,message.ilike.%${search}%`);
+  if (search) query = query.or(`title.ilike.%${search}%,message.ilike.%${search}%,ticket_name.ilike.%${search}%`);
 
   const { data: tickets, error: dbErr, count } = await query;
   if (dbErr) return error(dbErr.message, 500);

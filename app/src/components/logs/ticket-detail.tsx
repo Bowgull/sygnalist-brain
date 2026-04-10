@@ -22,6 +22,7 @@ function formatDuration(fromIso: string, toIso?: string | null): string {
 
 type TicketData = {
   id: string;
+  ticket_name: string | null;
   title: string;
   status: string;
   priority: string;
@@ -144,6 +145,13 @@ export default function TicketDetail({ ticketId, onClose, onUpdated }: { ticketI
               {/* Header */}
               <div className="flex items-start justify-between gap-3 p-4 pb-3 md:p-6 md:pb-4">
                 <div className="min-w-0 flex-1">
+                  {/* Locked ticket name chip */}
+                  {ticket.ticket_name && (
+                    <span className="mb-2 inline-flex items-center rounded-full border border-[#818CF8]/25 bg-[#818CF8]/10 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-[#818CF8]">
+                      {ticket.ticket_name}
+                    </span>
+                  )}
+                  {/* Editable title */}
                   {editingTitle ? (
                     <input
                       type="text"
@@ -169,7 +177,7 @@ export default function TicketDetail({ ticketId, onClose, onUpdated }: { ticketI
                         type="button"
                         onClick={() => { setTitleDraft(ticket.title); setEditingTitle(true); }}
                         className="shrink-0 rounded-md p-1 text-[#9CA3AF] md:opacity-0 md:group-hover/title:opacity-100 hover:bg-[#222D3D] hover:text-[#6AD7A3] transition-all"
-                        title="Rename ticket"
+                        title="Edit title"
                       >
                         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
                           <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
