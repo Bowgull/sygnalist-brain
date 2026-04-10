@@ -6,6 +6,21 @@ const VALID_STATUSES = ["open", "in_progress", "resolved"];
 const VALID_PRIORITIES = ["low", "medium", "high", "critical"];
 const VALID_SOURCES = ["user_report", "activity", "error", "manual"];
 
+const ANIME_NAMES = [
+  "goku", "naruto", "luffy", "ichigo", "levi", "mikasa", "spike", "gon",
+  "killua", "eren", "saitama", "tanjiro", "nezuko", "hinata", "vegeta",
+  "kakashi", "zoro", "sanji", "rem", "emilia", "edward", "light", "ryuk",
+  "lelouch", "itachi", "jotaro", "dio", "deku", "todoroki", "bakugo",
+  "sasuke", "erza", "natsu", "genos", "megumin", "asta", "yuno", "senku",
+  "touka", "shinji", "rei", "asuka", "motoko", "mugen", "jin", "gintoki",
+  "saber", "lain", "vash", "alucard",
+];
+
+function animePrefix(id: string): string {
+  const name = ANIME_NAMES[Math.floor(Math.random() * ANIME_NAMES.length)];
+  return `${name}-${id.slice(0, 4)}`;
+}
+
 /** POST /api/tickets - create a ticket (any authenticated user for reports, admin for other sources) */
 export async function POST(request: Request) {
   const requestId = getRequestId(request);
@@ -24,7 +39,9 @@ export async function POST(request: Request) {
       return error("Message is required (1-5000 characters)", 400);
     }
 
-    const ticketTitle = title || message.slice(0, 80);
+    const tempId = crypto.randomUUID();
+    const prefix = animePrefix(tempId);
+    const ticketTitle = title || `${prefix}: ${message.slice(0, 60)}`;
     const { data: ticket, error: insertErr } = await supabase
       .from("tickets")
       .insert({
@@ -72,10 +89,12 @@ export async function POST(request: Request) {
   if (!title && !message) return error("Title or message required", 400);
 
   const service = getServiceClient();
+  const adminTempId = crypto.randomUUID();
+  const adminPrefix = animePrefix(adminTempId);
   const { data: ticket, error: insertErr } = await service
     .from("tickets")
     .insert({
-      title: title || (message ? message.slice(0, 80) : "Untitled ticket"),
+      title: title ? `${adminPrefix}: ${title}` : (message ? `${adminPrefix}: ${message.slice(0, 60)}` : `${adminPrefix}: Untitled`),
       source: source || "manual",
       priority: priority || "medium",
       reporter_id: profile.id,

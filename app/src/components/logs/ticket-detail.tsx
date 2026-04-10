@@ -7,6 +7,19 @@ import { getDomainIcon, getSeverityIcon } from "@/components/logs/log-icons";
 import { priorityColors, priorityLabels, statusColors, statusLabels } from "@/components/logs/tickets-panel";
 import TicketPickerModal from "@/components/logs/ticket-picker-modal";
 
+function formatDuration(fromIso: string, toIso?: string | null): string {
+  const from = new Date(fromIso).getTime();
+  const to = toIso ? new Date(toIso).getTime() : Date.now();
+  const ms = to - from;
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m`;
+  const days = Math.floor(hrs / 24);
+  const remHrs = hrs % 24;
+  return remHrs > 0 ? `${days}d ${remHrs}h` : `${days}d`;
+}
+
 type TicketData = {
   id: string;
   title: string;
@@ -18,6 +31,7 @@ type TicketData = {
   user_agent: string | null;
   screen_size: string | null;
   notes: Array<{ id: string; text: string; timestamp: string }>;
+  resolved_at: string | null;
   created_at: string;
   reporter?: { display_name: string; email: string | null } | null;
 };
@@ -144,12 +158,25 @@ export default function TicketDetail({ ticketId, onClose, onUpdated }: { ticketI
                       onBlur={() => { updateTicket({ title: titleDraft }); setEditingTitle(false); }}
                     />
                   ) : (
-                    <h3
-                      className="text-[1.125rem] md:text-[1.3125rem] font-bold text-white cursor-pointer hover:text-[#6AD7A3] transition-colors"
-                      onClick={() => { setTitleDraft(ticket.title); setEditingTitle(true); }}
-                    >
-                      {ticket.title}
-                    </h3>
+                    <div className="group/title flex items-center gap-2">
+                      <h3
+                        className="text-[1.125rem] md:text-[1.3125rem] font-bold text-white cursor-pointer hover:text-[#6AD7A3] transition-colors"
+                        onClick={() => { setTitleDraft(ticket.title); setEditingTitle(true); }}
+                      >
+                        {ticket.title}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => { setTitleDraft(ticket.title); setEditingTitle(true); }}
+                        className="shrink-0 rounded-md p-1 text-[#9CA3AF] md:opacity-0 md:group-hover/title:opacity-100 hover:bg-[#222D3D] hover:text-[#6AD7A3] transition-all"
+                        title="Rename ticket"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                          <path d="m15 5 4 4" />
+                        </svg>
+                      </button>
+                    </div>
                   )}
                   {ticket.source === "user_report" && ticket.reporter?.display_name && (
                     <p className="mt-0.5 text-[0.8125rem] text-[#B8BFC8]">from {ticket.reporter.display_name}</p>
@@ -231,6 +258,17 @@ export default function TicketDetail({ ticketId, onClose, onUpdated }: { ticketI
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Time tracking */}
+                <div className="flex items-center gap-2 text-[0.75rem] text-[#9CA3AF]">
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  {ticket.status === "resolved" && ticket.resolved_at
+                    ? <span>Resolved in <span className="font-semibold text-[#22C55E]">{formatDuration(ticket.created_at, ticket.resolved_at)}</span></span>
+                    : <span>Open for <span className="font-semibold text-[#F59E0B]">{formatDuration(ticket.created_at)}</span></span>
+                  }
                 </div>
 
                 {/* Priority pills */}

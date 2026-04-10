@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { getDomainIcon } from "./log-icons";
 import { getDomainStyle, domainFromEventType, actionLabel, relativeTime } from "./log-utils";
 
@@ -29,12 +30,12 @@ export default function EventRow({ log, isExpanded, onToggle, profileMap, select
   const ticketId = log.ticket_id as string | null;
   const hasTicket = !!ticketId;
 
-  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function handlePointerDown() {
     if (selectionMode || !onLongPress) return;
-    longPressTimer = setTimeout(() => { onLongPress(); longPressTimer = null; }, 600);
+    longPressTimer.current = setTimeout(() => { onLongPress(); longPressTimer.current = null; }, 600);
   }
-  function handlePointerUp() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }
+  function handlePointerUp() { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }
 
   function handleClick() {
     if (selectionMode && onSelect) { onSelect(); return; }
@@ -44,8 +45,8 @@ export default function EventRow({ log, isExpanded, onToggle, profileMap, select
   return (
     <div
       className={`cursor-pointer px-3 py-3 md:px-5 transition-colors hover:bg-[#222D3D]/20 ${
-        hasTicket ? "border-l-2 border-l-[#F472B6]/40" : !success ? "border-l-2 border-l-[#DC2626]/40" : "border-l-2 border-l-transparent"
-      } ${isSelected ? "bg-[#F472B6]/5" : ""}`}
+        hasTicket ? "border-l-2 border-l-[#818CF8]/40" : !success ? "border-l-2 border-l-[#DC2626]/40" : "border-l-2 border-l-transparent"
+      } ${isSelected ? "bg-[#818CF8]/5" : ""}`}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
@@ -55,7 +56,7 @@ export default function EventRow({ log, isExpanded, onToggle, profileMap, select
       <div className="flex items-center gap-2 md:gap-3">
         {/* Selection checkbox */}
         {selectionMode && (
-          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${isSelected ? "border-[#F472B6] bg-[#F472B6]" : "border-[#2A3544]"}`}>
+          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${isSelected ? "border-[#818CF8] bg-[#818CF8]" : "border-[#2A3544]"}`}>
             {isSelected && (
               <svg viewBox="0 0 24 24" className="h-3 w-3 text-white" fill="none" stroke="currentColor" strokeWidth={3}><polyline points="20 6 9 17 4 12" /></svg>
             )}
@@ -90,7 +91,7 @@ export default function EventRow({ log, isExpanded, onToggle, profileMap, select
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onTicketClick?.(ticketId); }}
-            className="shrink-0 rounded bg-[#F472B6]/10 px-1.5 py-0.5 text-[0.5625rem] font-semibold text-[#F472B6] ring-1 ring-[#F472B6]/20 hover:bg-[#F472B6]/20 transition-colors"
+            className="shrink-0 rounded bg-[#818CF8]/10 px-1.5 py-0.5 text-[0.5625rem] font-semibold text-[#818CF8] ring-1 ring-[#818CF8]/20 hover:bg-[#818CF8]/20 transition-colors"
             title="View linked ticket"
           >
             Ticket

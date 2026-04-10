@@ -917,7 +917,7 @@ export default function AdminLogsPage() {
           <button
             type="button"
             onClick={() => setShowTicketPicker(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#F472B6]/10 px-3 py-1.5 text-[0.75rem] font-semibold text-[#F472B6] ring-1 ring-[#F472B6]/25 hover:bg-[#F472B6]/20 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#818CF8]/10 px-3 py-1.5 text-[0.75rem] font-semibold text-[#818CF8] ring-1 ring-[#818CF8]/25 hover:bg-[#818CF8]/20 transition-colors"
           >
             Add to Ticket
           </button>
