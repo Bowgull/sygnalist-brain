@@ -43,11 +43,11 @@ export default function FeedbackSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-[rgba(5,6,10,0.9)]"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-2 md:p-4 bg-[rgba(5,6,10,0.9)]"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg max-h-[85dvh] overflow-y-auto animate-slide-up rounded-t-[20px] md:rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 md:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-6"
+        className="w-full max-w-lg max-h-[min(85vh,720px)] overflow-y-auto animate-slide-up rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 md:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle */}
