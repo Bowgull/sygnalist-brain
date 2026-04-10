@@ -478,7 +478,7 @@ export default function AdminLogsPage() {
   return (
     <div className="space-y-3">
       {/* Tab pills */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pr-2">
         {(["activity", "errors", "fetches", "tickets"] as LogType[]).map((t) => (
           <button
             key={t}
