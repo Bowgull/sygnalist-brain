@@ -25,21 +25,21 @@ export async function POST(
   let linkedErrors = 0;
 
   if (eventIds?.length) {
-    const { count } = await service
+    const { data } = await service
       .from("user_events")
       .update({ ticket_id: id })
       .in("id", eventIds)
-      .select("id", { count: "exact", head: true });
-    linkedEvents = count ?? 0;
+      .select("id");
+    linkedEvents = data?.length ?? 0;
   }
 
   if (errorIds?.length) {
-    const { count } = await service
+    const { data } = await service
       .from("error_logs")
       .update({ ticket_id: id })
       .in("id", errorIds)
-      .select("id", { count: "exact", head: true });
-    linkedErrors = count ?? 0;
+      .select("id");
+    linkedErrors = data?.length ?? 0;
   }
 
   logEvent("ticket.items_linked", {
