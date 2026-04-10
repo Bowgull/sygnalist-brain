@@ -474,42 +474,6 @@ export default function AdminLogsPage() {
     }
   }
 
-  async function createTicketFromActivityGroup(group: ActivityGroup) {
-    const eventIds = group.logs.map((l) => l.id as string);
-    const res = await fetch("/api/tickets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: groupSummary(group),
-        source: "activity",
-        eventIds,
-      }),
-    });
-    if (res.ok) {
-      toast.success(`Ticket created with ${eventIds.length} events`);
-    } else {
-      toast.error("Failed to create ticket");
-    }
-  }
-
-  async function createTicketFromErrorGroup(group: ErrorGroup) {
-    const errorIds = group.logs.map((l) => l.id as string);
-    const res = await fetch("/api/tickets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: `${group.sourceSystem}: ${group.message.slice(0, 60)}`,
-        source: "error",
-        errorIds,
-      }),
-    });
-    if (res.ok) {
-      toast.success(`Ticket created with ${errorIds.length} errors`);
-    } else {
-      toast.error("Failed to create ticket");
-    }
-  }
-
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3">
@@ -619,17 +583,6 @@ export default function AdminLogsPage() {
                     {/* Expanded — nested child events */}
                     {isOpen && (
                       <div className="border-t border-[#2A3544]/30">
-                        {/* Create Ticket action bar */}
-                        <div className="px-3 py-2 md:px-5 bg-[#0C1016]/60 border-b border-[#2A3544]/20 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); createTicketFromActivityGroup(group); }}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-[#F472B6]/10 px-3 py-1.5 text-[0.75rem] font-semibold text-[#F472B6] ring-1 ring-[#F472B6]/25 hover:bg-[#F472B6]/20 transition-colors"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
-                            Create Ticket
-                          </button>
-                        </div>
                         <div className="ml-3 md:ml-5 bg-[#0C1016]/40">
                         {group.logs.map((log, logIdx) => {
                           const id = log.id as string;
@@ -740,17 +693,6 @@ export default function AdminLogsPage() {
                     {/* Expanded — nested child errors */}
                     {isGroupOpen && (
                       <div className="border-t border-[#2A3544]/30">
-                        {/* Action bar */}
-                        <div className="px-3 py-2 md:px-5 bg-[#0C1016]/60 border-b border-[#2A3544]/20 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); createTicketFromErrorGroup(group); }}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-[#F472B6]/10 px-3 py-1.5 text-[0.75rem] font-semibold text-[#F472B6] ring-1 ring-[#F472B6]/25 hover:bg-[#F472B6]/20 transition-colors"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
-                            Create Ticket
-                          </button>
-                        </div>
                         {/* Bulk resolve bar */}
                         {!group.resolved && (
                           <div className="px-3 py-2.5 md:px-5 bg-[#0C1016]/60 border-b border-[#2A3544]/20">

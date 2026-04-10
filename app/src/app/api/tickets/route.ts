@@ -2,7 +2,7 @@ import { requireAuth, requireAdmin, json, error, getServiceClient, getRequestId 
 import { sendEmail } from "@/lib/email";
 import { logEvent } from "@/lib/logger";
 
-const VALID_STATUSES = ["open", "in_progress", "resolved", "closed"];
+const VALID_STATUSES = ["open", "in_progress", "resolved"];
 const VALID_PRIORITIES = ["low", "medium", "high", "critical"];
 const VALID_SOURCES = ["user_report", "activity", "error", "manual"];
 

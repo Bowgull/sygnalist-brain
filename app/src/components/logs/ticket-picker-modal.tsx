@@ -27,6 +27,13 @@ const statusColors: Record<string, string> = {
   closed: "text-[#9CA3AF]",
 };
 
+const priorityMap: Record<string, string> = {
+  critical: "#DC2626",
+  high: "#F59E0B",
+  medium: "#3B82F6",
+  low: "#9CA3AF",
+};
+
 export default function TicketPickerModal({
   excludeId,
   onSelect,
@@ -62,7 +69,8 @@ export default function TicketPickerModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-[rgba(5,6,10,0.9)]"
+      className="fixed inset-0 z-[60] flex items-end md:items-center justify-center"
+      style={{ background: "rgba(5, 6, 10, 0.85)" }}
       onClick={onClose}
     >
       <div
@@ -97,13 +105,15 @@ export default function TicketPickerModal({
           ) : (
             tickets.map((t) => {
               const linkedTotal = t.linked_events + t.linked_errors;
+              const pc = priorityMap[t.priority] ?? "#9CA3AF";
               return (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => onSelect(t.id)}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[#222D3D]/30"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-[rgba(255,255,255,0.04)]"
                 >
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: pc }} />
                   <span className="min-w-0 truncate text-[0.8125rem] font-medium text-white">{t.title}</span>
                   <span className="flex-1" />
                   {linkedTotal > 0 && (
