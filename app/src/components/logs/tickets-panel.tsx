@@ -191,25 +191,11 @@ export default function TicketsPanel() {
                         </span>
                       )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {daysOld > 0 && (
-                        <span className={`text-[0.8125rem] font-semibold tabular-nums ${daysOld > 7 ? "text-[#DC2626]" : daysOld > 3 ? "text-[#F59E0B]" : "text-[#9CA3AF]"}`}>
-                          {daysOld}d
-                        </span>
-                      )}
-                      {/* Status pill */}
-                      <span
-                        className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-bold uppercase tracking-[0.04em]"
-                        style={{
-                          color: sc,
-                          backgroundColor: `${sc}15`,
-                          borderColor: `${sc}30`,
-                        }}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: sc }} />
-                        {statusLabels[ticket.status] ?? ticket.status}
+                    {daysOld > 0 && (
+                      <span className={`shrink-0 text-[0.8125rem] font-semibold tabular-nums ${daysOld > 7 ? "text-[#DC2626]" : daysOld > 3 ? "text-[#F59E0B]" : "text-[#9CA3AF]"}`}>
+                        {daysOld}d
                       </span>
-                    </div>
+                    )}
                   </div>
 
                   {/* Zone 2: Signal strip */}
