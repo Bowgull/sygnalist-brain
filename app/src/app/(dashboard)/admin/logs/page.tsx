@@ -486,8 +486,8 @@ export default function AdminLogsPage() {
             onClick={() => handleTabChange(t)}
             className={`relative shrink-0 rounded-full px-3 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.04em] transition-colors ${
               logType === t
-                ? "bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30"
-                : "text-[#9CA3AF] hover:text-[#B8BFC8]"
+                ? "bg-[#6AD7A3]/15 text-[#6AD7A3] border border-[#6AD7A3]/30"
+                : "text-[#9CA3AF] hover:text-[#B8BFC8] border border-transparent"
             }`}
           >
             {t}

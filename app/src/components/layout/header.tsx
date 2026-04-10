@@ -82,6 +82,7 @@ export default function Header({
   }, []);
 
   return (
+    <>
     <header className="header-scanlines sticky top-0 z-40 bg-[#0C1016]/95 backdrop-blur-md">
       <div className="mx-auto flex min-h-[56px] md:min-h-[var(--header-height)] max-w-[var(--layout-max-width)] items-center justify-between gap-3 md:gap-4 px-4 md:px-6 py-2 md:py-3">
         {/* Zone 1: Brand */}
@@ -190,8 +191,9 @@ export default function Header({
 
       {/* Glow seam */}
       <div className={`h-px bg-gradient-to-r from-transparent ${viewAsActive ? "via-[#FAD76A]/40" : "via-[#00ffc3]/40"} to-transparent animate-seam-glow`} />
-
-      {feedbackOpen && <FeedbackSheet onClose={() => setFeedbackOpen(false)} />}
     </header>
+
+    {feedbackOpen && <FeedbackSheet onClose={() => setFeedbackOpen(false)} />}
+  </>
   );
 }
