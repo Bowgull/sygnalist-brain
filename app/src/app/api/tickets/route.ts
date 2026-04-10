@@ -135,17 +135,13 @@ export async function GET(request: Request) {
   let errorCounts: Record<string, number> = {};
 
   if (ticketIds.length > 0) {
-    const { data: eCounts } = await service.rpc("count_by_ticket", { table_name: "user_events", ticket_ids: ticketIds }).catch(() => ({ data: null })) as { data: null };
-    // Fallback: query counts manually since RPC may not exist
-    if (!eCounts) {
-      const { data: events } = await service.from("user_events").select("ticket_id").in("ticket_id", ticketIds);
-      for (const e of events ?? []) {
-        if (e.ticket_id) eventCounts[e.ticket_id] = (eventCounts[e.ticket_id] ?? 0) + 1;
-      }
-      const { data: errors } = await service.from("error_logs").select("ticket_id").in("ticket_id", ticketIds);
-      for (const e of errors ?? []) {
-        if (e.ticket_id) errorCounts[e.ticket_id] = (errorCounts[e.ticket_id] ?? 0) + 1;
-      }
+    const { data: events } = await service.from("user_events").select("ticket_id").in("ticket_id", ticketIds);
+    for (const e of events ?? []) {
+      if (e.ticket_id) eventCounts[e.ticket_id] = (eventCounts[e.ticket_id] ?? 0) + 1;
+    }
+    const { data: errors } = await service.from("error_logs").select("ticket_id").in("ticket_id", ticketIds);
+    for (const e of errors ?? []) {
+      if (e.ticket_id) errorCounts[e.ticket_id] = (errorCounts[e.ticket_id] ?? 0) + 1;
     }
   }
 
