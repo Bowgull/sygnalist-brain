@@ -2,10 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { Activity, Flag, Link as LinkIcon, AlertCircle, StickyNote, GitMerge, Trash2, Plus, Clock, AlertTriangle, ArrowUp, Minus, ArrowDown, Check, Loader2 } from "lucide-react";
 import { relativeTime, fullTime, getDomainStyle, actionLabel, getSeverityStyle } from "@/components/logs/log-utils";
 import { getDomainIcon, getSeverityIcon } from "@/components/logs/log-icons";
 import { priorityColors, priorityLabels, statusColors, statusLabels } from "@/components/logs/tickets-panel";
+import { ActionButton } from "@/components/ui/action-button";
 import TicketPickerModal from "@/components/logs/ticket-picker-modal";
+
+const priorityIcons: Record<string, typeof AlertTriangle> = {
+  critical: AlertTriangle,
+  high: ArrowUp,
+  medium: Minus,
+  low: ArrowDown,
+};
 
 function formatDuration(fromIso: string, toIso?: string | null): string {
   const from = new Date(fromIso).getTime();
@@ -219,80 +228,93 @@ export default function TicketDetail({ ticketId, onClose, onUpdated }: { ticketI
                 </span>
               </div>
 
-              <div className="border-t border-[#2A3544] p-4 md:p-6 space-y-5">
-                {/* Status pipeline — connected dots */}
-                <div>
-                  <label className="mb-2 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Status</label>
-                  <div className="flex items-center gap-0">
-                    {STATUSES.map((s, i) => {
-                      const c = statusColors[s] ?? "#9CA3AF";
-                      const isActive = ticket.status === s;
-                      const isPast = stageIdx >= 0 && i < stageIdx;
-                      return (
-                        <div key={s} className="flex items-center">
-                          <button
-                            type="button"
-                            onClick={() => updateTicket({ status: s })}
-                            disabled={saving}
-                            className="relative flex flex-col items-center gap-1 group/stage"
-                          >
-                            <div
-                              className={`h-3 w-3 rounded-full border-2 transition-all ${
-                                isActive
-                                  ? "scale-125 shadow-[0_0_8px_var(--dot-color)]"
-                                  : isPast
-                                    ? "opacity-60"
-                                    : "opacity-30 hover:opacity-60"
-                              }`}
-                              style={{
-                                borderColor: c,
-                                backgroundColor: isActive || isPast ? c : "transparent",
-                                ["--dot-color" as string]: `${c}60`,
-                              }}
-                            />
-                            <span className={`text-[0.5625rem] font-medium whitespace-nowrap transition-colors ${
-                              isActive ? "text-white" : "text-[#9CA3AF] group-hover/stage:text-[#B8BFC8]"
-                            }`}>
-                              {statusDisplay[s] ?? s}
-                            </span>
-                          </button>
-                          {i < STATUSES.length - 1 && (
-                            <div
-                              className="h-[2px] w-6 md:w-10 mx-1"
-                              style={{ backgroundColor: isPast ? `${c}60` : "#2A3544" }}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
+              <div className="border-t border-[#2A3544] p-4 md:p-6 space-y-4">
+                {/* Status + Time card */}
+                <div className="rounded-xl bg-[#151C24] p-3 md:p-4 space-y-3">
+                  {/* Status pipeline — connected dots */}
+                  <div>
+                    <label className="mb-2 flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
+                      <Activity size={12} strokeWidth={2.5} />
+                      Status
+                    </label>
+                    <div className="flex items-center gap-0">
+                      {STATUSES.map((s, i) => {
+                        const c = statusColors[s] ?? "#9CA3AF";
+                        const isActive = ticket.status === s;
+                        const isPast = stageIdx >= 0 && i < stageIdx;
+                        const StepIcon = s === "resolved" ? Check : s === "in_progress" ? Loader2 : null;
+                        return (
+                          <div key={s} className="flex items-center">
+                            <button
+                              type="button"
+                              onClick={() => updateTicket({ status: s })}
+                              disabled={saving}
+                              className="relative flex flex-col items-center gap-1 group/stage"
+                            >
+                              <div
+                                className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
+                                  isActive
+                                    ? "scale-110 shadow-[0_0_10px_var(--dot-color)]"
+                                    : isPast
+                                      ? "opacity-60"
+                                      : "opacity-30 hover:opacity-60"
+                                }`}
+                                style={{
+                                  borderColor: c,
+                                  backgroundColor: isActive || isPast ? c : "transparent",
+                                  ["--dot-color" as string]: `${c}60`,
+                                }}
+                              >
+                                {StepIcon && (isActive || isPast) && (
+                                  <StepIcon size={10} strokeWidth={3} className={`text-[#0C1016] ${s === "in_progress" && isActive ? "animate-spin" : ""}`} />
+                                )}
+                              </div>
+                              <span className={`text-[0.5625rem] font-medium whitespace-nowrap transition-colors ${
+                                isActive ? "text-white" : "text-[#9CA3AF] group-hover/stage:text-[#B8BFC8]"
+                              }`}>
+                                {statusDisplay[s] ?? s}
+                              </span>
+                            </button>
+                            {i < STATUSES.length - 1 && (
+                              <div
+                                className="h-[2px] w-6 md:w-10 mx-1"
+                                style={{ backgroundColor: isPast ? `${c}60` : "#2A3544" }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Time tracking */}
+                  <div className="flex items-center gap-2 text-[0.75rem] text-[#9CA3AF]">
+                    <Clock size={14} strokeWidth={2} />
+                    {ticket.status === "resolved" && ticket.resolved_at
+                      ? <span>Resolved in <span className="font-semibold text-[#22C55E]">{formatDuration(ticket.created_at, ticket.resolved_at)}</span></span>
+                      : <span>Open for <span className="font-semibold text-[#F59E0B]">{formatDuration(ticket.created_at)}</span></span>
+                    }
                   </div>
                 </div>
 
-                {/* Time tracking */}
-                <div className="flex items-center gap-2 text-[0.75rem] text-[#9CA3AF]">
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                  </svg>
-                  {ticket.status === "resolved" && ticket.resolved_at
-                    ? <span>Resolved in <span className="font-semibold text-[#22C55E]">{formatDuration(ticket.created_at, ticket.resolved_at)}</span></span>
-                    : <span>Open for <span className="font-semibold text-[#F59E0B]">{formatDuration(ticket.created_at)}</span></span>
-                  }
-                </div>
-
                 {/* Priority pills */}
-                <div>
-                  <label className="mb-2 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">Priority</label>
+                <div className="rounded-xl bg-[#151C24] p-3 md:p-4">
+                  <label className="mb-2 flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
+                    <Flag size={12} strokeWidth={2.5} />
+                    Priority
+                  </label>
                   <div className="flex flex-wrap gap-1.5">
                     {PRIORITIES.map((p) => {
                       const c = priorityColors[p] ?? "#9CA3AF";
                       const isActive = ticket.priority === p;
+                      const PIcon = priorityIcons[p];
                       return (
                         <button
                           key={p}
                           type="button"
                           onClick={() => updateTicket({ priority: p })}
                           disabled={saving}
-                          className={`rounded-full px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-all ${
+                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.04em] transition-all ${
                             isActive ? "" : "opacity-50 hover:opacity-80"
                           }`}
                           style={{
@@ -300,6 +322,7 @@ export default function TicketDetail({ ticketId, onClose, onUpdated }: { ticketI
                             ...(isActive ? { backgroundColor: `${c}15`, boxShadow: `inset 0 0 0 1px ${c}40` } : {}),
                           }}
                         >
+                          {PIcon && <PIcon size={12} strokeWidth={2.5} />}
                           {priorityLabels[p]}
                         </button>
                       );
@@ -316,9 +339,12 @@ export default function TicketDetail({ ticketId, onClose, onUpdated }: { ticketI
 
                 {/* Linked Events */}
                 {linkedEvents.length > 0 && (
-                  <div>
-                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-2">Linked Events ({linkedEvents.length})</p>
-                    <div className="rounded-lg bg-[#151C24] p-3 space-y-1">
+                  <div className="rounded-xl bg-[#151C24] p-3 md:p-4">
+                    <p className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-2">
+                      <LinkIcon size={12} strokeWidth={2.5} />
+                      Linked Events ({linkedEvents.length})
+                    </p>
+                    <div className="space-y-1">
                       {linkedEvents.map((ev) => {
                         const et = (ev.event_type as string) || "";
                         const ds = getDomainStyle(et);
@@ -347,9 +373,12 @@ export default function TicketDetail({ ticketId, onClose, onUpdated }: { ticketI
 
                 {/* Linked Errors */}
                 {linkedErrors.length > 0 && (
-                  <div>
-                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-2">Linked Errors ({linkedErrors.length})</p>
-                    <div className="rounded-lg bg-[#151C24] p-3 space-y-1">
+                  <div className="rounded-xl bg-[#151C24] p-3 md:p-4">
+                    <p className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-2">
+                      <AlertCircle size={12} strokeWidth={2.5} />
+                      Linked Errors ({linkedErrors.length})
+                    </p>
+                    <div className="space-y-1">
                       {linkedErrors.map((err) => {
                         const sev = (err.severity as string) || "info";
                         const sevStyle = getSeverityStyle(sev);
@@ -377,66 +406,48 @@ export default function TicketDetail({ ticketId, onClose, onUpdated }: { ticketI
                 )}
 
                 {/* Notes */}
-                <div>
-                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-2">Notes ({notes.length})</p>
-                  <div className="rounded-lg bg-[#151C24] p-4">
-                    {notes.length > 0 && (
-                      <div className="mb-3 space-y-2">
-                        {notes.map((n) => (
-                          <div key={n.id} className="flex items-start gap-2">
-                            <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6AD7A3]" />
-                            <div>
-                              <p className="text-[0.8125rem] leading-relaxed text-[#B8BFC8]">{n.text}</p>
-                              <p className="mt-0.5 text-[0.6875rem] text-[#9CA3AF]">{relativeTime(n.timestamp)}</p>
-                            </div>
+                <div className="rounded-xl bg-[#151C24] p-3 md:p-4">
+                  <p className="flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF] mb-2">
+                    <StickyNote size={12} strokeWidth={2.5} />
+                    Notes ({notes.length})
+                  </p>
+                  {notes.length > 0 && (
+                    <div className="mb-3 space-y-2">
+                      {notes.map((n) => (
+                        <div key={n.id} className="flex items-start gap-2">
+                          <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6AD7A3]" />
+                          <div>
+                            <p className="text-[0.8125rem] leading-relaxed text-[#B8BFC8]">{n.text}</p>
+                            <p className="mt-0.5 text-[0.6875rem] text-[#9CA3AF]">{relativeTime(n.timestamp)}</p>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        placeholder="Add a note..."
-                        className="min-w-0 flex-1 rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-2 text-[0.8125rem] text-white placeholder-[#9CA3AF] outline-none focus:border-[#6AD7A3]"
-                        onKeyDown={(e) => { if (e.key === "Enter") addNote(); }}
-                      />
-                      <button
-                        type="button"
-                        onClick={addNote}
-                        disabled={!noteText.trim()}
-                        className="inline-flex h-[32px] items-center gap-1.5 rounded-full border border-[#6AD7A3]/30 px-3.5 text-[0.75rem] font-medium text-[#6AD7A3] transition-all hover:bg-[#6AD7A3]/10 hover:-translate-y-px active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
-                      >
-                        Add
-                      </button>
+                        </div>
+                      ))}
                     </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Add a note..."
+                      className="min-w-0 flex-1 rounded-lg border border-[#2A3544] bg-[#0C1016] px-3 py-2 text-[0.8125rem] text-white placeholder-[#9CA3AF] outline-none focus:border-[#6AD7A3]"
+                      onKeyDown={(e) => { if (e.key === "Enter") addNote(); }}
+                    />
+                    <ActionButton icon={Plus} label="Add" variant="operate" onClick={addNote} disabled={!noteText.trim()} />
                   </div>
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 border-t border-[#2A3544] pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setMergeOpen(true)}
-                    className="inline-flex h-[32px] items-center gap-1.5 rounded-full border border-[#2A3544] px-3.5 text-[0.75rem] font-medium text-[#9CA3AF] transition-all hover:text-[#B8BFC8] hover:border-[#9CA3AF]/30 hover:-translate-y-px active:scale-[0.97]"
-                  >
-                    Merge with...
-                  </button>
+                  <ActionButton icon={GitMerge} label="Merge with..." variant="navigate" onClick={() => setMergeOpen(true)} />
                   {confirmDelete ? (
                     <div className="flex items-center gap-2">
                       <span className="text-[0.75rem] text-[#DC2626]">Delete?</span>
-                      <button type="button" onClick={handleDelete} className="inline-flex h-[32px] items-center rounded-full border border-[#DC2626]/25 px-3.5 text-[0.75rem] font-medium text-[#DC2626] hover:bg-[#DC2626]/10">Yes</button>
-                      <button type="button" onClick={() => setConfirmDelete(false)} className="text-[0.75rem] text-[#9CA3AF]">No</button>
+                      <ActionButton icon={Trash2} label="Yes" variant="destructive" onClick={handleDelete} />
+                      <button type="button" onClick={() => setConfirmDelete(false)} className="text-[0.75rem] text-[#9CA3AF] hover:text-white transition-colors">No</button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDelete(true)}
-                      className="inline-flex h-[32px] items-center gap-1.5 rounded-full border border-[#DC2626]/25 px-3.5 text-[0.75rem] font-medium text-[#DC2626] transition-all hover:bg-[#DC2626]/10 hover:-translate-y-px active:scale-[0.97]"
-                    >
-                      Delete
-                    </button>
+                    <ActionButton icon={Trash2} label="Delete" variant="destructive" onClick={() => setConfirmDelete(true)} />
                   )}
                 </div>
               </div>

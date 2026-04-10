@@ -47,9 +47,14 @@ export default function FeedbackSheet({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg animate-slide-up rounded-t-[20px] md:rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-6"
+        className="w-full max-w-lg max-h-[85dvh] overflow-y-auto animate-slide-up rounded-t-[20px] md:rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 md:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-6"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Drag handle */}
+        <div className="mb-3 flex justify-center md:hidden">
+          <div className="h-1 w-10 rounded-full bg-white/20" />
+        </div>
+
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
             <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={2}>
