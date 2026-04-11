@@ -10,6 +10,7 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
@@ -147,6 +148,7 @@ function KanbanColumn({
 }) {
   const sc = statusColors[status] ?? "#9CA3AF";
   const ids = tickets.map((t) => t.id);
+  const { setNodeRef, isOver } = useDroppable({ id: status });
 
   return (
     <div className="flex flex-col min-w-0">
@@ -175,8 +177,11 @@ function KanbanColumn({
         </svg>
       </button>
 
-      {/* Cards */}
-      <div className={`space-y-1.5 ${collapsed ? "hidden md:block" : ""}`}>
+      {/* Cards — entire column is a drop target */}
+      <div
+        ref={setNodeRef}
+        className={`min-h-[60px] space-y-1.5 rounded-[var(--radius-lg)] p-1 transition-colors ${collapsed ? "hidden md:block" : ""} ${isOver ? "bg-[rgba(255,255,255,0.03)]" : ""}`}
+      >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           {tickets.length === 0 ? (
             <div className="rounded-[var(--radius-lg)] border border-dashed border-[#2A3544] p-4 text-center text-[0.6875rem] text-[#9CA3AF]">
