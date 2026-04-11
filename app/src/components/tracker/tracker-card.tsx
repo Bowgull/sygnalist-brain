@@ -708,17 +708,19 @@ export default function TrackerCard({ entry, onUpdate, onDelete, locked, viewAsI
               </div>
             )}
           </div>
-        </div>
 
-        {/* Sticky close button — always visible at bottom */}
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setSpotlight(false); setEditing(false); setTransitionNote(""); }}
-          className="mt-3 shrink-0 inline-flex h-[44px] items-center justify-center gap-2 rounded-full border border-[#2A3544] bg-[#151C24] px-8 text-[0.875rem] font-medium text-[#B8BFC8] shadow-[0_4px_20px_rgba(0,0,0,0.4)] hover:border-[#9CA3AF]/30 hover:text-white transition-colors"
-        >
-          <X size={18} strokeWidth={2} />
-          Close
-        </button>
+          {/* Close button */}
+          <div className="flex justify-center p-4 pt-2 md:px-6">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setSpotlight(false); setEditing(false); setTransitionNote(""); }}
+              className="inline-flex h-[44px] items-center justify-center gap-2 rounded-full border border-[#2A3544] bg-[#151C24] px-8 text-[0.875rem] font-medium text-[#B8BFC8] shadow-[0_4px_20px_rgba(0,0,0,0.4)] hover:border-[#9CA3AF]/30 hover:text-white transition-colors"
+            >
+              <X size={18} strokeWidth={2} />
+              Close
+            </button>
+          </div>
+        </div>
       </div>
     </>
   );
