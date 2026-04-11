@@ -3,7 +3,21 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Trash2, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Search, ChevronDown, Briefcase } from "lucide-react";
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import TrackerCard, {
   statusBorderColor,
 } from "@/components/tracker/tracker-card";
@@ -28,10 +42,6 @@ const CLOSED_STAGE = { label: "Closed", display: "Closed", color: "#4B5563" };
 const CLOSED_STATUSES = ["Rejected", "Ghosted", "Withdrawn"];
 const SWIPEABLE_STAGES = [...STAGES, CLOSED_STAGE]; // 0-6: 6 pipeline + 1 closed
 
-const ALL_STATUSES = [...STAGES.map((s) => s.label), ...CLOSED_STATUSES];
-
-const STAGE_ORDER: Record<string, number> = {};
-ALL_STATUSES.forEach((s, i) => { STAGE_ORDER[s] = i; });
 
 export default function TrackerPage() {
   const searchParams = useSearchParams();
@@ -368,9 +378,13 @@ export default function TrackerPage() {
         className={slideDirection === "left" ? "animate-slide-stage-left" : slideDirection === "right" ? "animate-slide-stage-right" : undefined}
         onAnimationEnd={() => setSlideDirection(null)}
       >
-        {scope === "all" ? (
-          // All stages — grouped by stage in current display mode
-          displayMode === "cards" ? (
+        {displayMode === "ops" ? (
+          <TrackerKanbanBoard
+            entries={filterBySearch(entries)}
+            loading={loading}
+            onUpdate={handleUpdate}
+          />
+        ) : scope === "all" ? (
             <AllCardsView
               stages={STAGES}
               entries={entries}
@@ -382,17 +396,6 @@ export default function TrackerPage() {
               locked={profileLocked}
               viewAsId={viewAsId}
             />
-          ) : (
-            <AllOpsTable
-              entries={filterBySearch(entries)}
-              loading={loading}
-              sortOrder={sortOrder}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
-            />
-          )
-        ) : displayMode === "ops" ? (
-          <OpsTable entries={getStageEntries(currentStage!.label)} loading={loading} onUpdate={handleUpdate} onDelete={handleDelete} />
         ) : (
           <SingleStageCardsView
             stageEntries={getStageEntries(currentStage!.label)}
@@ -582,198 +585,240 @@ function AllCardsView({
   );
 }
 
-/* ── Ops Mode: dense table with inline status changes (single-stage) ── */
+/* ── Ops Mode: Kanban Board with drag-and-drop ── */
 
-function OpsTable({
-  entries,
-  loading,
-  onUpdate,
-  onDelete,
+function TrackerKanbanCard({
+  entry,
+  overlay,
 }: {
-  entries: TrackerEntry[];
-  loading: boolean;
-  onUpdate: (id: string, patch: Record<string, unknown>) => void;
-  onDelete: (id: string) => void;
+  entry: TrackerEntry;
+  overlay?: boolean;
 }) {
-  if (loading) return <div className="p-4 space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-lg" />)}</div>;
-  if (entries.length === 0) return <p className="py-12 text-center text-[0.8125rem] text-[#9CA3AF]">No entries in this stage</p>;
+  const color = statusBorderColor[entry.status] ?? "#9CA3AF";
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: entry.id,
+    data: { status: entry.status },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-[0.8125rem]">
-        <thead>
-          <tr className="border-b border-[#2A3544] text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
-            <th className="px-4 py-2.5">Title</th>
-            <th className="px-4 py-2.5">Company</th>
-            <th className="px-4 py-2.5">Salary</th>
-            <th className="px-4 py-2.5">Status</th>
-            <th className="px-4 py-2.5">Days</th>
-            <th className="px-4 py-2.5">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((e) => {
-            const days = Math.floor((Date.now() - new Date(e.stage_changed_at).getTime()) / 86400000);
-            const daysColor = days < 3 ? "text-[#6AD7A3]" : days < 7 ? "text-[#F59E0B]" : "text-[#DC2626]";
-            return (
-              <tr key={e.id} className="border-b border-[#2A3544]/40 hover:bg-[#222D3D]/30 transition-colors">
-                <td className="px-4 py-2 font-medium text-white">
-                  {e.url ? (
-                    <a href={e.url} target="_blank" rel="noopener noreferrer" className="hover:text-[#6AD7A3]">{e.title}</a>
-                  ) : e.title}
-                </td>
-                <td className="px-4 py-2 text-[#B8BFC8]">{e.company}</td>
-                <td className="px-4 py-2 text-[#B8BFC8]">{e.salary ?? "-"}</td>
-                <td className="px-4 py-2">
-                  <select
-                    value={e.status}
-                    onChange={(ev) => onUpdate(e.id, { status: ev.target.value })}
-                    className="rounded border border-[#2A3544] bg-[#151C24] px-2 py-1 text-[0.6875rem] text-white outline-none focus:border-[#6AD7A3]"
-                  >
-                    {ALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </td>
-                <td className={`px-4 py-2 tabular-nums font-semibold ${daysColor}`}>{days}d</td>
-                <td className="px-4 py-2">
-                  <button type="button" onClick={() => onDelete(e.id)} className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-[0.6875rem] text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors">
-                    <Trash2 size={14} strokeWidth={2} />
-                    Remove
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div
+      ref={overlay ? undefined : setNodeRef}
+      style={overlay ? undefined : style}
+      {...(overlay ? {} : attributes)}
+      {...(overlay ? {} : listeners)}
+      className="group cursor-grab active:cursor-grabbing rounded-[var(--radius-lg)] p-px transition-all duration-150 hover:-translate-y-[1px]"
+    >
+      <div
+        className="rounded-[var(--radius-lg)] px-3 py-2 transition-shadow duration-150 group-hover:shadow-[var(--shadow-elevated)]"
+        style={{
+          backgroundImage: `linear-gradient(${color}0a, ${color}05), linear-gradient(to bottom, #1A2230, #171F28)`,
+          borderLeft: `2px solid ${color}`,
+        }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h4 className="text-[0.8125rem] font-semibold leading-snug text-white line-clamp-2">{entry.title}</h4>
+            <p className="mt-0.5 text-[0.6875rem] text-[#9CA3AF] truncate">{entry.company}</p>
+          </div>
+          {entry.url && (
+            <a
+              href={entry.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 mt-0.5 rounded-md p-1 text-[#9CA3AF] hover:text-[#6AD7A3] hover:bg-[#6AD7A3]/10 transition-colors"
+              title="View listing"
+            >
+              <Briefcase size={14} strokeWidth={2} />
+            </a>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ── All Stages Ops Table (flat table with stage column, sorted by stage) ── */
+function TrackerKanbanColumn({
+  stage,
+  entries,
+}: {
+  stage: { label: string; display: string; color: string };
+  entries: TrackerEntry[];
+}) {
+  const ids = entries.map((e) => e.id);
+  const { setNodeRef, isOver } = useDroppable({ id: stage.label });
 
-type AllSortKey = "stage" | "days" | "company" | "title";
+  return (
+    <div className="flex flex-col min-w-[180px]">
+      {/* Column header */}
+      <div className="mb-2 flex items-center gap-2">
+        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.color }} />
+        <span className="text-[0.6875rem] font-bold uppercase tracking-[0.06em]" style={{ color: stage.color }}>
+          {stage.display}
+        </span>
+        <span className="rounded-full bg-[rgba(255,255,255,0.06)] px-1.5 py-0.5 text-[0.5625rem] font-semibold tabular-nums text-[#9CA3AF]">
+          {entries.length}
+        </span>
+      </div>
 
-function AllOpsTable({
+      {/* Droppable area */}
+      <div
+        ref={setNodeRef}
+        className={`min-h-[80px] flex-1 space-y-1.5 rounded-[var(--radius-lg)] p-1 transition-colors ${isOver ? "bg-[rgba(255,255,255,0.03)]" : ""}`}
+      >
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          {entries.length === 0 ? (
+            <div className="rounded-[var(--radius-lg)] border border-dashed border-[#2A3544] p-4 text-center text-[0.625rem] text-[#9CA3AF]">
+              Empty
+            </div>
+          ) : (
+            entries.map((e) => <TrackerKanbanCard key={e.id} entry={e} />)
+          )}
+        </SortableContext>
+      </div>
+    </div>
+  );
+}
+
+function TrackerKanbanBoard({
   entries,
   loading,
-  sortOrder,
   onUpdate,
-  onDelete,
 }: {
   entries: TrackerEntry[];
   loading: boolean;
-  sortOrder: "newest" | "oldest";
   onUpdate: (id: string, patch: Record<string, unknown>) => void;
-  onDelete: (id: string) => void;
 }) {
-  const [sortKey, setSortKey] = useState<AllSortKey>("stage");
-  const [sortAsc, setSortAsc] = useState(true);
+  const [activeEntry, setActiveEntry] = useState<TrackerEntry | null>(null);
+  const [showClosed, setShowClosed] = useState(false);
 
-  function handleSort(key: AllSortKey) {
-    if (sortKey === key) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortKey(key);
-      setSortAsc(true);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  // Group by stage
+  const byStage: Record<string, TrackerEntry[]> = {};
+  for (const s of STAGES) byStage[s.label] = [];
+  const closedEntries: TrackerEntry[] = [];
+
+  for (const e of entries) {
+    if (CLOSED_STATUSES.includes(e.status)) {
+      closedEntries.push(e);
+    } else if (byStage[e.status]) {
+      byStage[e.status].push(e);
     }
   }
 
-  const sorted = [...entries].sort((a, b) => {
-    let cmp = 0;
-    switch (sortKey) {
-      case "stage":
-        cmp = (STAGE_ORDER[a.status] ?? 99) - (STAGE_ORDER[b.status] ?? 99);
-        break;
-      case "days": {
-        const aDays = Date.now() - new Date(a.stage_changed_at).getTime();
-        const bDays = Date.now() - new Date(b.stage_changed_at).getTime();
-        cmp = aDays - bDays;
-        break;
-      }
-      case "company":
-        cmp = (a.company ?? "").localeCompare(b.company ?? "");
-        break;
-      case "title":
-        cmp = (a.title ?? "").localeCompare(b.title ?? "");
-        break;
-    }
-    if (cmp === 0) {
-      const aTime = new Date(a.added_at ?? a.updated_at).getTime();
-      const bTime = new Date(b.added_at ?? b.updated_at).getTime();
-      cmp = sortOrder === "newest" ? bTime - aTime : aTime - bTime;
-    }
-    return sortAsc ? cmp : -cmp;
-  });
+  function handleDragStart(event: DragStartEvent) {
+    const entry = entries.find((e) => e.id === event.active.id);
+    setActiveEntry(entry ?? null);
+  }
 
-  if (loading) return <div className="p-4 space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-lg" />)}</div>;
-  if (sorted.length === 0) return <p className="py-12 text-center text-[0.8125rem] text-[#9CA3AF]">No tracked entries yet</p>;
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveEntry(null);
+    const { active, over } = event;
+    if (!over) return;
 
-  const SortHeader = ({ label, k }: { label: string; k: AllSortKey }) => (
-    <th
-      className="px-4 py-2.5 cursor-pointer select-none hover:text-[#B8BFC8] transition-colors"
-      onClick={() => handleSort(k)}
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        {sortKey === k && (
-          sortAsc ? <ChevronUp size={12} strokeWidth={2} /> : <ChevronDown size={12} strokeWidth={2} />
-        )}
-      </span>
-    </th>
-  );
+    const entry = entries.find((e) => e.id === active.id);
+    if (!entry) return;
+
+    let targetStatus: string | undefined;
+
+    // Check if dropped on a column (stage label)
+    const stageLabels = STAGES.map((s) => s.label);
+    if (stageLabels.includes(over.id as string)) {
+      targetStatus = over.id as string;
+    } else {
+      // Dropped on a card — get that card's status
+      const targetEntry = entries.find((e) => e.id === over.id);
+      targetStatus = targetEntry?.status;
+    }
+
+    if (!targetStatus || targetStatus === entry.status) return;
+
+    onUpdate(entry.id, { status: targetStatus, stage_changed_at: new Date().toISOString() });
+    toast.success(`Moved to ${STAGES.find((s) => s.label === targetStatus)?.display ?? targetStatus}`);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex gap-4 overflow-x-auto p-3 md:p-6">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="min-w-[180px] flex-1 space-y-2">
+            <div className="h-5 w-20 animate-pulse rounded bg-[#171F28]" />
+            <div className="h-14 animate-pulse rounded-[var(--radius-lg)] bg-[#171F28]" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-[0.8125rem]">
-        <thead>
-          <tr className="border-b border-[#2A3544] text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
-            <SortHeader label="Status" k="stage" />
-            <SortHeader label="Title" k="title" />
-            <SortHeader label="Company" k="company" />
-            <th className="px-4 py-2.5">Salary</th>
-            <SortHeader label="Days" k="days" />
-            <th className="px-4 py-2.5">Lane</th>
-            <th className="px-4 py-2.5">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((e) => {
-            const days = Math.floor((Date.now() - new Date(e.stage_changed_at).getTime()) / 86400000);
-            const daysColor = days < 3 ? "text-[#6AD7A3]" : days < 7 ? "text-[#F59E0B]" : "text-[#DC2626]";
-            const stageColor = statusBorderColor[e.status] ?? "#9CA3AF";
-            return (
-              <tr key={e.id} className="border-b border-[#2A3544]/40 hover:bg-[#222D3D]/30 transition-colors">
-                <td className="px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: stageColor }} />
-                    <select
-                      value={e.status}
-                      onChange={(ev) => onUpdate(e.id, { status: ev.target.value })}
-                      className="rounded border border-[#2A3544] bg-[#151C24] px-2 py-1 text-[0.6875rem] text-white outline-none focus:border-[#6AD7A3]"
-                    >
-                      {ALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
+    <div className="p-3 md:p-6 space-y-4">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {STAGES.map((stage) => (
+            <TrackerKanbanColumn
+              key={stage.label}
+              stage={stage}
+              entries={byStage[stage.label] ?? []}
+            />
+          ))}
+        </div>
+
+        <DragOverlay>
+          {activeEntry ? <TrackerKanbanCard entry={activeEntry} overlay /> : null}
+        </DragOverlay>
+      </DndContext>
+
+      {/* Terminal states — expandable count badge */}
+      {closedEntries.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowClosed(!showClosed)}
+            className="inline-flex items-center gap-2 rounded-full border border-[#2A3544] bg-[#171F28] px-3 py-1.5 text-[0.6875rem] font-medium text-[#9CA3AF] hover:text-white transition-colors"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-[#4B5563]" />
+            {closedEntries.length} closed
+            <ChevronDown size={12} strokeWidth={2} className={`transition-transform ${showClosed ? "rotate-180" : ""}`} />
+          </button>
+          {showClosed && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {closedEntries.map((e) => {
+                const c = statusBorderColor[e.status] ?? "#4B5563";
+                return (
+                  <div
+                    key={e.id}
+                    className="rounded-[var(--radius-lg)] px-3 py-2 text-[0.75rem]"
+                    style={{
+                      backgroundImage: `linear-gradient(${c}08, ${c}04), linear-gradient(to bottom, #1A2230, #171F28)`,
+                      borderLeft: `2px solid ${c}`,
+                    }}
+                  >
+                    <span className="font-medium text-white">{e.title}</span>
+                    <span className="ml-2 text-[#9CA3AF]">{e.company}</span>
+                    <span className="ml-2 text-[0.625rem] text-[#9CA3AF]">{e.status}</span>
                   </div>
-                </td>
-                <td className="px-4 py-2 font-medium text-white">
-                  {e.url ? (
-                    <a href={e.url} target="_blank" rel="noopener noreferrer" className="hover:text-[#6AD7A3]">{e.title}</a>
-                  ) : e.title}
-                </td>
-                <td className="px-4 py-2 text-[#B8BFC8]">{e.company}</td>
-                <td className="px-4 py-2 text-[#B8BFC8]">{e.salary ?? "-"}</td>
-                <td className={`px-4 py-2 tabular-nums font-semibold ${daysColor}`}>{days}d</td>
-                <td className="px-4 py-2 text-[0.6875rem] text-[#6AD7A3]">{e.lane_label ?? "-"}</td>
-                <td className="px-4 py-2">
-                  <button type="button" onClick={() => onDelete(e.id)} className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-[0.6875rem] text-[#DC2626] hover:bg-[#DC2626]/10 transition-colors">
-                    <Trash2 size={14} strokeWidth={2} />
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
