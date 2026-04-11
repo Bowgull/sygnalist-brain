@@ -283,13 +283,17 @@ export default function TrackerCard({ entry, onUpdate, onDelete, locked, viewAsI
 
   const cardFront = (
     <div
-      className="group relative max-w-[960px] overflow-hidden rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.08)] bg-[#171F28] transition-all duration-200 hover:border-[rgba(255,255,255,0.14)] hover:shadow-[var(--shadow-elevated)] hover:-translate-y-[1px]"
+      className="group max-w-[960px] overflow-hidden rounded-[var(--radius-lg)] p-px transition-all duration-200 hover:-translate-y-[1px]"
       style={{
-        borderTopWidth: "2px",
-        borderTopColor: borderColor,
-        backgroundImage: `linear-gradient(to bottom, ${borderColor}18, transparent 40%)`,
+        backgroundImage: `linear-gradient(to bottom, ${borderColor}, ${borderColor}40 40%, transparent 70%)`,
       }}
     >
+      <div
+        className="rounded-[var(--radius-lg)] transition-shadow duration-200 group-hover:shadow-[var(--shadow-elevated)]"
+        style={{
+          backgroundImage: `linear-gradient(${borderColor}08, ${borderColor}05), linear-gradient(to bottom, #1A2230, #171F28)`,
+        }}
+      >
       <div
         className="relative p-4 md:p-5 cursor-pointer"
         onClick={() => { if (!quickEdit) setSpotlight(true); }}
@@ -425,6 +429,7 @@ export default function TrackerCard({ entry, onUpdate, onDelete, locked, viewAsI
             </p>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
