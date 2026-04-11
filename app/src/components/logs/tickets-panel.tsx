@@ -2,6 +2,19 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { relativeTime } from "@/components/logs/log-utils";
 import TicketDetail from "@/components/logs/ticket-detail";
 
@@ -27,6 +40,7 @@ type Ticket = {
 
 const PRIORITY_OPTIONS = ["critical", "high", "medium", "low"] as const;
 const SOURCE_OPTIONS = ["user_report", "activity", "error", "manual"] as const;
+const STATUSES = ["open", "in_progress", "resolved"] as const;
 
 export const priorityColors: Record<string, string> = {
   critical: "#DC2626",
@@ -61,13 +75,139 @@ const sourceLabels: Record<string, string> = {
   manual: "Manual",
 };
 
-const STATUS_SORT: Record<string, number> = { open: 0, in_progress: 1, resolved: 2 };
+/* ── Sortable Kanban Card ───────────────────────────────── */
+
+function KanbanCard({
+  ticket,
+  onClick,
+  overlay,
+}: {
+  ticket: Ticket;
+  onClick: () => void;
+  overlay?: boolean;
+}) {
+  const pc = priorityColors[ticket.priority] ?? "#9CA3AF";
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: ticket.id,
+    data: { status: ticket.status },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const card = (
+    <div
+      ref={overlay ? undefined : setNodeRef}
+      style={overlay ? undefined : style}
+      {...(overlay ? {} : attributes)}
+      {...(overlay ? {} : listeners)}
+      className="group cursor-grab active:cursor-grabbing rounded-[var(--radius-lg)] p-px transition-all duration-150 hover:-translate-y-[1px]"
+      onClick={onClick}
+    >
+      <div
+        className="rounded-[var(--radius-lg)] px-3 py-2 transition-shadow duration-150 group-hover:shadow-[var(--shadow-elevated)]"
+        style={{
+          backgroundImage: `linear-gradient(${pc}08, ${pc}05), linear-gradient(to bottom, #1A2230, #171F28)`,
+          borderLeft: `2px solid ${pc}`,
+        }}
+      >
+        <h4 className="text-[0.8125rem] font-semibold leading-snug text-white line-clamp-2">{ticket.title}</h4>
+        <div className="mt-1 flex items-center gap-1.5 text-[0.625rem] text-[#9CA3AF]">
+          {ticket.ticket_name && (
+            <span className="font-semibold text-[#818CF8]">{ticket.ticket_name}</span>
+          )}
+          {ticket.ticket_name && <span>·</span>}
+          <span>{relativeTime(ticket.created_at)}</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  return card;
+}
+
+/* ── Kanban Column ──────────────────────────────────────── */
+
+function KanbanColumn({
+  status,
+  tickets,
+  onCardClick,
+  collapsed,
+  onToggle,
+}: {
+  status: string;
+  tickets: Ticket[];
+  onCardClick: (id: string) => void;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  const sc = statusColors[status] ?? "#9CA3AF";
+  const ids = tickets.map((t) => t.id);
+
+  return (
+    <div className="flex flex-col min-w-0">
+      {/* Column header */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="mb-2 flex items-center gap-2 md:cursor-default"
+      >
+        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: sc }} />
+        <span className="text-[0.75rem] font-bold uppercase tracking-[0.06em] text-[#B8BFC8]">
+          {statusLabels[status] ?? status}
+        </span>
+        <span className="rounded-full bg-[rgba(255,255,255,0.06)] px-1.5 py-0.5 text-[0.625rem] font-semibold tabular-nums text-[#9CA3AF]">
+          {tickets.length}
+        </span>
+        {/* Chevron — mobile only */}
+        <svg
+          viewBox="0 0 24 24"
+          className={`ml-auto h-4 w-4 text-[#9CA3AF] transition-transform md:hidden ${collapsed ? "" : "rotate-180"}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      {/* Cards */}
+      <div className={`space-y-1.5 ${collapsed ? "hidden md:block" : ""}`}>
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          {tickets.length === 0 ? (
+            <div className="rounded-[var(--radius-lg)] border border-dashed border-[#2A3544] p-4 text-center text-[0.6875rem] text-[#9CA3AF]">
+              No tickets
+            </div>
+          ) : (
+            tickets.map((t) => (
+              <KanbanCard key={t.id} ticket={t} onClick={() => onCardClick(t.id)} />
+            ))
+          )}
+        </SortableContext>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Tickets Panel ─────────────────────────────────── */
 
 export default function TicketsPanel() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [spotlightId, setSpotlightId] = useState<string | null>(null);
+  const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
+
+  // Mobile collapsed columns — open is expanded by default
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
+    open: false,
+    in_progress: true,
+    resolved: true,
+  });
 
   // Filters
   const [priorityFilter, setPriorityFilter] = useState<string>("");
@@ -82,6 +222,11 @@ export default function TicketsPanel() {
     return () => clearTimeout(debounceRef.current);
   }, [search]);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
   const fetchTickets = useCallback(() => {
     setLoading(true);
     const params = new URLSearchParams({ limit: "100" });
@@ -93,13 +238,7 @@ export default function TicketsPanel() {
       .then((r) => r.json())
       .then((data) => {
         const raw = (data.tickets ?? []) as Ticket[];
-        // Sort: open first, in_progress, resolved — then by created_at desc within group
-        raw.sort((a, b) => {
-          const sa = STATUS_SORT[a.status] ?? 9;
-          const sb = STATUS_SORT[b.status] ?? 9;
-          if (sa !== sb) return sa - sb;
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
+        raw.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setTickets(raw);
         setTotal(data.total ?? 0);
         setLoading(false);
@@ -109,11 +248,67 @@ export default function TicketsPanel() {
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
+  /* ── Drag handlers ── */
+
+  function handleDragStart(event: DragStartEvent) {
+    const ticket = tickets.find((t) => t.id === event.active.id);
+    setActiveTicket(ticket ?? null);
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveTicket(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    // Determine target status: either from the droppable column or from the card we dropped on
+    const ticket = tickets.find((t) => t.id === active.id);
+    if (!ticket) return;
+
+    let targetStatus: string | undefined;
+
+    // Check if dropped on a column
+    if (STATUSES.includes(over.id as typeof STATUSES[number])) {
+      targetStatus = over.id as string;
+    } else {
+      // Dropped on another card — get that card's status
+      const targetTicket = tickets.find((t) => t.id === over.id);
+      targetStatus = targetTicket?.status;
+    }
+
+    if (!targetStatus || targetStatus === ticket.status) return;
+
+    // Optimistic update
+    setTickets((prev) =>
+      prev.map((t) => (t.id === ticket.id ? { ...t, status: targetStatus } : t))
+    );
+
+    try {
+      const res = await fetch(`/api/tickets/${ticket.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: targetStatus }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      toast.success(`Moved to ${statusLabels[targetStatus] ?? targetStatus}`);
+    } catch {
+      // Revert
+      setTickets((prev) =>
+        prev.map((t) => (t.id === ticket.id ? { ...t, status: ticket.status } : t))
+      );
+      toast.error("Failed to move ticket");
+    }
+  }
+
+  /* ── Group tickets by status ── */
+  const byStatus: Record<string, Ticket[]> = { open: [], in_progress: [], resolved: [] };
+  for (const t of tickets) {
+    (byStatus[t.status] ??= []).push(t);
+  }
+
   return (
     <div className="space-y-3">
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Search */}
         <div className="relative w-full md:w-44">
           <svg viewBox="0 0 24 24" className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]" fill="none" stroke="currentColor" strokeWidth={2}>
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -127,7 +322,6 @@ export default function TicketsPanel() {
           />
         </div>
 
-        {/* Priority filter */}
         <select
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value)}
@@ -139,7 +333,6 @@ export default function TicketsPanel() {
           ))}
         </select>
 
-        {/* Source filter */}
         <select
           value={sourceFilter}
           onChange={(e) => setSourceFilter(e.target.value)}
@@ -164,87 +357,43 @@ export default function TicketsPanel() {
         </span>
       </div>
 
-      {/* Loading */}
+      {/* Kanban board */}
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-[var(--radius-lg)] bg-[#171F28]" />)}
-        </div>
-      ) : tickets.length === 0 ? (
-        <div className="py-16 text-center">
-          <p className="text-[0.8125rem] text-[#9CA3AF]">No tickets found</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="space-y-2">
+              <div className="h-5 w-24 animate-pulse rounded bg-[#171F28]" />
+              <div className="h-16 animate-pulse rounded-[var(--radius-lg)] bg-[#171F28]" />
+              <div className="h-16 animate-pulse rounded-[var(--radius-lg)] bg-[#171F28]" />
+            </div>
+          ))}
         </div>
       ) : (
-        <div className="space-y-2">
-          {tickets.map((ticket) => {
-            const pc = priorityColors[ticket.priority] ?? "#9CA3AF";
-            const sc = statusColors[ticket.status] ?? "#9CA3AF";
-            const linkedTotal = ticket.linked_events + ticket.linked_errors;
-            const daysOld = Math.floor((Date.now() - new Date(ticket.created_at).getTime()) / 86400000);
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {STATUSES.map((s) => (
+              <KanbanColumn
+                key={s}
+                status={s}
+                tickets={byStatus[s] ?? []}
+                onCardClick={(id) => setSpotlightId(id)}
+                collapsed={collapsed[s] ?? false}
+                onToggle={() => setCollapsed((prev) => ({ ...prev, [s]: !prev[s] }))}
+              />
+            ))}
+          </div>
 
-            return (
-              <div
-                key={ticket.id}
-                className="group relative overflow-hidden rounded-[var(--radius-lg)] p-px transition-all duration-200 hover:-translate-y-[1px] cursor-pointer"
-                style={{
-                  backgroundImage: `linear-gradient(to bottom, ${pc}, ${pc}40 40%, transparent 70%)`,
-                }}
-                onClick={() => setSpotlightId(ticket.id)}
-              >
-                <div
-                  className="rounded-[var(--radius-lg)] p-3 transition-shadow duration-200 group-hover:shadow-[var(--shadow-elevated)]"
-                  style={{ background: "linear-gradient(to bottom, #1A2230, #171F28)" }}
-                >
-                  {/* Row 1: Title + age + status */}
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="min-w-0 flex-1 truncate text-[0.875rem] md:text-[0.9375rem] font-bold leading-tight text-white">{ticket.title}</h3>
-                    <div className="flex shrink-0 items-center gap-2">
-                      {daysOld > 0 && (
-                        <span className={`text-[0.75rem] font-semibold tabular-nums ${daysOld > 7 ? "text-[#DC2626]" : daysOld > 3 ? "text-[#F59E0B]" : "text-[#9CA3AF]"}`}>
-                          {daysOld}d
-                        </span>
-                      )}
-                      <span
-                        className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-[0.04em]"
-                        style={{
-                          color: sc,
-                          backgroundColor: `${sc}15`,
-                          borderColor: `${sc}30`,
-                        }}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: sc }} />
-                        {statusLabels[ticket.status] ?? ticket.status}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Row 2: Ticket name, source, reporter, linked, time */}
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    {ticket.ticket_name && (
-                      <span className="inline-flex items-center rounded-full border border-[#818CF8]/25 bg-[#818CF8]/10 px-2 py-0.5 text-[0.5625rem] font-semibold text-[#818CF8]">
-                        {ticket.ticket_name}
-                      </span>
-                    )}
-                    <span className="inline-flex h-[22px] items-center rounded-full border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] px-2 text-[0.625rem] text-[#9CA3AF]">
-                      {sourceLabels[ticket.source] ?? ticket.source}
-                    </span>
-                    {ticket.reporter?.display_name && (
-                      <span className="text-[0.6875rem] text-[#9CA3AF]">{ticket.reporter.display_name}</span>
-                    )}
-                    <span className="flex-1" />
-                    {linkedTotal > 0 && (
-                      <span className="text-[0.625rem] tabular-nums text-[#9CA3AF]">
-                        {ticket.linked_events > 0 && `${ticket.linked_events} event${ticket.linked_events > 1 ? "s" : ""}`}
-                        {ticket.linked_events > 0 && ticket.linked_errors > 0 && " · "}
-                        {ticket.linked_errors > 0 && `${ticket.linked_errors} error${ticket.linked_errors > 1 ? "s" : ""}`}
-                      </span>
-                    )}
-                    <span className="text-[0.6875rem] tabular-nums text-[#9CA3AF]">{relativeTime(ticket.created_at)}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          <DragOverlay>
+            {activeTicket ? (
+              <KanbanCard ticket={activeTicket} onClick={() => {}} overlay />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* Spotlight modal */}
