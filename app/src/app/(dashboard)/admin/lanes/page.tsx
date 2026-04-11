@@ -137,7 +137,7 @@ export default function AdminLanesPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-5">
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-[0.8125rem] font-semibold text-[#0C1016] shadow-lg">
@@ -185,7 +185,7 @@ export default function AdminLanesPage() {
       )}
 
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Job Lanes ({lanes.length})</h1>
+        <h1 className="text-lg md:text-xl font-semibold">Job Lanes ({lanes.length})</h1>
         <button
           onClick={() => setExpandedView(!expandedView)}
           className="flex items-center gap-1 text-[12px] text-[#9CA3AF] hover:text-white"
@@ -202,7 +202,7 @@ export default function AdminLanesPage() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type a lane name and press Enter (e.g. Product Manager)"
-          className="flex-1 rounded-xl border border-[#2A3544] bg-[#171F28] px-4 py-3 text-sm text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3]"
+          className="flex-1 rounded-xl border border-[#2A3544] bg-[#171F28] px-4 md:px-5 py-3 text-sm text-white placeholder-[#4B5563] outline-none focus:border-[#6AD7A3]"
         />
         <button
           onClick={handleAdd}
@@ -273,7 +273,7 @@ export default function AdminLanesPage() {
             {activeLanes.map((lane) => (
               <div
                 key={lane.id}
-                className="group flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.08)] bg-[#171F28] px-4 py-2 transition hover:border-[#6AD7A3]/30"
+                className="group flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.08)] bg-[#171F28] px-4 md:px-5 py-2 md:py-2.5 transition hover:border-[#6AD7A3]/30"
               >
                 <span className="text-[13px] font-medium text-white">{lane.role_name}</span>
                 {lane.job_count > 0 && (
@@ -281,14 +281,14 @@ export default function AdminLanesPage() {
                 )}
                 <button
                   onClick={() => setEditing(lane.id)}
-                  className="ml-0.5 inline-flex rounded-full p-0.5 text-[#4B5563] transition hover:bg-[#6AD7A3]/10 hover:text-[#6AD7A3] sm:hidden sm:group-hover:inline-flex"
+                  className="ml-0.5 inline-flex rounded-full p-0.5 text-[#4B5563] transition hover:bg-[#6AD7A3]/10 hover:text-[#6AD7A3] md:hidden md:group-hover:inline-flex"
                   title="Edit lane"
                 >
                   <Pencil size={12} strokeWidth={2} />
                 </button>
                 <button
                   onClick={() => setDeleteConfirm({ id: lane.id, name: lane.role_name, jobCount: lane.job_count })}
-                  className="inline-flex rounded-full p-0.5 text-[#4B5563] transition hover:bg-[#DC2626]/10 hover:text-[#DC2626] sm:hidden sm:group-hover:inline-flex"
+                  className="inline-flex rounded-full p-0.5 text-[#4B5563] transition hover:bg-[#DC2626]/10 hover:text-[#DC2626] md:hidden md:group-hover:inline-flex"
                   title="Remove lane"
                 >
                   <X size={14} strokeWidth={2} />
@@ -308,7 +308,7 @@ export default function AdminLanesPage() {
                     <span className="text-[13px] font-medium text-[#6B7280]">{lane.role_name}</span>
                     <button
                       onClick={() => handleUpdate(lane.id, { is_active: true })}
-                      className="ml-0.5 inline text-[10px] text-[#6AD7A3] hover:underline sm:hidden sm:group-hover:inline"
+                      className="ml-0.5 inline text-[10px] text-[#6AD7A3] hover:underline md:hidden md:group-hover:inline"
                     >
                       Activate
                     </button>
@@ -355,8 +355,8 @@ function LaneRow({
 
   if (isEditing) {
     return (
-      <div className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4 md:p-5 space-y-3 md:space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
               Name
@@ -422,7 +422,7 @@ function LaneRow({
 
   return (
     <div
-      className={`group flex items-center justify-between rounded-2xl border bg-[#171F28] px-4 py-3 transition ${
+      className={`group flex items-center justify-between rounded-2xl border bg-[#171F28] px-4 md:px-5 py-3 transition ${
         lane.is_active !== false
           ? "border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)]"
           : "border-[#2A3544]/50 opacity-60"
@@ -449,7 +449,7 @@ function LaneRow({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         <button
           onClick={onEdit}
           className="rounded-lg p-1.5 text-[#6B7280] transition hover:bg-[#6AD7A3]/10 hover:text-[#6AD7A3]"

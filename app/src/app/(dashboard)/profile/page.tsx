@@ -61,8 +61,8 @@ export default function ProfilePage() {
     <div className="p-4 md:p-6 space-y-4">
       <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4 md:p-6">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5]/20 to-[#39D6FF]/20 ring-1 ring-[#6AD7A3]/20">
-            <span className="text-lg font-bold text-[#6AD7A3]">
+          <div className="flex h-12 w-12 md:h-16 md:w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5]/20 to-[#39D6FF]/20 ring-1 ring-[#6AD7A3]/20">
+            <span className="text-lg md:text-2xl font-bold text-[#6AD7A3]">
               {displayName.charAt(0)?.toUpperCase() ?? "?"}
             </span>
           </div>

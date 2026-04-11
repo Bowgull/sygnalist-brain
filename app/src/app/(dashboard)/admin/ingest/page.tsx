@@ -228,7 +228,7 @@ export default function AdminIngestPage() {
   /* ── Render ───────────────────────────────────────── */
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-5">
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-[0.8125rem] font-semibold text-[#0C1016] shadow-lg">
@@ -238,7 +238,7 @@ export default function AdminIngestPage() {
 
       {/* ═══ GMAIL INGEST SECTION ═══ */}
       <div className="overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28]">
-        <div className="bg-gradient-to-r from-[#6AD7A3]/10 via-[#5EF2C7]/10 to-[#39D6FF]/10 px-5 py-4">
+        <div className="bg-gradient-to-r from-[#6AD7A3]/10 via-[#5EF2C7]/10 to-[#39D6FF]/10 px-5 md:px-6 py-4 md:py-5">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#6AD7A3]/15">
               <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#6AD7A3]" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -253,7 +253,7 @@ export default function AdminIngestPage() {
           </div>
         </div>
 
-        <div className="p-5">
+        <div className="p-5 md:p-6">
           <button
             onClick={handleGmailIngest}
             disabled={running}
@@ -307,7 +307,7 @@ export default function AdminIngestPage() {
 
         {/* Batch Action Bar */}
         {jobs.length > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] px-4 py-2.5">
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] px-4 md:px-5 py-2.5">
             <label className="flex items-center gap-2 text-[12px] text-[#9CA3AF] cursor-pointer">
               <input
                 type="checkbox"
@@ -400,7 +400,7 @@ export default function AdminIngestPage() {
       {/* ═══ RECENT RUNS ═══ */}
       {receipts.length > 0 && (
         <div className="overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28]">
-          <div className="px-5 py-3">
+          <div className="px-5 md:px-6 py-3">
             <h2 className="text-[13px] font-semibold text-[#B8BFC8]">Recent Runs</h2>
           </div>
           <div className="divide-y divide-[#2A3544]/50 px-5">

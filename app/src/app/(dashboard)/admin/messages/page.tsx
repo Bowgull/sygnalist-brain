@@ -131,7 +131,7 @@ export default function AdminMessagesPage() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-5">
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-sm font-medium text-[#0C1016]">
@@ -140,12 +140,12 @@ export default function AdminMessagesPage() {
       )}
 
       {/* View tab bar */}
-      <div className="flex gap-1 rounded-xl bg-[#151C24] p-1">
+      <div className="flex gap-1 rounded-xl bg-[#151C24] p-1 md:p-1.5">
         {views.map((v) => (
           <button
             key={v.key}
             onClick={() => setView(v.key)}
-            className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
+            className={`flex-1 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm md:text-[0.9375rem] font-medium transition ${
               view === v.key
                 ? "bg-[#171F28] text-[#FAD76A]"
                 : "text-[#9CA3AF] hover:text-white"
@@ -361,7 +361,7 @@ function OutreachView({
   if (editingSuggestion) {
     const client = editingSuggestion.client;
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 md:space-y-4">
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setEditingSuggestion(null); setEditSubject(""); setEditBody(""); }}
@@ -369,7 +369,7 @@ function OutreachView({
           >
             <BackArrow />
           </button>
-          <h2 className="text-lg font-semibold">Edit & Send</h2>
+          <h2 className="text-lg md:text-xl font-semibold">Edit & Send</h2>
         </div>
 
         <div className="rounded-xl bg-[#151C24] px-3 py-2 text-sm">
@@ -419,9 +419,9 @@ function OutreachView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Outreach</h2>
+        <h2 className="text-lg md:text-xl font-semibold">Outreach</h2>
         <button
           onClick={generateSuggestions}
           disabled={generating}
@@ -456,7 +456,7 @@ function OutreachView({
           return (
             <div key={trigger} className="rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] overflow-hidden">
               {/* Group header */}
-              <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4">
                 <div className="flex items-center gap-2">
                   <div
                     className="h-2 w-2 rounded-full"
@@ -551,16 +551,16 @@ function SuggestionCard({
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 transition hover:bg-[#1A2330]">
+    <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 transition hover:bg-[#1A2330]">
       <div className="flex items-center gap-3">
         <div
-          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
+          className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full text-xs md:text-sm font-bold"
           style={{ backgroundColor: `${color}15`, color }}
         >
           {s.client?.display_name ? s.client.display_name[0].toUpperCase() : "-"}
         </div>
         <div>
-          <p className="text-sm font-medium">{s.client?.display_name ?? <span className="rounded-full bg-[#9CA3AF]/10 px-2 py-0.5 text-[11px] text-[#9CA3AF] ring-1 ring-[#9CA3AF]/20">Removed User</span>}</p>
+          <p className="text-sm md:text-[0.9375rem] font-medium">{s.client?.display_name ?? <span className="rounded-full bg-[#9CA3AF]/10 px-2 py-0.5 text-[11px] text-[#9CA3AF] ring-1 ring-[#9CA3AF]/20">Removed User</span>}</p>
           <p className="text-[11px] text-[#9CA3AF]">{description}</p>
         </div>
       </div>
@@ -788,7 +788,7 @@ function ComposeView({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 md:space-y-4">
       <div className="flex items-center gap-2">
         {step !== "recipients" && (
           <button
@@ -801,7 +801,7 @@ function ComposeView({
             <BackArrow />
           </button>
         )}
-        <h2 className="text-lg font-semibold">Compose</h2>
+        <h2 className="text-lg md:text-xl font-semibold">Compose</h2>
         <div className="ml-auto flex gap-1.5">
           {["recipients", "template", "editor"].map((s, i) => (
             <div
@@ -845,14 +845,14 @@ function ComposeView({
           />
 
           {/* Client list */}
-          <div className="max-h-[400px] space-y-1 overflow-y-auto">
+          <div className="max-h-[400px] md:max-h-[500px] space-y-1 overflow-y-auto">
             {filteredClients.map((c) => {
               const isSelected = selectedClients.some((sc) => sc.id === c.id);
               return (
                 <button
                   key={c.id}
                   onClick={() => toggleClient(c)}
-                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
+                  className={`flex w-full items-center gap-3 rounded-xl border p-3 md:p-4 text-left transition ${
                     isSelected
                       ? "border-[#6AD7A3]/30 bg-[#6AD7A3]/5"
                       : "border-[rgba(255,255,255,0.08)] bg-[#171F28] hover:bg-[#222D3D]"
@@ -867,11 +867,11 @@ function ComposeView({
                       </svg>
                     )}
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#6AD7A3]/10 text-xs font-bold text-[#6AD7A3]">
+                  <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full bg-[#6AD7A3]/10 text-xs md:text-sm font-bold text-[#6AD7A3]">
                     {c.display_name[0]?.toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-sm font-medium">{c.display_name}</div>
+                    <div className="text-sm md:text-[0.9375rem] font-medium">{c.display_name}</div>
                     <div className="text-[11px] text-[#9CA3AF]">{c.email}</div>
                   </div>
                 </button>
@@ -964,7 +964,7 @@ function ComposeView({
 
           <button
             onClick={handleStartBlank}
-            className="flex w-full items-center gap-3 rounded-xl border border-dashed border-[rgba(255,255,255,0.2)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+            className="flex w-full items-center gap-3 rounded-xl border border-dashed border-[rgba(255,255,255,0.2)] bg-[#171F28] p-3 md:p-4 text-left transition hover:bg-[#222D3D]"
           >
             <span className="text-sm text-[#B8BFC8]">Start blank</span>
           </button>
@@ -973,7 +973,7 @@ function ComposeView({
             <button
               key={t.id}
               onClick={() => handlePickTemplate(t)}
-              className="flex w-full items-center justify-between rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+              className="flex w-full items-center justify-between rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3 md:p-4 text-left transition hover:bg-[#222D3D]"
             >
               <div>
                 <div className="text-sm font-medium">{t.name}</div>
@@ -996,7 +996,7 @@ function ComposeView({
 
       {/* Step 3: Editor */}
       {step === "editor" && (
-        <div className="space-y-3">
+        <div className="space-y-3 md:space-y-4">
           {/* Recipient bar */}
           <div className="rounded-xl bg-[#151C24] px-3 py-2 text-sm">
             To:{" "}
@@ -1024,7 +1024,7 @@ function ComposeView({
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
+                  className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm md:text-[0.9375rem] text-white outline-none focus:border-[#6AD7A3]"
                   placeholder="Email subject..."
                 />
               </div>
@@ -1035,7 +1035,7 @@ function ComposeView({
                   <button
                     key={field}
                     onClick={() => insertMergeField(field)}
-                    className="rounded-full bg-[#6AD7A3]/10 px-2.5 py-0.5 text-[11px] text-[#6AD7A3] transition hover:bg-[#6AD7A3]/20"
+                    className="rounded-full bg-[#6AD7A3]/10 px-2.5 md:px-3 py-0.5 md:py-1 text-[11px] text-[#6AD7A3] transition hover:bg-[#6AD7A3]/20"
                   >
                     {field}
                   </button>
@@ -1049,7 +1049,7 @@ function ComposeView({
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   rows={10}
-                  className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm text-white outline-none focus:border-[#6AD7A3]"
+                  className="w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2 text-sm md:text-[0.9375rem] text-white outline-none focus:border-[#6AD7A3]"
                   placeholder="Write your message..."
                 />
               </div>
@@ -1236,12 +1236,12 @@ function ConversationsView({
     }
 
     return (
-      <div className="flex flex-col space-y-3">
+      <div className="flex flex-col space-y-3 md:space-y-4">
         <div className="flex items-center gap-2">
           <button onClick={closeThread} className="text-[#9CA3AF] hover:text-white">
             <BackArrow />
           </button>
-          <h2 className="text-lg font-semibold">{selectedClientName}</h2>
+          <h2 className="text-lg md:text-xl font-semibold">{selectedClientName}</h2>
         </div>
 
         {threadLoading ? (
@@ -1266,7 +1266,7 @@ function ConversationsView({
                   {/* Thread header - gold accent */}
                   <button
                     onClick={() => toggleThread(subject)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[#151C24]"
+                    className="flex w-full items-center gap-3 px-4 md:px-5 py-3 md:py-4 text-left transition hover:bg-[#151C24]"
                   >
                     <div
                       className="h-6 w-1 rounded-full shrink-0"
@@ -1314,7 +1314,7 @@ function ConversationsView({
 
                   {/* Messages + per-thread reply box */}
                   {isExpanded && (
-                    <div className="border-t border-[#2A3544]/40 bg-[#111820] rounded-b-2xl px-3 pb-3 pt-2 space-y-2">
+                    <div className="border-t border-[#2A3544]/40 bg-[#111820] rounded-b-2xl px-3 md:px-4 pb-3 md:pb-4 pt-2 md:pt-3 space-y-2 md:space-y-3">
                       {messages.map((msg) => {
                         const isSent = msg.direction === "sent";
                         const displayBody = isSent ? msg.body : stripQuotedText(msg.body);
@@ -1322,7 +1322,7 @@ function ConversationsView({
                         return (
                           <div
                             key={msg.id}
-                            className={`rounded-xl p-3 ${
+                            className={`rounded-xl p-3 md:p-4 ${
                               isSent
                                 ? "bg-[#171F28] border border-[rgba(255,255,255,0.06)]"
                                 : "bg-[#171F28] border-l-[3px] border-l-[#6AD7A3]"
@@ -1342,7 +1342,7 @@ function ConversationsView({
                                 {formatTimeAgo(new Date(msg.timestamp))}
                               </span>
                             </div>
-                            <p className={`whitespace-pre-wrap text-[13px] leading-relaxed ${
+                            <p className={`whitespace-pre-wrap text-[13px] md:text-sm leading-relaxed ${
                               isSent ? "text-[#B8BFC8]" : "text-white"
                             }`}>
                               {displayBody}
@@ -1376,9 +1376,9 @@ function ConversationsView({
 
   /* -- Conversation list -- */
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 md:space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Conversations</h2>
+        <h2 className="text-lg md:text-xl font-semibold">Conversations</h2>
         <button
           onClick={pollReplies}
           disabled={polling}
@@ -1408,10 +1408,10 @@ function ConversationsView({
             <button
               key={conv.client_id || conv.email}
               onClick={() => openThread(conv)}
-              className="flex w-full items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3 text-left transition hover:bg-[#222D3D]"
+              className="flex w-full items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-3 md:p-4 text-left transition hover:bg-[#222D3D]"
             >
               <div className="relative">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${conv.display_name ? "bg-[#6AD7A3]/10 text-[#6AD7A3]" : "bg-[#9CA3AF]/10 text-[#9CA3AF]"}`}>
+                <div className={`flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full text-sm md:text-base font-bold ${conv.display_name ? "bg-[#6AD7A3]/10 text-[#6AD7A3]" : "bg-[#9CA3AF]/10 text-[#9CA3AF]"}`}>
                   {conv.display_name ? conv.display_name[0]?.toUpperCase() : "-"}
                 </div>
                 {conv.unread_count > 0 && (

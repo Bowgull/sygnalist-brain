@@ -68,6 +68,13 @@ export default function TrackerPage() {
     fetchEntries();
   }, [fetchEntries]);
 
+  // Set initial scope from URL ?status= param (e.g. sidebar links)
+  useEffect(() => {
+    const statusParam = searchParams.get("status");
+    if (statusParam === "applied") setScope(1);
+    else if (statusParam === "interviewing") setScope(2);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Check profile lock status
   useEffect(() => {
     const url = viewAsId

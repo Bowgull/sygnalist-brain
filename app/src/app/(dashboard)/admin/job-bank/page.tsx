@@ -280,7 +280,7 @@ export default function AdminJobBankPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-5">
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-[0.8125rem] font-semibold text-[#0C1016] shadow-lg">
@@ -354,7 +354,7 @@ export default function AdminJobBankPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold">Job Bank ({total})</h1>
+          <h1 className="text-lg md:text-xl font-semibold">Job Bank ({total})</h1>
           <p className="mt-0.5 text-[11px] text-[#6B7280]">
             <span className="text-[#6AD7A3]">{staleCounts.active} active</span>
             {staleCounts.stale > 0 && <span className="text-[#FBBF24]"> / {staleCounts.stale} stale</span>}
@@ -413,7 +413,7 @@ export default function AdminJobBankPage() {
             <option value="archived">Archived</option>
           </select>
           {/* Sort buttons */}
-          <div className="flex items-center gap-1 sm:ml-auto">
+          <div className="flex items-center gap-1 md:ml-auto">
             {[
               { key: "created_at", label: "Date" },
               { key: "title", label: "Title" },
@@ -633,8 +633,8 @@ function JobBankCard({
 
   if (isEditing) {
     return (
-      <div className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4 md:p-5 space-y-3 md:space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Job Title" className={inputClass} />
           <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" className={inputClass} />
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" className={inputClass} />
@@ -706,7 +706,7 @@ function JobBankCard({
 
   return (
     <div
-      className={`rounded-2xl border bg-[#171F28] p-4 transition ${
+      className={`rounded-2xl border bg-[#171F28] p-4 md:p-5 transition ${
         isSelected
           ? "border-[#6AD7A3]/40 bg-[#6AD7A3]/5"
           : "border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.15)]"
@@ -898,9 +898,9 @@ function AddJobForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4">
+    <form onSubmit={handleSubmit} className="rounded-2xl border border-[#6AD7A3]/30 bg-[#171F28] p-4 md:p-5">
       <h2 className="mb-3 text-sm font-semibold">Add to Job Bank</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Job Title" className={inputClass} />
         <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" className={inputClass} />
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="URL" className={inputClass} />
