@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { relativeTime } from "@/components/logs/log-utils";
 import TicketDetail from "@/components/logs/ticket-detail";
+
+const inputClass =
+  "w-full rounded-lg border border-[#2A3544] bg-[#151C24] px-3 py-2.5 text-sm text-white placeholder-[#9CA3AF] outline-none transition-colors focus:border-[#6AD7A3]";
 
 type Ticket = {
   id: string;
@@ -70,6 +74,7 @@ export default function TicketsPanel() {
   const [sourceFilter, setSourceFilter] = useState<string>("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -146,7 +151,15 @@ export default function TicketsPanel() {
           ))}
         </select>
 
-        <span className="ml-auto shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">
+        <button
+          type="button"
+          onClick={() => setShowCreate(true)}
+          className="ml-auto rounded-full border border-[#6AD7A3]/30 bg-[#6AD7A3]/15 px-3 py-1 text-[0.75rem] font-semibold text-[#6AD7A3] transition-colors hover:bg-[#6AD7A3]/25"
+        >
+          + New
+        </button>
+
+        <span className="shrink-0 text-[0.6875rem] tabular-nums text-[#9CA3AF]">
           {total} ticket{total !== 1 ? "s" : ""}
         </span>
       </div>
@@ -171,35 +184,27 @@ export default function TicketsPanel() {
             return (
               <div
                 key={ticket.id}
-                className="group relative overflow-hidden rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.08)] bg-[#171F28] transition-all duration-200 hover:border-[rgba(255,255,255,0.14)] hover:shadow-[var(--shadow-elevated)] hover:-translate-y-[1px] cursor-pointer"
+                className="group relative overflow-hidden rounded-[var(--radius-lg)] p-px transition-all duration-200 hover:-translate-y-[1px] cursor-pointer"
                 style={{
-                  borderTopWidth: "2px",
-                  borderTopColor: pc,
-                  backgroundImage: `linear-gradient(to bottom, ${pc}18, transparent 40%)`,
+                  backgroundImage: `linear-gradient(to bottom, ${pc}, ${pc}40 40%, transparent 70%)`,
                 }}
                 onClick={() => setSpotlightId(ticket.id)}
               >
-                <div className="p-4 md:p-5">
-                  {/* Zone 1: Identity */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-[1rem] md:text-[1.0625rem] font-bold leading-tight text-white">{ticket.title}</h3>
-                      {/* Ticket name chip */}
-                      {ticket.ticket_name && (
-                        <span className="mt-1.5 inline-flex items-center rounded-full border border-[#818CF8]/25 bg-[#818CF8]/10 px-2 py-0.5 text-[0.625rem] font-semibold text-[#818CF8]">
-                          {ticket.ticket_name}
-                        </span>
-                      )}
-                    </div>
+                <div
+                  className="rounded-[var(--radius-lg)] p-3 transition-shadow duration-200 group-hover:shadow-[var(--shadow-elevated)]"
+                  style={{ background: "linear-gradient(to bottom, #1A2230, #171F28)" }}
+                >
+                  {/* Row 1: Title + age + status */}
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="min-w-0 flex-1 truncate text-[0.875rem] md:text-[0.9375rem] font-bold leading-tight text-white">{ticket.title}</h3>
                     <div className="flex shrink-0 items-center gap-2">
                       {daysOld > 0 && (
-                        <span className={`text-[0.8125rem] font-semibold tabular-nums ${daysOld > 7 ? "text-[#DC2626]" : daysOld > 3 ? "text-[#F59E0B]" : "text-[#9CA3AF]"}`}>
+                        <span className={`text-[0.75rem] font-semibold tabular-nums ${daysOld > 7 ? "text-[#DC2626]" : daysOld > 3 ? "text-[#F59E0B]" : "text-[#9CA3AF]"}`}>
                           {daysOld}d
                         </span>
                       )}
-                      {/* Status pill */}
                       <span
-                        className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-bold uppercase tracking-[0.04em]"
+                        className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-[0.04em]"
                         style={{
                           color: sc,
                           backgroundColor: `${sc}15`,
@@ -212,31 +217,28 @@ export default function TicketsPanel() {
                     </div>
                   </div>
 
-                  {/* Zone 2: Signal strip */}
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {/* Source */}
-                    <span className="inline-flex h-[24px] items-center rounded-full border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] px-2.5 text-[0.6875rem] text-[#9CA3AF]">
+                  {/* Row 2: Ticket name, source, reporter, linked, time */}
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    {ticket.ticket_name && (
+                      <span className="inline-flex items-center rounded-full border border-[#818CF8]/25 bg-[#818CF8]/10 px-2 py-0.5 text-[0.5625rem] font-semibold text-[#818CF8]">
+                        {ticket.ticket_name}
+                      </span>
+                    )}
+                    <span className="inline-flex h-[22px] items-center rounded-full border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] px-2 text-[0.625rem] text-[#9CA3AF]">
                       {sourceLabels[ticket.source] ?? ticket.source}
                     </span>
-
-                    {/* Reporter */}
                     {ticket.reporter?.display_name && (
-                      <span className="text-[0.75rem] text-[#9CA3AF]">{ticket.reporter.display_name}</span>
+                      <span className="text-[0.6875rem] text-[#9CA3AF]">{ticket.reporter.display_name}</span>
                     )}
-
                     <span className="flex-1" />
-
-                    {/* Linked items */}
                     {linkedTotal > 0 && (
-                      <span className="text-[0.6875rem] tabular-nums text-[#9CA3AF]">
+                      <span className="text-[0.625rem] tabular-nums text-[#9CA3AF]">
                         {ticket.linked_events > 0 && `${ticket.linked_events} event${ticket.linked_events > 1 ? "s" : ""}`}
                         {ticket.linked_events > 0 && ticket.linked_errors > 0 && " · "}
                         {ticket.linked_errors > 0 && `${ticket.linked_errors} error${ticket.linked_errors > 1 ? "s" : ""}`}
                       </span>
                     )}
-
-                    {/* Time */}
-                    <span className="text-[0.75rem] tabular-nums text-[#9CA3AF]">{relativeTime(ticket.created_at)}</span>
+                    <span className="text-[0.6875rem] tabular-nums text-[#9CA3AF]">{relativeTime(ticket.created_at)}</span>
                   </div>
                 </div>
               </div>
@@ -253,6 +255,147 @@ export default function TicketsPanel() {
           onUpdated={() => { fetchTickets(); }}
         />
       )}
+
+      {/* Create ticket modal */}
+      {showCreate && (
+        <CreateTicketModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { setShowCreate(false); fetchTickets(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Create Ticket Modal ─────────────────────────────────── */
+
+function CreateTicketModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState("medium");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    setSending(true);
+    try {
+      const res = await fetch("/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          priority,
+          message: message.trim() || undefined,
+          source: "manual",
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to create ticket");
+      }
+
+      toast.success("Ticket created");
+      onCreated();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create ticket");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center p-2 md:p-4 bg-[rgba(5,6,10,0.9)]"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg animate-slide-up rounded-[20px] border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 md:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">New Ticket</h2>
+          <button type="button" onClick={onClose} className="text-[#9CA3AF] hover:text-white">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Ticket title"
+            className={inputClass}
+            autoFocus
+            required
+            maxLength={200}
+          />
+
+          {/* Priority pills */}
+          <div>
+            <label className="mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-wider text-[#9CA3AF]">Priority</label>
+            <div className="flex gap-2">
+              {PRIORITY_OPTIONS.map((p) => {
+                const active = priority === p;
+                const c = priorityColors[p];
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriority(p)}
+                    className="rounded-full px-3 py-1.5 text-[0.75rem] font-semibold transition-all"
+                    style={{
+                      color: active ? c : "#9CA3AF",
+                      backgroundColor: active ? `${c}20` : "transparent",
+                      border: `1px solid ${active ? `${c}50` : "#2A3544"}`,
+                    }}
+                  >
+                    {priorityLabels[p]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={3}
+            placeholder="Description (optional)"
+            className={inputClass}
+            maxLength={5000}
+          />
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-full border border-[#2A3544] py-2.5 text-sm font-medium text-[#9CA3AF]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={sending || !title.trim()}
+              className="flex-1 rounded-full border border-[rgba(169,255,181,0.35)] bg-gradient-to-r from-[rgba(14,18,24,0.6)] to-[rgba(21,28,36,0.60)] py-2.5 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_20px_rgba(106,215,163,0.15)] disabled:opacity-50"
+            >
+              {sending ? "Creating..." : "Create Ticket"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
