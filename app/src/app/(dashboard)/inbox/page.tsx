@@ -3,10 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Radar, RefreshCw, Plus } from "lucide-react";
-import JobCard from "@/components/inbox/job-card";
-import SkeletonCard from "@/components/inbox/skeleton-card";
+import { RefreshCw, Plus } from "lucide-react";
+import JobCard from "@/components/inbox-ds/job-card";
+import SkeletonCard from "@/components/inbox-ds/skeleton-card";
 import ManualAddDialog from "@/components/ui/manual-add-dialog";
+import RadarMark from "@/components/inbox-ds/radar-mark";
+import { Button, EmptyState } from "@/components/design-system";
+import { useProfileLock } from "@/hooks/use-profile-lock";
 import type { Database } from "@/types/database";
 
 type InboxJob = Database["public"]["Tables"]["inbox_jobs"]["Row"];
@@ -21,21 +24,8 @@ export default function InboxPage() {
   const [lanes, setLanes] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [scanning, setScanning] = useState(false);
-  const [profileLocked, setProfileLocked] = useState(false);
+  const { locked: profileLocked } = useProfileLock();
   const [showManualAdd, setShowManualAdd] = useState(false);
-
-  // Check profile status on mount
-  useEffect(() => {
-    const url = viewAsId
-      ? `/api/admin/view-as/profile?client_id=${viewAsId}`
-      : "/api/profile";
-    fetch(url).then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        setProfileLocked(data.status === "inactive_soft_locked");
-      }
-    });
-  }, [viewAsId]);
 
   const fetchJobs = useCallback(
     async (lane: string) => {
@@ -66,7 +56,7 @@ export default function InboxPage() {
       }
       setLoading(false);
     },
-    [viewAsId]
+    [viewAsId],
   );
 
   useEffect(() => {
@@ -77,24 +67,30 @@ export default function InboxPage() {
     if (scanning || profileLocked) return;
     setScanning(true);
     try {
-      const url = viewAsId
-        ? `/api/admin/view-as/fetch?client_id=${viewAsId}`
-        : "/api/fetch";
+      const url = viewAsId ? `/api/admin/view-as/fetch?client_id=${viewAsId}` : "/api/fetch";
       const res = await fetch(url, { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         const count = data.jobs_delivered ?? 0;
-        toast.success(`${count} new role${count !== 1 ? "s" : ""} found`, {
-          description: `${data.total_raw ?? 0} scanned, ${data.after_dedupe ?? 0} unique, ${count} delivered (${((data.duration_ms ?? 0) / 1000).toFixed(1)}s)`,
-          duration: 5000,
-        });
+        const duration = ((data.duration_ms ?? 0) / 1000).toFixed(1);
+        if (count > 0) {
+          toast.success(`${count} fresh sygnal${count !== 1 ? "s" : ""}`, {
+            description: `${data.total_raw ?? 0} scanned · ${data.after_dedupe ?? 0} unique · ${duration}s`,
+            duration: 5000,
+          });
+        } else {
+          toast(`Signal was quiet`, {
+            description: `${data.total_raw ?? 0} scanned · nothing new · ${duration}s`,
+            duration: 5000,
+          });
+        }
         fetchJobs(activeLane);
       } else {
         const err = await res.json().catch(() => null);
         toast.error(err?.error ?? "Scan failed", { duration: 5000 });
       }
     } catch {
-      toast.error("Scan failed - check your connection", { duration: 5000 });
+      toast.error("Scan failed — check your connection", { duration: 5000 });
     } finally {
       setScanning(false);
     }
@@ -139,8 +135,18 @@ export default function InboxPage() {
     }
   }
 
-  async function handleManualAdd(data: { title: string; company: string; url?: string; location?: string; notes?: string; status?: string }) {
-    const res = await fetch("/api/tracker/manual-add", {
+  async function handleManualAdd(data: {
+    title: string;
+    company: string;
+    url?: string;
+    location?: string;
+    notes?: string;
+    status?: string;
+  }) {
+    const url = viewAsId
+      ? `/api/admin/view-as/tracker/manual-add?client_id=${viewAsId}`
+      : "/api/tracker/manual-add";
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -157,72 +163,78 @@ export default function InboxPage() {
   }
 
   return (
-    <div>
+    <div className="font-[family-name:var(--font-ds-sans)] text-[var(--ds-text-1)]">
       {/* Filter row */}
-      <div className="sticky top-0 z-10 border-b border-[#2A3544] bg-[#151C24] px-4 md:px-6 py-2.5">
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
-            <Radar size={16} strokeWidth={2} className="text-[#6AD7A3]" />
-            <span className="text-[#9CA3AF]">Open Sygnals</span>
-            <span className="font-semibold text-white">{total}</span>
+      <div className="sticky top-0 z-10 border-b border-[var(--ds-border-1)] bg-[var(--ds-bg-1)] px-4 md:px-6 py-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <RadarMark size={14} color="var(--ds-accent)" />
+            <span className="text-[12px] text-[var(--ds-text-2)]">Open sygnals</span>
+            <span className="font-[family-name:var(--font-ds-mono)] text-[12px] font-semibold text-[var(--ds-text-0)] tabular-nums">
+              {total}
+            </span>
           </div>
 
           {/* Lane filter pills */}
-          {lanes.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-none" style={{ maskImage: "linear-gradient(to right, black calc(100% - 24px), transparent)", WebkitMaskImage: "linear-gradient(to right, black calc(100% - 24px), transparent)" }}>
-              {["All", ...lanes].map((lane) => (
-                <button
-                  key={lane}
-                  type="button"
-                  onClick={() => setActiveLane(lane)}
-                  className={`whitespace-nowrap rounded-full px-3 py-1 text-[0.6875rem] font-medium transition-colors ${
-                    activeLane === lane
-                      ? "bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30"
-                      : "bg-[#171F28] text-[#9CA3AF] ring-1 ring-[#2A3544] hover:text-[#B8BFC8]"
-                  }`}
-                >
-                  {lane}
-                </button>
-              ))}
+          {lanes.length > 0 ? (
+            <div
+              className="flex gap-1 overflow-x-auto scrollbar-none min-w-0"
+              style={{
+                maskImage: "linear-gradient(to right, black calc(100% - 24px), transparent)",
+                WebkitMaskImage: "linear-gradient(to right, black calc(100% - 24px), transparent)",
+              }}
+            >
+              {["All", ...lanes].map((lane) => {
+                const isActive = activeLane === lane;
+                return (
+                  <button
+                    key={lane}
+                    type="button"
+                    onClick={() => setActiveLane(lane)}
+                    className={[
+                      "whitespace-nowrap rounded-[var(--ds-radius-full)] px-3 py-1 text-[12px] font-medium transition-colors",
+                      isActive
+                        ? "bg-[var(--ds-accent-soft)] text-[var(--ds-accent-bright)] ring-1 ring-inset ring-[rgba(132,191,160,0.35)]"
+                        : "text-[var(--ds-text-2)] hover:text-[var(--ds-text-0)] hover:bg-[var(--ds-bg-2)]",
+                    ].join(" ")}
+                  >
+                    {lane}
+                  </button>
+                );
+              })}
             </div>
-          )}
+          ) : null}
 
           {/* Action buttons */}
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleScan}
               disabled={scanning || profileLocked}
               title={profileLocked ? "Scan disabled (profile inactive)" : "Scan for new roles"}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6875rem] font-semibold transition-all ${
-                scanning
-                  ? "bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30"
-                  : profileLocked
-                    ? "opacity-40 cursor-not-allowed text-[#9CA3AF] ring-1 ring-[#2A3544]"
-                    : "text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30 hover:bg-[#6AD7A3]/10"
-              }`}
+              icon={<RadarMark size={14} color="currentColor" active={scanning} />}
             >
-              <Radar size={14} strokeWidth={2} className={scanning ? "animate-spin" : ""} />
-              {scanning ? "Scanning..." : "Scan"}
-            </button>
-
-            <button
-              type="button"
+              {scanning ? "Scanning…" : "Scan"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => fetchJobs(activeLane)}
               title="Refresh inbox"
-              className="flex items-center justify-center rounded-full p-1.5 text-[#9CA3AF] ring-1 ring-[#2A3544] hover:text-[#B8BFC8] hover:bg-[#171F28]"
+              aria-label="Refresh inbox"
+              icon={<RefreshCw size={14} strokeWidth={2} />}
             >
-              <RefreshCw size={14} strokeWidth={2} />
-            </button>
-
-            <button
-              type="button"
+              <span className="sr-only">Refresh</span>
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setShowManualAdd(true)}
-              className="flex items-center gap-1 rounded-full bg-[#171F28] px-3 py-1.5 text-[0.6875rem] font-medium text-[#6AD7A3] ring-1 ring-[#6AD7A3]/20 hover:bg-[#6AD7A3]/10"
+              icon={<Plus size={14} strokeWidth={2} />}
             >
-              <Plus size={14} strokeWidth={2} />
               Add
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -236,41 +248,34 @@ export default function InboxPage() {
             <SkeletonCard />
           </>
         ) : jobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <svg viewBox="0 0 64 64" className="mb-4 h-12 w-12 text-[#2A3544]">
-              <circle cx="32" cy="32" r="17" fill="none" stroke="currentColor" strokeWidth="3" />
-              <circle cx="32" cy="32" r="4" fill="currentColor" opacity="0.3" />
-              <path d="M32 32 L49 22" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
-            </svg>
-            <p className="text-sm font-medium text-[#B8BFC8]">No fresh sygnals yet</p>
-            <p className="mt-1 text-xs text-[#9CA3AF]">
-              {profileLocked ? "Your profile is inactive - contact your coach." : "Scan now to search for new roles."}
-            </p>
-            {!profileLocked && (
-              <button
-                type="button"
-                onClick={handleScan}
-                disabled={scanning}
-                className="mt-4 flex items-center gap-2 rounded-full border border-[#6AD7A3]/30 bg-[#6AD7A3]/10 px-5 py-2 text-sm font-semibold text-[#6AD7A3] transition-all hover:bg-[#6AD7A3]/15"
-              >
-                <Radar size={16} strokeWidth={2} className={scanning ? "animate-spin" : ""} />
-                {scanning ? "Scanning..." : "Scan Now"}
-              </button>
-            )}
-          </div>
+          <EmptyState
+            icon={<RadarMark size={22} color="currentColor" />}
+            title="No fresh sygnals yet"
+            description={
+              profileLocked
+                ? "Your profile is inactive — contact your coach."
+                : "Run a Scan to pull new roles from your lanes."
+            }
+            primaryAction={
+              profileLocked
+                ? undefined
+                : {
+                    label: scanning ? "Scanning…" : "Scan now",
+                    icon: <RadarMark size={14} color="currentColor" active={scanning} />,
+                    onClick: handleScan,
+                  }
+            }
+          />
         ) : (
           jobs.map((job) => (
-            <JobCard
-              key={job.id}
-              job={job}
-              onPromote={handlePromote}
-              onDismiss={handleDismiss}
-            />
+            <JobCard key={job.id} job={job} onPromote={handlePromote} onDismiss={handleDismiss} />
           ))
         )}
       </div>
 
-      {showManualAdd && <ManualAddDialog onClose={() => setShowManualAdd(false)} onSubmit={handleManualAdd} />}
+      {showManualAdd && (
+        <ManualAddDialog onClose={() => setShowManualAdd(false)} onSubmit={handleManualAdd} />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
-import AdminSubTabs from "@/components/layout/admin-sub-tabs";
+import AdminSubTabs from "@/components/layout-ds/admin-sub-tabs";
 
 export default async function AdminLayout({
   children,
@@ -25,9 +25,9 @@ export default async function AdminLayout({
   }
 
   return (
-    <div>
+    <div className="font-[family-name:var(--font-ds-sans)] text-[var(--ds-text-1)]">
       <AdminSubTabs />
-      <div className="px-4 py-4 lg:px-6">{children}</div>
+      <div className="px-4 py-5 lg:px-6 lg:py-6">{children}</div>
     </div>
   );
 }

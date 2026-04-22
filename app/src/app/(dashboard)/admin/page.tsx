@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Card, CardBody, Section } from "@/components/design-system";
 
 interface HealthData {
   status: string;
@@ -16,7 +17,24 @@ interface AnalyticsData {
   latest_health: unknown;
 }
 
-export default function AdminHealthPage() {
+const PIPELINE_STAGES = [
+  "Prospect", "Applied", "Interview 1", "Interview 2", "Final", "Offer",
+  "Rejected", "Ghosted", "Withdrawn",
+];
+
+const STAGE_COLOR: Record<string, string> = {
+  Prospect: "#1DD3B0",
+  Applied: "#3B82F6",
+  "Interview 1": "#8B5CF6",
+  "Interview 2": "#8B5CF6",
+  Final: "#F59E0B",
+  Offer: "#22C55E",
+  Rejected: "#DC2626",
+  Ghosted: "#6B7280",
+  Withdrawn: "#6B7280",
+};
+
+export default function AdminOpsPage() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,149 +55,224 @@ export default function AdminHealthPage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-32 animate-pulse rounded-2xl bg-[#171F28]" />
-        ))}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-24 animate-ds-shimmer rounded-[var(--ds-radius-lg)]" />
+          ))}
+        </div>
+        <div className="h-32 animate-ds-shimmer rounded-[var(--ds-radius-lg)]" />
+        <div className="h-48 animate-ds-shimmer rounded-[var(--ds-radius-lg)]" />
       </div>
     );
   }
 
-  const pipelineStages = [
-    "Prospect", "Applied", "Interview 1", "Interview 2", "Final", "Offer",
-    "Rejected", "Ghosted", "Withdrawn",
-  ];
   const pipelineTotal = Object.values(analytics?.pipeline ?? {}).reduce((a, b) => a + b, 0);
+  const errorCount = analytics?.errors.unresolved ?? 0;
+  const dbConnected = health?.database.connected ?? false;
 
   return (
-    <div className="space-y-4">
-      {/* Key Metrics */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MetricCard label="Active Clients" value={analytics?.profiles.active_clients ?? 0} color="#6AD7A3" />
-        <MetricCard label="Total Pipeline" value={pipelineTotal} color="#38BDF8" />
-        <MetricCard label="Fetches (7d)" value={analytics?.fetches.week ?? 0} color="#FAD76A" />
-        <MetricCard label="Errors" value={analytics?.errors.unresolved ?? 0} color={(analytics?.errors.unresolved ?? 0) > 0 ? "#DC2626" : "#6AD7A3"} />
-      </div>
-
-      {/* System Health */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-          <span
-            className={`h-2.5 w-2.5 rounded-full ${health?.status === "healthy" ? "bg-[#6AD7A3]" : "bg-[#DC2626]"}`}
+    <div className="space-y-8">
+      {/* Key metrics */}
+      <Section eyebrow="Ops · overview" title="System at a glance">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <MetricCard
+            label="Active clients"
+            value={analytics?.profiles.active_clients ?? 0}
+            color="var(--ds-accent)"
           />
-          System Health
-        </h2>
-        <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-          <StatBox
-            label="Database"
-            value={health?.database.connected ? "Connected" : "Down"}
-            color={health?.database.connected ? "green" : "red"}
+          <MetricCard
+            label="Pipeline total"
+            value={pipelineTotal}
+            color="var(--ds-text-0)"
           />
-          <StatBox
-            label="DB Latency"
-            value={health?.database.latency_ms ? `${health.database.latency_ms}ms` : "-"}
-            color="default"
+          <MetricCard
+            label="Fetches · 7d"
+            value={analytics?.fetches.week ?? 0}
+            color="var(--ds-signal)"
           />
-          <StatBox
-            label="Unresolved Errors"
-            value={String(analytics?.errors.unresolved ?? 0)}
-            color={analytics?.errors.unresolved ? "red" : "green"}
-          />
-          <StatBox
-            label="Last Check"
-            value={health?.timestamp ? new Date(health.timestamp).toLocaleTimeString() : "-"}
-            color="default"
+          <MetricCard
+            label="Open errors"
+            value={errorCount}
+            color={errorCount > 0 ? "var(--ds-err)" : "var(--ds-accent)"}
           />
         </div>
-      </div>
+      </Section>
 
-      {/* Profile Overview */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
-        <h2 className="mb-3 text-sm font-semibold">Profiles</h2>
-        <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-          <StatBox label="Total" value={String(analytics?.profiles.total ?? 0)} color="default" />
-          <StatBox label="Active Clients" value={String(analytics?.profiles.active_clients ?? 0)} color="green" />
-          <StatBox label="Locked" value={String(analytics?.profiles.locked ?? 0)} color={analytics?.profiles.locked ? "red" : "default"} />
-          <StatBox label="Admins" value={String(analytics?.profiles.admins ?? 0)} color="default" />
-        </div>
-      </div>
+      {/* System health */}
+      <Section eyebrow="Health" title="System health">
+        <Card>
+          <CardBody>
+            <div className="flex items-center gap-2 mb-4">
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{
+                  backgroundColor:
+                    health?.status === "healthy" ? "var(--ds-ok)" : "var(--ds-err)",
+                }}
+                aria-hidden
+              />
+              <span className="text-[13px] text-[var(--ds-text-1)]">
+                {health?.status === "healthy" ? "All systems operational" : "Degraded"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+              <StatBox
+                label="Database"
+                value={dbConnected ? "Connected" : "Down"}
+                tone={dbConnected ? "ok" : "err"}
+              />
+              <StatBox
+                label="DB latency"
+                value={health?.database.latency_ms ? `${health.database.latency_ms}ms` : "—"}
+                tone="neutral"
+              />
+              <StatBox
+                label="Open errors"
+                value={String(errorCount)}
+                tone={errorCount > 0 ? "err" : "ok"}
+              />
+              <StatBox
+                label="Last check"
+                value={
+                  health?.timestamp ? new Date(health.timestamp).toLocaleTimeString() : "—"
+                }
+                tone="neutral"
+              />
+            </div>
+          </CardBody>
+        </Card>
+      </Section>
+
+      {/* Profiles */}
+      <Section eyebrow="Profiles" title="Who's in the system">
+        <Card>
+          <CardBody>
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+              <StatBox label="Total" value={String(analytics?.profiles.total ?? 0)} tone="neutral" />
+              <StatBox
+                label="Active clients"
+                value={String(analytics?.profiles.active_clients ?? 0)}
+                tone="ok"
+              />
+              <StatBox
+                label="Locked"
+                value={String(analytics?.profiles.locked ?? 0)}
+                tone={analytics?.profiles.locked ? "err" : "neutral"}
+              />
+              <StatBox label="Admins" value={String(analytics?.profiles.admins ?? 0)} tone="neutral" />
+            </div>
+          </CardBody>
+        </Card>
+      </Section>
 
       {/* Pipeline */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
-        <h2 className="mb-3 text-sm font-semibold">Pipeline ({pipelineTotal} total)</h2>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 mb-4">
-          {pipelineStages.map((stage) => {
-            const count = analytics?.pipeline[stage] ?? 0;
-            return (
-              <div key={`grid-${stage}`} className="text-center">
-                <p className="text-2xl font-bold text-white">{count}</p>
-                <p className="text-[11px] text-[#9CA3AF]">{stage}</p>
-              </div>
-            );
-          })}
-        </div>
-        <div className="space-y-2">
-          {pipelineStages.map((stage) => {
-            const count = analytics?.pipeline[stage] ?? 0;
-            const pct = pipelineTotal > 0 ? (count / pipelineTotal) * 100 : 0;
-            return (
-              <div key={stage} className="flex items-center gap-3">
-                <span className="w-24 text-xs text-[#B8BFC8]">{stage}</span>
-                <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-[#151C24]">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-[#6AD7A3] to-[#39D6FF]"
-                    style={{ width: `${Math.max(pct, count > 0 ? 2 : 0)}%` }}
-                  />
-                </div>
-                <span className="w-8 text-right text-xs font-medium text-white">{count}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <Section eyebrow="Pipeline" title={`${pipelineTotal} entries across stages`}>
+        <Card>
+          <CardBody>
+            <div className="space-y-2">
+              {PIPELINE_STAGES.map((stage) => {
+                const count = analytics?.pipeline[stage] ?? 0;
+                const pct = pipelineTotal > 0 ? (count / pipelineTotal) * 100 : 0;
+                const color = STAGE_COLOR[stage] ?? "var(--ds-text-2)";
+                return (
+                  <div key={stage} className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 w-28 shrink-0">
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: color }}
+                        aria-hidden
+                      />
+                      <span className="text-[12px] text-[var(--ds-text-1)]">{stage}</span>
+                    </div>
+                    <div className="relative h-2 flex-1 overflow-hidden rounded-[var(--ds-radius-full)] bg-[var(--ds-bg-2)]">
+                      <div
+                        className="h-full rounded-[var(--ds-radius-full)] transition-[width] duration-[var(--ds-duration-slow)]"
+                        style={{
+                          width: `${Math.max(pct, count > 0 ? 2 : 0)}%`,
+                          backgroundColor: color,
+                          opacity: 0.8,
+                        }}
+                      />
+                    </div>
+                    <span className="w-10 text-right font-[family-name:var(--font-ds-mono)] text-[12px] tabular-nums text-[var(--ds-text-1)]">
+                      {count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardBody>
+        </Card>
+      </Section>
 
-      {/* Fetch Activity */}
-      <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4">
-        <h2 className="mb-3 text-sm font-semibold">Fetch Activity</h2>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <StatBox label="This Week" value={String(analytics?.fetches.week ?? 0)} color="default" />
-          <StatBox label="This Month" value={String(analytics?.fetches.month ?? 0)} color="default" />
-        </div>
-      </div>
+      {/* Fetch activity */}
+      <Section eyebrow="Scans" title="Fetch activity">
+        <Card>
+          <CardBody>
+            <div className="grid grid-cols-2 gap-5">
+              <StatBox
+                label="This week"
+                value={String(analytics?.fetches.week ?? 0)}
+                tone="neutral"
+              />
+              <StatBox
+                label="This month"
+                value={String(analytics?.fetches.month ?? 0)}
+                tone="neutral"
+              />
+            </div>
+          </CardBody>
+        </Card>
+      </Section>
     </div>
   );
 }
 
 function MetricCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[#171F28] p-4 text-center">
-      <p className="text-3xl font-bold" style={{ color }}>
-        {value}
-      </p>
-      <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">{label}</p>
-    </div>
+    <Card>
+      <CardBody>
+        <p
+          className="font-[family-name:var(--font-ds-mono)] text-[28px] md:text-[32px] font-semibold tabular-nums leading-none"
+          style={{ color }}
+        >
+          {value}
+        </p>
+        <p className="mt-2 font-[family-name:var(--font-ds-mono)] text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--ds-text-3)]">
+          {label}
+        </p>
+      </CardBody>
+    </Card>
   );
 }
 
 function StatBox({
   label,
   value,
-  color,
+  tone,
 }: {
   label: string;
   value: string;
-  color: "green" | "red" | "default";
+  tone: "ok" | "err" | "neutral";
 }) {
-  const valueColor =
-    color === "green"
-      ? "text-[#6AD7A3]"
-      : color === "red"
-        ? "text-[#DC2626]"
-        : "text-white";
+  const color =
+    tone === "ok"
+      ? "var(--ds-ok)"
+      : tone === "err"
+        ? "var(--ds-err)"
+        : "var(--ds-text-0)";
 
   return (
     <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-[#9CA3AF]">{label}</p>
-      <p className={`mt-0.5 text-lg font-semibold ${valueColor}`}>{value}</p>
+      <p className="font-[family-name:var(--font-ds-mono)] text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--ds-text-3)]">
+        {label}
+      </p>
+      <p
+        className="mt-1 font-[family-name:var(--font-ds-mono)] text-[17px] font-semibold tabular-nums"
+        style={{ color }}
+      >
+        {value}
+      </p>
     </div>
   );
 }

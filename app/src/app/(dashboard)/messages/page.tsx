@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useViewAs } from "@/components/view-as/view-as-context";
 import { useRouter } from "next/navigation";
+import { ChevronDown, MessageSquare } from "lucide-react";
+import { useViewAs } from "@/components/view-as/view-as-context";
+import { Badge, Card, EmptyState, Section } from "@/components/design-system";
 
 interface ThreadMessage {
   id: string;
@@ -26,6 +28,7 @@ export default function ViewAsMessagesPage() {
       return;
     }
     loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, clientId]);
 
   async function loadMessages() {
@@ -41,19 +44,20 @@ export default function ViewAsMessagesPage() {
   function groupByThread(msgs: ThreadMessage[]) {
     const groups = new Map<string, ThreadMessage[]>();
     for (const msg of msgs) {
-      const baseSubject = (msg.subject || "(no subject)")
-        .replace(/^(Re:\s*)+/i, "")
-        .trim() || "(no subject)";
+      const baseSubject =
+        (msg.subject || "(no subject)").replace(/^(Re:\s*)+/i, "").trim() || "(no subject)";
       const existing = groups.get(baseSubject) ?? [];
       existing.push(msg);
       groups.set(baseSubject, existing);
     }
     for (const threadMsgs of groups.values()) {
-      threadMsgs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      threadMsgs.sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+      );
     }
-    const sorted = [...groups.entries()].sort((a, b) => {
-      return new Date(b[1][0].timestamp).getTime() - new Date(a[1][0].timestamp).getTime();
-    });
+    const sorted = [...groups.entries()].sort(
+      (a, b) => new Date(b[1][0].timestamp).getTime() - new Date(a[1][0].timestamp).getTime(),
+    );
     return sorted;
   }
 
@@ -94,7 +98,6 @@ export default function ViewAsMessagesPage() {
     });
   }
 
-  // Auto-expand all threads on first load
   const threadGroups = groupByThread(messages);
   if (expandedThreads.size === 0 && threadGroups.length > 0 && !loading) {
     const allSubjects = new Set(threadGroups.map(([subject]) => subject));
@@ -105,131 +108,124 @@ export default function ViewAsMessagesPage() {
   const receivedCount = messages.filter((m) => m.direction === "received").length;
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-white">
-            Messages
-          </h2>
-          <p className="text-[11px] text-[#6B7280] mt-0.5">
-            {clientName ? `Communication history for ${clientName}` : "Loading..."}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 text-[11px]">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[#6B7280]" />
-            <span className="text-[#9CA3AF]">Sent <span className="font-semibold text-white">{sentCount}</span></span>
+    <div className="p-4 md:p-6 font-[family-name:var(--font-ds-sans)] text-[var(--ds-text-1)]">
+      <Section
+        eyebrow="Messages"
+        title="Communication history"
+        description={clientName ? `Thread view for ${clientName}.` : "Loading…"}
+        actions={
+          <div className="hidden sm:flex items-center gap-2">
+            <Badge tone="neutral">Sent {sentCount}</Badge>
+            <Badge tone="accent" dot>
+              Received {receivedCount}
+            </Badge>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: "linear-gradient(180deg, #A9FFB5, #39D6FF)" }} />
-            <span className="text-[#9CA3AF]">Received <span className="font-semibold text-white">{receivedCount}</span></span>
+        }
+      >
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 animate-ds-shimmer rounded-[var(--ds-radius-lg)]" />
+            ))}
           </div>
-        </div>
-      </div>
+        ) : messages.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={<MessageSquare size={20} strokeWidth={1.75} />}
+              title="No messages yet"
+              description="No communications have been sent to this client."
+            />
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {threadGroups.map(([subject, msgs]) => {
+              const isExpanded = expandedThreads.has(subject);
+              const hasReply = msgs.some((m) => m.direction === "received");
+              const newestMsg = msgs[0];
 
-      {/* Content */}
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl bg-[#171F28]" />
-          ))}
-        </div>
-      ) : messages.length === 0 ? (
-        <div className="flex flex-col items-center rounded-2xl bg-[#171F28] p-12 text-center">
-          <svg viewBox="0 0 24 24" className="mb-3 h-10 w-10 text-[#2A3544]" fill="none" stroke="currentColor" strokeWidth={1.5}>
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <p className="text-sm font-medium text-[#B8BFC8]">No messages yet</p>
-          <p className="mt-1 text-[11px] text-[#6B7280]">No communications have been sent to this client</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {threadGroups.map(([subject, msgs]) => {
-            const isExpanded = expandedThreads.has(subject);
-            const hasReply = msgs.some((m) => m.direction === "received");
-            const newestMsg = msgs[0];
-
-            return (
-              <div key={subject} className="rounded-2xl border border-[#2A3544]/60 bg-[#0C1016] overflow-hidden">
-                {/* Thread header */}
-                <button
-                  onClick={() => toggleThread(subject)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-[#151C24]"
-                >
-                  <div
-                    className="h-6 w-1 rounded-full shrink-0"
-                    style={{ background: "linear-gradient(180deg, #FAD76A, #FAD76A80)" }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-semibold text-white truncate">{subject}</span>
-                      {hasReply && (
-                        <span className="shrink-0 rounded-full bg-[#6AD7A3]/10 px-1.5 py-0.5 text-[9px] font-bold text-[#6AD7A3]">
-                          REPLY
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-[#6B7280]">
-                      {msgs.length} message{msgs.length !== 1 ? "s" : ""} &middot; {formatTimeAgo(new Date(newestMsg.timestamp))}
-                    </span>
-                  </div>
-                  <svg
-                    viewBox="0 0 24 24"
-                    className={`h-4 w-4 text-[#6B7280] transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
+              return (
+                <Card key={subject} className="overflow-hidden">
+                  <button
+                    onClick={() => toggleThread(subject)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--ds-bg-2)]"
                   >
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
+                    <div
+                      className="h-5 w-[3px] rounded-full shrink-0 bg-[var(--ds-signal)]"
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[14px] font-semibold text-[var(--ds-text-0)] truncate">
+                          {subject}
+                        </span>
+                        {hasReply ? (
+                          <Badge tone="accent" dot>
+                            Reply
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <span className="font-[family-name:var(--font-ds-mono)] text-[11px] text-[var(--ds-text-3)]">
+                        {msgs.length} message{msgs.length !== 1 ? "s" : ""} ·{" "}
+                        {formatTimeAgo(new Date(newestMsg.timestamp))}
+                      </span>
+                    </div>
+                    <ChevronDown
+                      size={14}
+                      strokeWidth={2}
+                      className={[
+                        "text-[var(--ds-text-3)] transition-transform",
+                        isExpanded ? "rotate-180" : "",
+                      ].join(" ")}
+                    />
+                  </button>
 
-                {/* Messages */}
-                {isExpanded && (
-                  <div className="border-t border-[#2A3544]/40 bg-[#111820] rounded-b-2xl px-3 pb-3 pt-2 space-y-2">
-                    {msgs.map((msg) => {
-                      const isSent = msg.direction === "sent";
-                      const displayBody = isSent ? msg.body : stripQuotedText(msg.body);
-
-                      return (
-                        <div
-                          key={msg.id}
-                          className={`rounded-xl p-3 ${
-                            isSent
-                              ? "bg-[#171F28] border border-[rgba(255,255,255,0.06)]"
-                              : "bg-[#171F28] border-l-[3px] border-l-[#6AD7A3]"
-                          }`}
-                        >
-                          <div className="mb-1.5 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {isSent ? (
-                                <span className="text-[10px] font-medium uppercase tracking-wider text-[#6B7280]">Coach</span>
-                              ) : (
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-[#6AD7A3]">
-                                  {clientName}
-                                </span>
-                              )}
+                  {isExpanded ? (
+                    <div className="border-t border-[var(--ds-border-1)] bg-[var(--ds-bg-0)] px-3 pb-3 pt-2 space-y-2">
+                      {msgs.map((msg) => {
+                        const isSent = msg.direction === "sent";
+                        const displayBody = isSent ? msg.body : stripQuotedText(msg.body);
+                        return (
+                          <div
+                            key={msg.id}
+                            className="rounded-[var(--ds-radius-md)] bg-[var(--ds-bg-1)] border border-[var(--ds-border-1)] p-3"
+                            style={
+                              isSent
+                                ? undefined
+                                : { borderLeft: "2px solid var(--ds-accent)" }
+                            }
+                          >
+                            <div className="mb-1.5 flex items-center justify-between">
+                              <span
+                                className={[
+                                  "font-[family-name:var(--font-ds-mono)] text-[10px] font-semibold uppercase tracking-[0.1em]",
+                                  isSent ? "text-[var(--ds-text-3)]" : "text-[var(--ds-accent-bright)]",
+                                ].join(" ")}
+                              >
+                                {isSent ? "Coach" : clientName}
+                              </span>
+                              <span className="font-[family-name:var(--font-ds-mono)] text-[10px] text-[var(--ds-text-3)]">
+                                {formatTimeAgo(new Date(msg.timestamp))}
+                              </span>
                             </div>
-                            <span className="text-[10px] text-[#4B5563]">
-                              {formatTimeAgo(new Date(msg.timestamp))}
-                            </span>
+                            <p
+                              className={[
+                                "whitespace-pre-wrap text-[13px] leading-relaxed",
+                                isSent ? "text-[var(--ds-text-1)]" : "text-[var(--ds-text-0)]",
+                              ].join(" ")}
+                            >
+                              {displayBody}
+                            </p>
                           </div>
-                          <p className={`whitespace-pre-wrap text-[13px] leading-relaxed ${
-                            isSent ? "text-[#B8BFC8]" : "text-white"
-                          }`}>
-                            {displayBody}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </Section>
     </div>
   );
 }

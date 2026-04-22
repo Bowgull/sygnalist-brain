@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { KeyRound, LogOut } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { Button, Card, CardBody, Section } from "@/components/design-system";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -11,6 +14,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [resetSent, setResetSent] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -34,16 +38,19 @@ export default function ProfilePage() {
     });
     if (res.ok) {
       setResetSent(true);
+      toast.success("Reset link sent", { description: "Check your email." });
+    } else {
+      toast.error("Couldn't send reset link");
     }
   }
 
   async function handleSignOut() {
+    setSigningOut(true);
     fetch("/api/auth/log", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event: "logout" }),
     }).catch(() => {});
-    // Clear session start cookie
     document.cookie = "syg_session_start=;path=/;max-age=0";
     await supabase.auth.signOut();
     router.push("/login");
@@ -51,44 +58,66 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="h-16 animate-pulse rounded-[var(--radius-lg)]" />
+      <div className="p-4 md:p-6 font-[family-name:var(--font-ds-sans)]">
+        <div className="h-24 animate-ds-shimmer rounded-[var(--ds-radius-lg)]" />
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.08)] bg-[#171F28] p-4 md:p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5]/20 to-[#39D6FF]/20 ring-1 ring-[#6AD7A3]/20">
-            <span className="text-lg font-bold text-[#6AD7A3]">
-              {displayName.charAt(0)?.toUpperCase() ?? "?"}
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-[1rem] md:text-[1.3125rem] font-bold text-white">{displayName}</h2>
-            <p className="text-[0.8125rem] text-[#9CA3AF]">{email}</p>
-          </div>
-        </div>
+    <div className="p-4 md:p-6 font-[family-name:var(--font-ds-sans)] text-[var(--ds-text-1)]">
+      <div className="max-w-[640px] mx-auto space-y-6">
+        <Section eyebrow="Profile · account" title="Account">
+          <Card>
+            <CardBody>
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--ds-radius-full)] border border-[var(--ds-border-2)] bg-[var(--ds-bg-2)]">
+                  <span className="text-[15px] font-semibold text-[var(--ds-text-0)]">
+                    {displayName.charAt(0)?.toUpperCase() ?? "?"}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-[17px] font-semibold text-[var(--ds-text-0)] leading-tight tracking-[-0.01em]">
+                    {displayName || "Unknown"}
+                  </h2>
+                  <p className="mt-0.5 font-[family-name:var(--font-ds-mono)] text-[12px] text-[var(--ds-text-2)] truncate">
+                    {email}
+                  </p>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        </Section>
+
+        <Section eyebrow="Security" title="Sign-in">
+          <Card>
+            <CardBody>
+              <div className="space-y-3">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={handleChangePassword}
+                  disabled={resetSent}
+                  icon={<KeyRound size={14} strokeWidth={2} />}
+                  className="w-full justify-start"
+                >
+                  {resetSent ? "Reset link sent — check your email" : "Change password"}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="md"
+                  onClick={handleSignOut}
+                  disabled={signingOut}
+                  icon={<LogOut size={14} strokeWidth={2} />}
+                  className="w-full justify-start"
+                >
+                  {signingOut ? "Signing out…" : "Sign out"}
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
+        </Section>
       </div>
-
-      <button
-        type="button"
-        onClick={handleChangePassword}
-        disabled={resetSent}
-        className="w-full rounded-full border border-[#2A3544] py-2.5 text-[0.875rem] font-medium text-[#9CA3AF] transition-all hover:border-[#6AD7A3]/40 hover:text-[#6AD7A3] disabled:opacity-50"
-      >
-        {resetSent ? "Reset link sent — check your email" : "Change Password"}
-      </button>
-
-      <button
-        type="button"
-        onClick={handleSignOut}
-        className="w-full rounded-full border border-[#2A3544] py-2.5 text-[0.875rem] font-medium text-[#9CA3AF] transition-all hover:border-[#DC2626]/40 hover:text-[#DC2626]"
-      >
-        Sign Out
-      </button>
     </div>
   );
 }
