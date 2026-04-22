@@ -12,6 +12,8 @@ interface ViewAsState {
   clientName: string | null;
   /** The client's email */
   clientEmail: string | null;
+  /** The client's profile status (e.g. "active", "inactive_soft_locked") */
+  clientStatus: string | null;
   /** Whether we're still loading the client info */
   loading: boolean;
 }
@@ -21,6 +23,7 @@ const ViewAsContext = createContext<ViewAsState>({
   clientId: null,
   clientName: null,
   clientEmail: null,
+  clientStatus: null,
   loading: false,
 });
 
@@ -37,12 +40,13 @@ export function ViewAsProvider({ children }: { children: React.ReactNode }) {
     clientId: null,
     clientName: null,
     clientEmail: null,
+    clientStatus: null,
     loading: !!viewAsId,
   });
 
   useEffect(() => {
     if (!viewAsId) {
-      setState({ active: false, clientId: null, clientName: null, clientEmail: null, loading: false });
+      setState({ active: false, clientId: null, clientName: null, clientEmail: null, clientStatus: null, loading: false });
       return;
     }
 
@@ -57,6 +61,7 @@ export function ViewAsProvider({ children }: { children: React.ReactNode }) {
             clientId: viewAsId,
             clientName: data.display_name || data.email || "Unknown Client",
             clientEmail: data.email || null,
+            clientStatus: data.status ?? null,
             loading: false,
           });
         } else {

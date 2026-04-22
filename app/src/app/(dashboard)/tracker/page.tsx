@@ -23,6 +23,7 @@ import TrackerCard, {
 } from "@/components/tracker/tracker-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import ManualAddDialog from "@/components/ui/manual-add-dialog";
+import { useProfileLock } from "@/hooks/use-profile-lock";
 import type { Database } from "@/types/database";
 
 type TrackerEntry = Database["public"]["Tables"]["tracker_entries"]["Row"];
@@ -52,7 +53,7 @@ export default function TrackerPage() {
   const [scope, setScope] = useState<Scope>(0);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("cards");
   const [showManualAdd, setShowManualAdd] = useState(false);
-  const [profileLocked, setProfileLocked] = useState(false);
+  const { locked: profileLocked } = useProfileLock();
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const pillContainerRef = useRef<HTMLDivElement>(null);
@@ -77,19 +78,6 @@ export default function TrackerPage() {
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
-
-  // Check profile lock status
-  useEffect(() => {
-    const url = viewAsId
-      ? `/api/admin/view-as/profile?client_id=${viewAsId}`
-      : "/api/profile";
-    fetch(url).then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        setProfileLocked(data.status === "inactive_soft_locked");
-      }
-    });
-  }, [viewAsId]);
 
   // Scroll active pill into view when scope changes
   useEffect(() => {

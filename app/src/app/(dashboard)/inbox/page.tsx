@@ -7,6 +7,7 @@ import { Radar, RefreshCw, Plus } from "lucide-react";
 import JobCard from "@/components/inbox/job-card";
 import SkeletonCard from "@/components/inbox/skeleton-card";
 import ManualAddDialog from "@/components/ui/manual-add-dialog";
+import { useProfileLock } from "@/hooks/use-profile-lock";
 import type { Database } from "@/types/database";
 
 type InboxJob = Database["public"]["Tables"]["inbox_jobs"]["Row"];
@@ -21,21 +22,8 @@ export default function InboxPage() {
   const [lanes, setLanes] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [scanning, setScanning] = useState(false);
-  const [profileLocked, setProfileLocked] = useState(false);
+  const { locked: profileLocked } = useProfileLock();
   const [showManualAdd, setShowManualAdd] = useState(false);
-
-  // Check profile status on mount
-  useEffect(() => {
-    const url = viewAsId
-      ? `/api/admin/view-as/profile?client_id=${viewAsId}`
-      : "/api/profile";
-    fetch(url).then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        setProfileLocked(data.status === "inactive_soft_locked");
-      }
-    });
-  }, [viewAsId]);
 
   const fetchJobs = useCallback(
     async (lane: string) => {
