@@ -2,9 +2,28 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Radar, Eye, Lock, Unlock, Trash2, X, Plus, MoreVertical } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Pencil,
+  Radar,
+  Eye,
+  Lock,
+  Unlock,
+  Trash2,
+  X,
+  Plus,
+  MoreVertical,
+  AlertTriangle,
+} from "lucide-react";
 import ClientEditor from "@/components/admin/client-editor";
-import { IconButton } from "@/components/ui/icon-button";
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  Dialog,
+  Section,
+} from "@/components/design-system";
 import type { Database } from "@/types/database";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -14,9 +33,12 @@ export default function AdminClientsPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const [fetchingId, setFetchingId] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; step: 1 | 2 } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    id: string;
+    name: string;
+    step: 1 | 2;
+  } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -29,11 +51,6 @@ export default function AdminClientsPage() {
     load();
   }, []);
 
-  function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 4000);
-  }
-
   async function handleUpdate(id: string, patch: Record<string, unknown>) {
     const res = await fetch(`/api/admin/profiles/${id}`, {
       method: "PATCH",
@@ -44,16 +61,16 @@ export default function AdminClientsPage() {
       const updated = await res.json();
       setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
       setEditingId(null);
-      showToast("Profile updated");
+      toast.success("Profile updated");
     } else {
-      showToast("Failed to update");
+      toast.error("Failed to update");
     }
   }
 
   async function handleFetch(profileId: string, name: string) {
-    if (!confirm(`Run job fetch for ${name}? This will scan all sources and deliver jobs to their inbox.`)) return;
+    if (!confirm(`Run a scan for ${name}? Jobs will land in their inbox.`)) return;
     setFetchingId(profileId);
-    showToast(`Running fetch for ${name}...`);
+    toast.info(`Running scan for ${name}…`);
     const res = await fetch("/api/admin/fetch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -61,10 +78,12 @@ export default function AdminClientsPage() {
     });
     if (res.ok) {
       const data = await res.json();
-      showToast(`${name}: ${data.jobs_delivered} jobs delivered (${data.duration_ms}ms)`);
+      toast.success(`${name}: ${data.jobs_delivered} sygnals delivered`, {
+        description: `${data.duration_ms}ms`,
+      });
     } else {
       const data = await res.json().catch(() => ({}));
-      showToast(`Fetch failed: ${data.error ?? "unknown error"}`);
+      toast.error(`Scan failed: ${data.error ?? "unknown error"}`);
     }
     setFetchingId(null);
   }
@@ -74,10 +93,10 @@ export default function AdminClientsPage() {
     const res = await fetch(`/api/admin/profiles/${id}`, { method: "DELETE" });
     if (res.ok) {
       setProfiles((prev) => prev.filter((p) => p.id !== id));
-      showToast("Profile permanently deleted");
+      toast.success("Profile permanently deleted");
     } else {
       const data = await res.json().catch(() => ({}));
-      showToast(data.error ?? "Failed to delete");
+      toast.error(data.error ?? "Failed to delete");
     }
     setDeleting(false);
     setDeleteConfirm(null);
@@ -87,247 +106,312 @@ export default function AdminClientsPage() {
     return (
       <div className="space-y-2">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 animate-pulse rounded-xl bg-[#171F28]" />
+          <div key={i} className="h-16 animate-ds-shimmer rounded-[var(--ds-radius-md)]" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-[0.8125rem] font-semibold text-[#0C1016] shadow-lg">
-          {toast}
+    <>
+      <Section
+        eyebrow="Admin · clients"
+        title={`Clients (${profiles.length})`}
+        description="Edit profiles, trigger scans, view as client, and lock or delete accounts."
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => router.push("/admin/onboard")}
+            icon={<Plus size={14} strokeWidth={2} />}
+          >
+            Onboard
+          </Button>
+        }
+      >
+        <div className="space-y-2">
+          {profiles.map((p) => (
+            <ClientRow
+              key={p.id}
+              profile={p}
+              editing={editingId === p.id}
+              fetching={fetchingId === p.id}
+              menuOpen={openMenuId === p.id}
+              onToggleEdit={() => setEditingId(editingId === p.id ? null : p.id)}
+              onToggleMenu={() => setOpenMenuId(openMenuId === p.id ? null : p.id)}
+              onCloseMenu={() => setOpenMenuId(null)}
+              onFetch={() => handleFetch(p.id, p.display_name)}
+              onLock={() =>
+                handleUpdate(p.id, {
+                  status: "inactive_soft_locked",
+                  status_reason: "Locked by admin",
+                })
+              }
+              onUnlock={() => handleUpdate(p.id, { status: "active", status_reason: "" })}
+              onDelete={() =>
+                setDeleteConfirm({ id: p.id, name: p.display_name, step: 1 })
+              }
+              onSave={(patch) => handleUpdate(p.id, patch)}
+            />
+          ))}
         </div>
-      )}
+      </Section>
 
-      {/* Delete confirmation modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-sm rounded-2xl border border-[#DC2626]/30 bg-[#171F28] p-6 shadow-2xl">
-            {deleteConfirm.step === 1 ? (
-              <>
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#DC2626]/10">
-                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#DC2626]" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M12 9v4M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <h3 className="text-center text-[15px] font-semibold text-white">Delete {deleteConfirm.name}?</h3>
-                <p className="mt-2 text-center text-[13px] leading-relaxed text-[#9CA3AF]">
-                  This will permanently delete this profile and all their data including inbox items and tracker entries. This cannot be undone.
-                </p>
-                <div className="mt-5 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setDeleteConfirm(null)}
-                    className="flex-1 rounded-full border border-[#2A3544] py-2 text-[13px] font-medium text-[#9CA3AF] hover:text-white"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteConfirm({ ...deleteConfirm, step: 2 })}
-                    className="flex-1 rounded-full border border-[#DC2626]/40 py-2 text-[13px] font-medium text-[#DC2626] hover:bg-[#DC2626]/10"
-                  >
-                    Yes, Delete
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#DC2626]/20">
-                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#DC2626]" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                    <path d="M12 9v4M12 17h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <h3 className="text-center text-[15px] font-semibold text-[#DC2626]">Are you absolutely sure?</h3>
-                <p className="mt-2 text-center text-[13px] leading-relaxed text-[#9CA3AF]">
-                  This is permanent. All data for <span className="text-white font-medium">{deleteConfirm.name}</span> will be gone forever. There is no undo.
-                </p>
-                <div className="mt-5 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setDeleteConfirm(null)}
-                    className="flex-1 rounded-full border border-[#2A3544] py-2 text-[13px] font-medium text-[#9CA3AF] hover:text-white"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(deleteConfirm.id)}
-                    disabled={deleting}
-                    className="flex-1 rounded-full bg-[#DC2626] py-2 text-[13px] font-semibold text-white hover:bg-[#B91C1C] disabled:opacity-50"
-                  >
-                    {deleting ? "Deleting..." : "Permanently Delete"}
-                  </button>
-                </div>
-              </>
-            )}
+      {/* Delete confirmation — 2-step DS Dialog */}
+      <Dialog
+        open={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        title={
+          deleteConfirm?.step === 1
+            ? `Delete ${deleteConfirm.name}?`
+            : "Are you absolutely sure?"
+        }
+        description={
+          deleteConfirm?.step === 1
+            ? "This permanently deletes the profile, inbox items, and tracker entries. No undo."
+            : `All data for ${deleteConfirm?.name ?? "this client"} will be gone forever.`
+        }
+        maxWidth={440}
+        footer={
+          deleteConfirm?.step === 1 ? (
+            <>
+              <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() =>
+                  setDeleteConfirm(
+                    deleteConfirm ? { ...deleteConfirm, step: 2 } : null,
+                  )
+                }
+              >
+                Yes, delete
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteConfirm && handleDelete(deleteConfirm.id)}
+                disabled={deleting}
+                icon={<Trash2 size={14} strokeWidth={2} />}
+              >
+                {deleting ? "Deleting…" : "Permanently delete"}
+              </Button>
+            </>
+          )
+        }
+      >
+        <div className="flex justify-center py-2">
+          <div
+            className={[
+              "flex h-12 w-12 items-center justify-center rounded-[var(--ds-radius-md)]",
+              "border",
+              deleteConfirm?.step === 1
+                ? "bg-[rgba(212,105,92,0.08)] border-[rgba(212,105,92,0.25)] text-[var(--ds-err)]"
+                : "bg-[rgba(212,105,92,0.15)] border-[rgba(212,105,92,0.40)] text-[var(--ds-err)]",
+            ].join(" ")}
+          >
+            <AlertTriangle size={22} strokeWidth={2} />
           </div>
         </div>
-      )}
+      </Dialog>
+    </>
+  );
+}
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-1">
-        <h1 className="text-lg font-semibold">Clients ({profiles.length})</h1>
-        <button
-          type="button"
-          onClick={() => router.push("/admin/onboard")}
-          className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#A9FFB5] via-[#5EF2C7] to-[#39D6FF] px-3 py-1.5 text-[12px] font-semibold text-[#0C1016]"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          Onboard
-        </button>
-      </div>
+function ClientRow({
+  profile,
+  editing,
+  fetching,
+  menuOpen,
+  onToggleEdit,
+  onToggleMenu,
+  onCloseMenu,
+  onFetch,
+  onLock,
+  onUnlock,
+  onDelete,
+  onSave,
+}: {
+  profile: Profile;
+  editing: boolean;
+  fetching: boolean;
+  menuOpen: boolean;
+  onToggleEdit: () => void;
+  onToggleMenu: () => void;
+  onCloseMenu: () => void;
+  onFetch: () => void;
+  onLock: () => void;
+  onUnlock: () => void;
+  onDelete: () => void;
+  onSave: (patch: Record<string, unknown>) => void;
+}) {
+  const isLocked = profile.status !== "active";
+  const isStale =
+    !isLocked &&
+    profile.last_fetch_at &&
+    Date.now() - new Date(profile.last_fetch_at).getTime() > 7 * 24 * 60 * 60 * 1000;
 
-      {/* Client rows */}
-      <div className="space-y-1.5">
-        {profiles.map((p) => {
-          const isLocked = p.status !== "active";
-          const isStale = !isLocked && p.last_fetch_at && (Date.now() - new Date(p.last_fetch_at).getTime()) > 7 * 24 * 60 * 60 * 1000;
-          const borderColor = isLocked ? "#DC2626" : isStale ? "#F59E0B" : "#6AD7A3";
+  const stats: string[] = [];
+  if (profile.current_city) stats.push(profile.current_city);
+  if (profile.salary_min > 0) stats.push(`$${profile.salary_min.toLocaleString()}+`);
+  if (profile.last_fetch_at) stats.push(formatTimeAgo(new Date(profile.last_fetch_at)));
 
-          // Build quick stats string
-          const stats: string[] = [];
-          if (p.current_city) stats.push(p.current_city);
-          if (p.salary_min > 0) stats.push(`$${p.salary_min.toLocaleString()}+`);
-          if (p.last_fetch_at) stats.push(formatTimeAgo(new Date(p.last_fetch_at)));
+  const accentColor = isLocked
+    ? "var(--ds-err)"
+    : isStale
+      ? "var(--ds-warn)"
+      : "var(--ds-accent)";
 
-          return (
-            <div key={p.id}>
-              <div
-                className="rounded-xl border border-[rgba(255,255,255,0.08)] border-l-[3px] bg-[#171F28] px-3 py-2.5"
-                style={{ borderLeftColor: borderColor }}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Avatar */}
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#A9FFB5]/20 to-[#39D6FF]/20">
-                    <span className="text-sm font-bold text-[#6AD7A3]">
-                      {p.display_name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+  return (
+    <div>
+      <Card>
+        <div className="flex items-center gap-3 px-4 py-3" style={{ borderLeft: `2px solid ${accentColor}` }}>
+          {/* Avatar */}
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--ds-radius-full)] border border-[var(--ds-border-2)] bg-[var(--ds-bg-2)]">
+            <span className="font-[family-name:var(--font-ds-sans)] text-[13px] font-semibold text-[var(--ds-text-0)]">
+              {profile.display_name.charAt(0).toUpperCase()}
+            </span>
+          </div>
 
-                  {/* Name + email */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="truncate text-[14px] font-semibold">{p.display_name}</h3>
-                      <span
-                        className={`shrink-0 rounded-full px-1.5 py-px text-[10px] font-medium ring-1 ${
-                          p.status === "active"
-                            ? "bg-[#6AD7A3]/10 text-[#6AD7A3] ring-[#6AD7A3]/25"
-                            : "bg-[#DC2626]/10 text-[#DC2626] ring-[#DC2626]/25"
-                        }`}
-                      >
-                        {p.status === "active" ? "Active" : "Locked"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-[#6B7280]">
-                      <span className="truncate text-[#9CA3AF]">{p.email ?? "No email"}</span>
-                      {stats.length > 0 && (
-                        <>
-                          <span className="text-[#2A3544]">&middot;</span>
-                          <span className="truncate">{stats.join(" · ")}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Primary icon actions */}
-                  <div className="flex shrink-0 items-center gap-1">
-                    <IconButton
-                      icon={editingId === p.id ? X : Pencil}
-                      variant="navigate"
-                      size="sm"
-                      title={editingId === p.id ? "Close editor" : "Edit profile"}
-                      onClick={() => setEditingId(editingId === p.id ? null : p.id)}
-                    />
-                    <IconButton
-                      icon={Eye}
-                      variant="view"
-                      size="sm"
-                      title="View as client"
-                      onClick={() => window.open(`/inbox?view_as=${p.id}`, "_blank")}
-                    />
-                    {/* Overflow menu */}
-                    <OverflowMenu
-                      profileId={p.id}
-                      isOpen={openMenuId === p.id}
-                      onToggle={() => setOpenMenuId(openMenuId === p.id ? null : p.id)}
-                      onClose={() => setOpenMenuId(null)}
-                      items={[
-                        {
-                          icon: Radar,
-                          label: fetchingId === p.id ? "Fetching..." : "Fetch Jobs",
-                          variant: "operate" as const,
-                          disabled: fetchingId === p.id || isLocked,
-                          onClick: () => handleFetch(p.id, p.display_name),
-                        },
-                        isLocked
-                          ? {
-                              icon: Unlock,
-                              label: "Unlock",
-                              variant: "operate" as const,
-                              onClick: () => handleUpdate(p.id, { status: "active", status_reason: "" }),
-                            }
-                          : {
-                              icon: Lock,
-                              label: "Lock",
-                              variant: "destructive" as const,
-                              onClick: () => handleUpdate(p.id, { status: "inactive_soft_locked", status_reason: "Locked by admin" }),
-                            },
-                        {
-                          icon: Trash2,
-                          label: "Delete",
-                          variant: "destructive" as const,
-                          onClick: () => setDeleteConfirm({ id: p.id, name: p.display_name, step: 1 }),
-                        },
-                      ]}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Editor panel */}
-              {editingId === p.id && (
-                <div className="ml-3 mt-1 rounded-xl border border-[#2A3544]/60 bg-[#171F28] p-4 animate-slide-down">
-                  <ClientEditor profile={p} onSave={(patch) => handleUpdate(p.id, patch)} />
-                </div>
+          {/* Name + email */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate text-[14px] font-semibold text-[var(--ds-text-0)]">
+                {profile.display_name}
+              </h3>
+              {isLocked ? (
+                <Badge tone="err" dot>
+                  Locked
+                </Badge>
+              ) : isStale ? (
+                <Badge tone="warn" dot>
+                  Stale
+                </Badge>
+              ) : (
+                <Badge tone="ok" dot>
+                  Active
+                </Badge>
               )}
             </div>
-          );
-        })}
-      </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-[var(--ds-text-3)] mt-0.5">
+              <span className="truncate text-[var(--ds-text-2)]">
+                {profile.email ?? "No email"}
+              </span>
+              {stats.length > 0 ? (
+                <>
+                  <span className="text-[var(--ds-text-3)]">·</span>
+                  <span className="font-[family-name:var(--font-ds-mono)] truncate">
+                    {stats.join(" · ")}
+                  </span>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex shrink-0 items-center gap-1">
+            <IconButton
+              title={editing ? "Close editor" : "Edit profile"}
+              onClick={onToggleEdit}
+            >
+              {editing ? <X size={14} strokeWidth={2} /> : <Pencil size={14} strokeWidth={2} />}
+            </IconButton>
+            <IconButton
+              title="View as client"
+              onClick={() => window.open(`/inbox?view_as=${profile.id}`, "_blank")}
+            >
+              <Eye size={14} strokeWidth={2} />
+            </IconButton>
+            <OverflowMenu
+              isOpen={menuOpen}
+              onToggle={onToggleMenu}
+              onClose={onCloseMenu}
+              items={[
+                {
+                  icon: Radar,
+                  label: fetching ? "Scanning…" : "Run scan",
+                  tone: "accent",
+                  disabled: fetching || isLocked,
+                  onClick: onFetch,
+                },
+                isLocked
+                  ? {
+                      icon: Unlock,
+                      label: "Unlock",
+                      tone: "accent",
+                      onClick: onUnlock,
+                    }
+                  : {
+                      icon: Lock,
+                      label: "Lock",
+                      tone: "destructive",
+                      onClick: onLock,
+                    },
+                {
+                  icon: Trash2,
+                  label: "Delete",
+                  tone: "destructive",
+                  onClick: onDelete,
+                },
+              ]}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {editing ? (
+        <div className="ml-3 mt-1 rounded-[var(--ds-radius-md)] border border-[var(--ds-border-1)] bg-[var(--ds-bg-1)] p-4">
+          <ClientEditor profile={profile} onSave={onSave} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Overflow Menu                                                      */
-/* ------------------------------------------------------------------ */
+function IconButton({
+  title,
+  onClick,
+  children,
+}: {
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--ds-radius-sm)] text-[var(--ds-text-2)] hover:text-[var(--ds-text-0)] hover:bg-[var(--ds-bg-2)] transition-colors"
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ── Overflow menu ── */
 
 interface MenuItem {
   icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   label: string;
-  variant: "view" | "operate" | "destructive";
+  tone: "neutral" | "accent" | "destructive";
   disabled?: boolean;
   onClick: () => void;
 }
 
-const menuItemColors: Record<string, string> = {
-  view: "text-[#B8BFC8] hover:bg-[#222D3D] hover:text-white",
-  operate: "text-[#6AD7A3] hover:bg-[#6AD7A3]/10",
-  destructive: "text-[#DC2626] hover:bg-[#DC2626]/10",
-};
-
 function OverflowMenu({
-  profileId,
   isOpen,
   onToggle,
   onClose,
   items,
 }: {
-  profileId: string;
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -353,18 +437,21 @@ function OverflowMenu({
     }
   }, [isOpen, handleClickOutside]);
 
-  // Calculate fixed position when menu opens
   useEffect(() => {
     if (isOpen && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      const menuHeight = items.length * 36 + 8; // approx height
+      const menuHeight = items.length * 36 + 8;
       const spaceBelow = window.innerHeight - rect.bottom;
-      const top = spaceBelow < menuHeight + 8
-        ? rect.top - menuHeight - 4
-        : rect.bottom + 4;
-      setPos({ top, left: rect.right - 176 }); // 176 = w-44 = 11rem
+      const top = spaceBelow < menuHeight + 8 ? rect.top - menuHeight - 4 : rect.bottom + 4;
+      setPos({ top, left: rect.right - 184 });
     }
   }, [isOpen, items.length]);
+
+  const toneColor: Record<MenuItem["tone"], string> = {
+    neutral: "text-[var(--ds-text-1)] hover:text-[var(--ds-text-0)] hover:bg-[var(--ds-bg-3)]",
+    accent: "text-[var(--ds-accent-bright)] hover:bg-[var(--ds-accent-soft)]",
+    destructive: "text-[var(--ds-err)] hover:bg-[rgba(212,105,92,0.08)]",
+  };
 
   return (
     <div ref={containerRef} className="relative">
@@ -372,41 +459,45 @@ function OverflowMenu({
         ref={btnRef}
         type="button"
         onClick={onToggle}
-        className="rounded-full p-2 text-[#6B7280] transition-all hover:bg-[#222D3D] hover:text-white active:scale-95"
         title="More actions"
+        aria-label="More actions"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--ds-radius-sm)] text-[var(--ds-text-2)] hover:text-[var(--ds-text-0)] hover:bg-[var(--ds-bg-2)] transition-colors"
       >
         <MoreVertical size={14} strokeWidth={2} />
       </button>
 
-      {isOpen && pos && (
+      {isOpen && pos ? (
         <div
-          className="fixed z-50 w-44 overflow-hidden rounded-xl border border-[#2A3544] bg-[#171F28] py-1 shadow-xl"
+          className="fixed z-50 w-[184px] overflow-hidden rounded-[var(--ds-radius-md)] border border-[var(--ds-border-2)] bg-[var(--ds-bg-2)] py-1 shadow-[var(--ds-shadow-elevate)]"
           style={{ top: pos.top, left: Math.max(8, pos.left) }}
         >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              disabled={item.disabled}
-              onClick={() => {
-                item.onClick();
-                onClose();
-              }}
-              className={`flex w-full items-center gap-2.5 px-3 py-2 text-[12px] font-medium transition disabled:opacity-40 disabled:pointer-events-none ${menuItemColors[item.variant]}`}
-            >
-              <item.icon size={14} strokeWidth={2} />
-              {item.label}
-            </button>
-          ))}
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                disabled={item.disabled}
+                onClick={() => {
+                  item.onClick();
+                  onClose();
+                }}
+                className={[
+                  "flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium transition-colors",
+                  "disabled:opacity-40 disabled:pointer-events-none",
+                  toneColor[item.tone],
+                ].join(" ")}
+              >
+                <Icon size={14} strokeWidth={2} />
+                {item.label}
+              </button>
+            );
+          })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Utilities                                                          */
-/* ------------------------------------------------------------------ */
 
 function formatTimeAgo(date: Date): string {
   const diff = Date.now() - date.getTime();
