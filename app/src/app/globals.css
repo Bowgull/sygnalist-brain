@@ -65,6 +65,64 @@
 
   /* Transitions */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ============================================================================
+     SIGNAL DESK — Design System Tokens (Phase 1)
+     Additive namespace (--ds-*). Real pages keep existing tokens above.
+     Only components under src/components/design-system/ consume these.
+     ============================================================================ */
+
+  /* Typography — Geist as display, Geist Mono for numerics and code */
+  --font-ds-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-ds-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Surfaces (warmer near-black, layered slate — not blue-black) */
+  --ds-bg-0: #0F1115;
+  --ds-bg-1: #14171D;
+  --ds-bg-2: #1A1D24;
+  --ds-bg-3: #20242C;
+
+  /* Text (paper white, not pure white — warmer) */
+  --ds-text-0: #F5F5F2;
+  --ds-text-1: #C4C6C9;
+  --ds-text-2: #8E9196;
+  --ds-text-3: #5D6167;
+
+  /* Hairline borders (low contrast by default, emphasized on focus) */
+  --ds-border-1: rgba(255, 255, 255, 0.06);
+  --ds-border-2: rgba(255, 255, 255, 0.10);
+  --ds-border-3: rgba(255, 255, 255, 0.18);
+
+  /* Single confident accent — muted sage reinterpretation of Radar Green */
+  --ds-accent-dim: #5D9379;
+  --ds-accent: #84BFA0;
+  --ds-accent-bright: #A5D4BA;
+  --ds-accent-soft: rgba(132, 191, 160, 0.10);
+
+  /* Rare emphasis — gold, used only for S-tier / critical */
+  --ds-signal: #E8C56B;
+  --ds-signal-soft: rgba(232, 197, 107, 0.10);
+
+  /* Semantic */
+  --ds-ok: #84BFA0;
+  --ds-warn: #E8C56B;
+  --ds-err: #D4695C;
+
+  /* Radii — calm, not playful */
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 10px;
+  --ds-radius-lg: 14px;
+  --ds-radius-full: 9999px;
+
+  /* Shadows — minimal, atmospheric */
+  --ds-shadow-raise: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ds-shadow-elevate: 0 8px 32px -12px rgba(0, 0, 0, 0.6);
+
+  /* Motion */
+  --ds-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ds-duration-fast: 120ms;
+  --ds-duration-base: 180ms;
+  --ds-duration-slow: 260ms;
 }
 
 /* Layout & spacing (outside @theme - plain CSS custom properties) */
@@ -326,6 +384,52 @@ body {
   animation: slide-stage-right 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ============================================================================
+   SIGNAL DESK — Motion (Phase 1)
+   ============================================================================ */
+
+@keyframes ds-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-ds-shimmer {
+  background: linear-gradient(90deg, var(--ds-bg-2) 0%, var(--ds-bg-3) 50%, var(--ds-bg-2) 100%);
+  background-size: 200% 100%;
+  animation: ds-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes ds-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-ds-fade-in {
+  animation: ds-fade-in var(--ds-duration-base) var(--ds-ease);
+}
+
+@keyframes ds-dialog-enter {
+  from { opacity: 0; transform: scale(0.98) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-ds-dialog-enter {
+  animation: ds-dialog-enter var(--ds-duration-slow) var(--ds-ease);
+}
+
+@keyframes ds-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-ds-sheet-up {
+  animation: ds-sheet-up var(--ds-duration-slow) var(--ds-ease);
+}
+
+@keyframes ds-sheet-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-ds-sheet-right {
+  animation: ds-sheet-right var(--ds-duration-slow) var(--ds-ease);
+}
+
 /* Reduce motion preference */
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-glow,
@@ -335,7 +439,12 @@ body {
   .animate-slide-down,
   .animate-goodfit-reveal,
   .animate-slide-stage-left,
-  .animate-slide-stage-right {
+  .animate-slide-stage-right,
+  .animate-ds-shimmer,
+  .animate-ds-fade-in,
+  .animate-ds-dialog-enter,
+  .animate-ds-sheet-up,
+  .animate-ds-sheet-right {
     animation: none;
   }
 }
