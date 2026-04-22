@@ -219,7 +219,10 @@ export default function TrackerPage() {
   }
 
   async function handleManualAdd(data: { title: string; company: string; url?: string; location?: string; notes?: string; status?: string }) {
-    const res = await fetch("/api/tracker/manual-add", {
+    const url = viewAsId
+      ? `/api/admin/view-as/tracker/manual-add?client_id=${viewAsId}`
+      : "/api/tracker/manual-add";
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
