@@ -278,8 +278,8 @@ export default function DetailCard({ entry, onUpdate, onDelete, locked, viewAsId
         {goodFit ? (
           <div
             className={[
-              "mb-4 rounded-[var(--ds-radius-md)] border border-[rgba(132,191,160,0.25)] bg-[var(--ds-accent-soft)] p-4",
-              justGeneratedRef.current ? "animate-ds-dialog-enter" : "",
+              "mb-4 rounded-[var(--ds-radius-md)] border border-[rgba(124,204,150,0.28)] bg-[var(--ds-accent-soft)] p-4",
+              justGeneratedRef.current ? "animate-ds-goodfit-glow" : "",
             ].join(" ")}
             onAnimationEnd={() => {
               justGeneratedRef.current = false;

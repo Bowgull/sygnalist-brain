@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Plus, Check, X, ChevronDown } from "lucide-react";
-import { Badge, Button, Card, StatusPill as _unused, Tag } from "@/components/design-system";
+import { ExternalLink, Plus, Check, X, ChevronDown, Star } from "lucide-react";
+import { Badge, Button, Card, Tag } from "@/components/design-system";
 import type { Database } from "@/types/database";
 
 type InboxJob = Database["public"]["Tables"]["inbox_jobs"]["Row"];
@@ -42,7 +42,8 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
   function handlePromote(e: React.MouseEvent) {
     e.stopPropagation();
     setPromoted(true);
-    onPromote(job.id);
+    // Let the lift animation play before the list removes the card.
+    setTimeout(() => onPromote(job.id), 280);
   }
 
   const tone = tierTone(job.tier);
@@ -51,10 +52,20 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
   return (
     <Card
       className={[
-        "relative",
-        // S-tier rare emphasis: faint signal-gold top seam
-        isTierS ? "before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--ds-signal)] before:opacity-60" : "",
+        "relative overflow-hidden",
+        // S-tier: gold top seam + subtle one-shot pulse on first render
+        isTierS ? "ring-1 ring-[rgba(232,197,107,0.22)] animate-ds-stier-reveal" : "",
+        // Promote lift: card gently rises and fades before being removed
+        promoted ? "animate-ds-promote-lift" : "",
       ].join(" ")}
+      style={
+        isTierS
+          ? {
+              borderTop: "1px solid var(--ds-signal)",
+              boxShadow: "var(--ds-shadow-raise), 0 0 24px -10px var(--ds-signal-glow)",
+            }
+          : undefined
+      }
     >
       <div className="p-5">
         {/* Row 1: title + tier */}
@@ -69,14 +80,29 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
             </p>
           </div>
           <div className="shrink-0 flex items-center gap-2">
-            <Badge tone={tone} dot>
-              {job.tier}
-              {typeof job.score === "number" ? (
-                <span className="ml-1 font-[family-name:var(--font-ds-mono)] text-[10px] opacity-80">
-                  {job.score}
-                </span>
-              ) : null}
-            </Badge>
+            {isTierS ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-[var(--ds-radius-full)] border border-[rgba(232,197,107,0.45)] bg-[var(--ds-signal-soft)] px-2.5 py-[3px] text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-signal)]"
+                title="S-tier fit — worth a close look"
+              >
+                <Star size={11} strokeWidth={2} fill="currentColor" />
+                S-tier
+                {typeof job.score === "number" ? (
+                  <span className="ml-1 font-[family-name:var(--font-ds-mono)] text-[10px] opacity-80">
+                    {job.score}
+                  </span>
+                ) : null}
+              </span>
+            ) : (
+              <Badge tone={tone} dot>
+                {job.tier}
+                {typeof job.score === "number" ? (
+                  <span className="ml-1 font-[family-name:var(--font-ds-mono)] text-[10px] opacity-80">
+                    {job.score}
+                  </span>
+                ) : null}
+              </Badge>
+            )}
           </div>
         </div>
 

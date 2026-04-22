@@ -94,11 +94,11 @@ export default function Header({
             : "border-[var(--ds-border-1)]",
         ].join(" ")}
       >
-        {/* View-As lens: thin accent line at the very top, only when active */}
+        {/* View-As lens: breathing signal-gold seam at the very top */}
         {viewAsActive && (
           <div
             aria-hidden
-            className="h-px bg-gradient-to-r from-transparent via-[var(--ds-signal)] to-transparent opacity-70"
+            className="h-px bg-gradient-to-r from-transparent via-[var(--ds-signal)] to-transparent animate-ds-signal-breathe"
           />
         )}
 
@@ -107,7 +107,7 @@ export default function Header({
           <Link href={viewAsActive && viewAsId ? `/inbox?view_as=${viewAsId}` : "/inbox"} className="flex items-center gap-2.5 md:gap-3 shrink-0">
             <div
               className={[
-                "flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-[var(--ds-radius-md)]",
+                "relative flex h-8 w-8 md:h-9 md:w-9 items-center justify-center rounded-[var(--ds-radius-md)]",
                 "bg-[var(--ds-bg-2)] border border-[var(--ds-border-2)] select-none transition-transform",
                 logoHolding ? "scale-95" : "",
               ].join(" ")}
@@ -116,10 +116,17 @@ export default function Header({
               onPointerLeave={clearLongPress}
               onContextMenu={(e) => e.preventDefault()}
             >
-              <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-4.5 md:w-4.5" fill="none" aria-hidden>
-                <circle cx="12" cy="12" r="7" stroke="var(--ds-accent)" strokeWidth="1.4" />
+              <svg viewBox="0 0 24 24" className="h-5 w-5 md:h-[18px] md:w-[18px]" fill="none" aria-hidden>
+                {/* Outer ring — quietest */}
+                <circle cx="12" cy="12" r="9" stroke="var(--ds-accent)" strokeWidth="1" opacity="0.22" />
+                {/* Mid ring */}
+                <circle cx="12" cy="12" r="6" stroke="var(--ds-accent)" strokeWidth="1.1" opacity="0.55" />
+                {/* Sweep line */}
+                <path d="M12 12 L18.5 7.5" stroke="var(--ds-accent)" strokeWidth="1.3" strokeLinecap="round" opacity="0.85" />
+                {/* Ping dot at sweep tip */}
+                <circle cx="18.5" cy="7.5" r="1.2" fill="var(--ds-accent-bright)" className="animate-ds-signal-breathe" />
+                {/* Center dot */}
                 <circle cx="12" cy="12" r="1.8" fill="var(--ds-accent)" />
-                <path d="M12 12 L18 7.5" stroke="var(--ds-accent)" strokeWidth="1.4" strokeLinecap="round" />
               </svg>
             </div>
             <div className="flex flex-col leading-tight">

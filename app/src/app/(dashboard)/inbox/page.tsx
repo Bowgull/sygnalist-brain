@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Radar, RefreshCw, Plus } from "lucide-react";
+import { RefreshCw, Plus } from "lucide-react";
 import JobCard from "@/components/inbox-ds/job-card";
 import SkeletonCard from "@/components/inbox-ds/skeleton-card";
 import ManualAddDialog from "@/components/ui/manual-add-dialog";
+import RadarMark from "@/components/inbox-ds/radar-mark";
 import { Button, EmptyState } from "@/components/design-system";
 import { useProfileLock } from "@/hooks/use-profile-lock";
 import type { Database } from "@/types/database";
@@ -71,10 +72,18 @@ export default function InboxPage() {
       if (res.ok) {
         const data = await res.json();
         const count = data.jobs_delivered ?? 0;
-        toast.success(`${count} new role${count !== 1 ? "s" : ""} found`, {
-          description: `${data.total_raw ?? 0} scanned · ${data.after_dedupe ?? 0} unique · ${count} delivered (${((data.duration_ms ?? 0) / 1000).toFixed(1)}s)`,
-          duration: 5000,
-        });
+        const duration = ((data.duration_ms ?? 0) / 1000).toFixed(1);
+        if (count > 0) {
+          toast.success(`${count} fresh sygnal${count !== 1 ? "s" : ""}`, {
+            description: `${data.total_raw ?? 0} scanned · ${data.after_dedupe ?? 0} unique · ${duration}s`,
+            duration: 5000,
+          });
+        } else {
+          toast(`Signal was quiet`, {
+            description: `${data.total_raw ?? 0} scanned · nothing new · ${duration}s`,
+            duration: 5000,
+          });
+        }
         fetchJobs(activeLane);
       } else {
         const err = await res.json().catch(() => null);
@@ -159,7 +168,7 @@ export default function InboxPage() {
       <div className="sticky top-0 z-10 border-b border-[var(--ds-border-1)] bg-[var(--ds-bg-1)] px-4 md:px-6 py-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-2 shrink-0">
-            <Radar size={14} strokeWidth={2} className="text-[var(--ds-accent)]" aria-hidden />
+            <RadarMark size={14} color="var(--ds-accent)" />
             <span className="text-[12px] text-[var(--ds-text-2)]">Open sygnals</span>
             <span className="font-[family-name:var(--font-ds-mono)] text-[12px] font-semibold text-[var(--ds-text-0)] tabular-nums">
               {total}
@@ -204,13 +213,7 @@ export default function InboxPage() {
               onClick={handleScan}
               disabled={scanning || profileLocked}
               title={profileLocked ? "Scan disabled (profile inactive)" : "Scan for new roles"}
-              icon={
-                <Radar
-                  size={14}
-                  strokeWidth={2}
-                  className={scanning ? "animate-spin" : ""}
-                />
-              }
+              icon={<RadarMark size={14} color="currentColor" active={scanning} />}
             >
               {scanning ? "Scanning…" : "Scan"}
             </Button>
@@ -246,7 +249,7 @@ export default function InboxPage() {
           </>
         ) : jobs.length === 0 ? (
           <EmptyState
-            icon={<Radar size={20} strokeWidth={1.75} />}
+            icon={<RadarMark size={22} color="currentColor" />}
             title="No fresh sygnals yet"
             description={
               profileLocked
@@ -258,9 +261,7 @@ export default function InboxPage() {
                 ? undefined
                 : {
                     label: scanning ? "Scanning…" : "Scan now",
-                    icon: (
-                      <Radar size={14} strokeWidth={2} className={scanning ? "animate-spin" : ""} />
-                    ),
+                    icon: <RadarMark size={14} color="currentColor" active={scanning} />,
                     onClick: handleScan,
                   }
             }
