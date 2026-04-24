@@ -4,6 +4,23 @@
 
 ---
 
+# Step 0 — Get on the right branch (do this first, every time)
+
+The handoff, mockups, and all in-progress work live on the feature branch — NOT on `main`. Run this before reading anything else:
+
+```bash
+git fetch origin
+git checkout claude/review-sygnalist-ui-GXTJu
+git pull origin claude/review-sygnalist-ui-GXTJu
+git status
+```
+
+You should see `On branch claude/review-sygnalist-ui-GXTJu` and `nothing to commit, working tree clean`. If you see anything else, stop and ask the user before proceeding.
+
+All commits during this session push to `claude/review-sygnalist-ui-GXTJu`. Never push to `main`.
+
+---
+
 # Context
 
 You are taking over a UI/UX facelift of the Sygnalist app. This session runs **Phase 1 + Phase 2 of 4 total phases**. At the end you will write `FACELIFT_HANDOFF_SESSION_2.md` for the next session to pick up Phase 3 + Phase 4.
