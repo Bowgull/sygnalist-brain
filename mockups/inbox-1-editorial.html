@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Sygnalist — Editorial Cockpit</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0B0A08;
+    --bg-2: #131210;
+    --bg-3: #1A1814;
+    --paper: #F5EFE2;
+    --bone: #E8DFC9;
+    --gold: #FAD76A;
+    --gold-deep: #C89A2E;
+    --ink: #FFFFFF;
+    --ink-muted: rgba(255,255,255,0.55);
+    --ink-dim: rgba(255,255,255,0.32);
+    --rule: rgba(245,239,226,0.14);
+    --radar: #6AD7A3;
+  }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .serif { font-family: 'Instrument Serif', 'Times New Roman', serif; font-weight: 400; letter-spacing: -0.01em; }
+  .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+
+  /* Paper grain overlay */
+  .grain::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(rgba(245,239,226,0.018) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    z-index: 0;
+  }
+
+  .rule { height: 1px; background: var(--rule); }
+  .rule-gold { height: 1px; background: linear-gradient(90deg, var(--gold) 0%, var(--gold)/0 100%); }
+
+  /* Small caps */
+  .caps { text-transform: uppercase; letter-spacing: 0.22em; font-size: 10px; font-weight: 600; }
+  .caps-lg { text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; font-weight: 600; }
+
+  /* Drop cap */
+  .dropcap::first-letter {
+    font-family: 'Instrument Serif', serif;
+    font-size: 3.2em;
+    float: left;
+    line-height: 0.85;
+    padding: 4px 8px 0 0;
+    color: var(--gold);
+  }
+
+  /* Tier badges */
+  .tier-num {
+    font-family: 'Instrument Serif', serif;
+    font-size: 42px;
+    line-height: 0.8;
+    letter-spacing: -0.03em;
+  }
+  .tier-S { color: var(--gold); text-shadow: 0 0 24px rgba(250,215,106,0.35); }
+  .tier-A { color: #B6E6C6; }
+  .tier-B { color: #9EC5E8; }
+  .tier-C { color: rgba(232,223,201,0.55); }
+  .tier-F { color: rgba(232,223,201,0.3); }
+
+  /* Gold vertical rule */
+  .gold-rule {
+    background: linear-gradient(180deg, transparent 0%, var(--gold) 20%, var(--gold) 80%, transparent 100%);
+    width: 1px;
+  }
+
+  /* Button shimmer */
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  .shine::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(250,215,106,0.25), transparent);
+    animation: shine 6s ease-in-out infinite;
+  }
+
+  /* Radar pulse */
+  @keyframes radar-sweep {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .radar-sweep { animation: radar-sweep 8s linear infinite; transform-origin: center; }
+  @keyframes breathe { 0%,100% { opacity: 0.85; } 50% { opacity: 1; } }
+  .breathe { animation: breathe 3s ease-in-out infinite; }
+
+  /* Win moment */
+  @keyframes rise {
+    from { transform: translateY(6px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .rise { animation: rise 500ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+  /* Hide scrollbar on horiz scroll */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Issue footer flourish */
+  .masthead-mark {
+    width: 42px; height: 42px;
+    border: 1px solid var(--gold);
+    border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    color: var(--gold);
+  }
+</style>
+</head>
+<body class="min-h-screen grain">
+
+<div class="relative max-w-xl mx-auto">
+
+  <!-- MASTHEAD -->
+  <header class="px-5 pt-6 pb-4">
+    <div class="flex items-center justify-between mb-5">
+      <div class="flex items-center gap-2.5">
+        <div class="h-8 w-8 rounded-full border border-[var(--gold)]/60 flex items-center justify-center relative overflow-hidden">
+          <svg viewBox="0 0 64 64" class="h-5 w-5">
+            <circle cx="32" cy="32" r="17" fill="none" stroke="#FAD76A" stroke-width="3" opacity="0.9" />
+            <g class="radar-sweep">
+              <path d="M32 32 L48 22" stroke="#FAD76A" stroke-width="2.5" stroke-linecap="round" opacity="0.9" />
+              <circle cx="48" cy="22" r="2" fill="#FAD76A" />
+            </g>
+            <circle cx="32" cy="32" r="3.5" fill="#FAD76A" class="breathe" />
+          </svg>
+        </div>
+        <div>
+          <div class="caps text-[var(--ink-muted)]">Sygnalist</div>
+          <div class="caps text-[var(--ink-dim)] mt-0.5">Vol. 04 · Iss. 24</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="mono text-[10px] text-[var(--ink-dim)] leading-none text-right">
+          <div>LAST SCAN</div>
+          <div class="text-[var(--gold)] text-[11px] mt-1">4m ago</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rule mb-4"></div>
+
+    <!-- Hero -->
+    <div class="mb-2">
+      <div class="flex items-baseline gap-3 mb-1">
+        <span class="caps text-[var(--gold)]">№ 01</span>
+        <span class="mono text-[10px] text-[var(--ink-dim)]">Tuesday · April 24</span>
+      </div>
+      <h1 class="serif text-[54px] leading-[0.92] tracking-tight mb-3">
+        The Signal,<br/>
+        <span class="italic text-[var(--gold)]">delivered.</span>
+      </h1>
+      <p class="text-[14px] leading-relaxed text-[var(--ink-muted)] max-w-[92%]">
+        Twelve roles surfaced this morning. Three are worth your attention before lunch.
+      </p>
+    </div>
+
+    <!-- Stats band -->
+    <div class="mt-6 grid grid-cols-3 gap-0 border-y border-[var(--rule)] py-4">
+      <div class="pr-3 border-r border-[var(--rule)]">
+        <div class="serif text-[32px] leading-none">12</div>
+        <div class="caps text-[var(--ink-dim)] mt-1">Open</div>
+      </div>
+      <div class="px-3 border-r border-[var(--rule)]">
+        <div class="serif text-[32px] leading-none text-[var(--gold)]">3</div>
+        <div class="caps text-[var(--ink-dim)] mt-1">S-Tier</div>
+      </div>
+      <div class="pl-3">
+        <div class="serif text-[32px] leading-none">47</div>
+        <div class="caps text-[var(--ink-dim)] mt-1">In Tracker</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- FILTER ROW -->
+  <div class="px-5 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
+    <button class="shrink-0 caps bg-[var(--gold)] text-black px-3 py-1.5 rounded-full">All · 12</button>
+    <button class="shrink-0 caps border border-[var(--rule)] text-[var(--ink-muted)] px-3 py-1.5 rounded-full hover:border-[var(--gold)]/40">Customer Success · 6</button>
+    <button class="shrink-0 caps border border-[var(--rule)] text-[var(--ink-muted)] px-3 py-1.5 rounded-full">Implementation · 4</button>
+    <button class="shrink-0 caps border border-[var(--rule)] text-[var(--ink-muted)] px-3 py-1.5 rounded-full">Support · 2</button>
+  </div>
+
+  <!-- JUST PROMOTED (win moment) -->
+  <div class="mx-5 mb-4 rise relative overflow-hidden rounded-lg border border-[var(--gold)]/40 bg-gradient-to-r from-[rgba(250,215,106,0.10)] via-[rgba(250,215,106,0.04)] to-transparent px-4 py-3 shine">
+    <div class="flex items-center gap-3">
+      <div class="h-8 w-8 rounded-full bg-[var(--gold)] text-black flex items-center justify-center shrink-0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-4 w-4"><path d="M5 12l5 5L20 7"/></svg>
+      </div>
+      <div class="flex-1">
+        <div class="caps text-[var(--gold)]">Added to Tracker</div>
+        <div class="text-[13px] text-[var(--ink-muted)] mt-0.5 serif italic">Senior CSM — Loom</div>
+      </div>
+      <button class="caps text-[var(--ink-dim)] hover:text-white">Undo</button>
+    </div>
+  </div>
+
+  <!-- FEATURED JOB CARD (hero) -->
+  <article class="mx-5 mb-3 relative">
+    <!-- Gold corner tick -->
+    <div class="absolute top-0 left-0 w-6 h-6 border-t border-l border-[var(--gold)]"></div>
+    <div class="absolute bottom-0 right-0 w-6 h-6 border-b border-r border-[var(--gold)]/50"></div>
+
+    <div class="border border-[var(--rule)] bg-gradient-to-br from-[#1C1A14] to-[#0F0E0A] rounded-sm p-5 pt-6">
+      <div class="flex items-start gap-4">
+        <!-- Tier glyph column -->
+        <div class="flex flex-col items-center shrink-0">
+          <span class="tier-num tier-S">S</span>
+          <span class="mono text-[9px] text-[var(--gold)] mt-1">94</span>
+        </div>
+        <!-- Gold vertical rule -->
+        <div class="gold-rule self-stretch opacity-60"></div>
+        <!-- Content -->
+        <div class="flex-1 min-w-0">
+          <div class="caps text-[var(--gold)] mb-1.5">Featured · Customer Success</div>
+          <h2 class="serif text-[26px] leading-[1.05] mb-1">Senior Customer Success Manager, Strategic</h2>
+          <div class="text-[14px] text-[var(--ink-muted)] italic serif">at Loom</div>
+
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-[12px] text-[var(--ink-dim)]">
+            <span class="mono text-[var(--bone)]">$165K–$195K</span>
+            <span>·</span>
+            <span>Remote, US</span>
+            <span>·</span>
+            <span class="caps text-[var(--gold)]/80">CS Lane</span>
+          </div>
+
+          <p class="text-[13.5px] leading-relaxed text-[var(--ink-muted)] mt-4 dropcap">
+            Strategic book of 8 enterprise accounts. Owns renewal + expansion motion, partners with AE on multi-thread. Your SaaS CS background is a direct match. Comp stretches your floor by $22K.
+          </p>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="mt-5 pt-4 border-t border-[var(--rule)] flex items-center gap-2">
+        <button class="flex-1 caps-lg bg-[var(--gold)] text-black py-2.5 rounded-sm font-semibold hover:bg-[#FFE48B] transition">Add to Tracker</button>
+        <button class="caps-lg border border-[var(--rule)] text-[var(--ink-muted)] px-4 py-2.5 rounded-sm hover:text-white hover:border-[var(--ink-muted)]">View</button>
+        <button class="caps-lg border border-[var(--rule)] text-[var(--ink-dim)] px-3 py-2.5 rounded-sm hover:text-[#FF8B8B] hover:border-[#FF8B8B]/40">Pass</button>
+      </div>
+    </div>
+  </article>
+
+  <!-- Section rule -->
+  <div class="px-5 py-4 flex items-center gap-3">
+    <span class="caps text-[var(--ink-dim)]">Also Today</span>
+    <div class="rule flex-1"></div>
+  </div>
+
+  <!-- STANDARD CARDS -->
+
+  <!-- Card A -->
+  <article class="mx-5 mb-4">
+    <div class="border border-[var(--rule)] hover:border-[var(--ink-muted)]/30 rounded-sm p-4 bg-[var(--bg-2)] transition">
+      <div class="flex items-start gap-4">
+        <div class="flex flex-col items-center shrink-0 w-8">
+          <span class="tier-num tier-A">A</span>
+          <span class="mono text-[9px] text-[var(--ink-dim)] mt-1">87</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="serif text-[20px] leading-tight">Implementation Consultant, Platform</h3>
+          <div class="text-[12.5px] text-[var(--ink-muted)] italic serif mt-0.5">at Ramp</div>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11.5px] text-[var(--ink-dim)]">
+            <span class="mono text-[var(--bone)]">$140K–$180K</span>
+            <span>·</span>
+            <span>NYC / Remote</span>
+            <span>·</span>
+            <span class="caps text-[var(--ink-muted)]">Impl Lane</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- Card B -->
+  <article class="mx-5 mb-4">
+    <div class="border border-[var(--rule)] rounded-sm p-4 bg-[var(--bg-2)]">
+      <div class="flex items-start gap-4">
+        <div class="flex flex-col items-center shrink-0 w-8">
+          <span class="tier-num tier-A">A</span>
+          <span class="mono text-[9px] text-[var(--ink-dim)] mt-1">85</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="serif text-[20px] leading-tight">Technical Account Manager</h3>
+          <div class="text-[12.5px] text-[var(--ink-muted)] italic serif mt-0.5">at Linear</div>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11.5px] text-[var(--ink-dim)]">
+            <span class="mono text-[var(--bone)]">$155K–$185K</span>
+            <span>·</span>
+            <span>Remote</span>
+            <span>·</span>
+            <span class="caps text-[var(--ink-muted)]">CS Lane</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- Card C -->
+  <article class="mx-5 mb-4">
+    <div class="border border-[var(--rule)] rounded-sm p-4 bg-[var(--bg-2)]">
+      <div class="flex items-start gap-4">
+        <div class="flex flex-col items-center shrink-0 w-8">
+          <span class="tier-num tier-B">B</span>
+          <span class="mono text-[9px] text-[var(--ink-dim)] mt-1">74</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="serif text-[20px] leading-tight">Customer Experience Lead</h3>
+          <div class="text-[12.5px] text-[var(--ink-muted)] italic serif mt-0.5">at Notion</div>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11.5px] text-[var(--ink-dim)]">
+            <span class="mono text-[var(--bone)]">$125K–$155K</span>
+            <span>·</span>
+            <span>SF / Remote</span>
+            <span>·</span>
+            <span class="caps text-[var(--ink-muted)]">Support Lane</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- Card D (loading/fresh) -->
+  <article class="mx-5 mb-4">
+    <div class="border border-dashed border-[var(--rule)] rounded-sm p-4 bg-[var(--bg)] relative overflow-hidden">
+      <div class="flex items-start gap-4">
+        <div class="flex flex-col items-center shrink-0 w-8">
+          <span class="tier-num tier-B">B</span>
+          <span class="mono text-[9px] text-[var(--ink-dim)] mt-1">72</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="serif text-[20px] leading-tight">Onboarding Specialist</h3>
+          <div class="text-[12.5px] text-[var(--ink-muted)] italic serif mt-0.5">at Retool</div>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11.5px] text-[var(--ink-dim)]">
+            <span class="mono text-[var(--bone)]">$110K–$135K</span>
+            <span>·</span>
+            <span>Remote</span>
+            <span>·</span>
+            <span class="caps text-[var(--ink-muted)]">Impl Lane</span>
+          </div>
+        </div>
+      </div>
+      <div class="absolute top-2 right-2 caps text-[var(--gold)]/70">Fresh · 2m</div>
+    </div>
+  </article>
+
+  <!-- Scan block -->
+  <div class="mx-5 mt-6 mb-5">
+    <div class="rule mb-5"></div>
+    <div class="flex items-center gap-4">
+      <div class="flex-1">
+        <div class="caps text-[var(--ink-dim)] mb-1">The Press</div>
+        <div class="serif text-[22px] leading-tight">Want fresh signal?</div>
+        <div class="text-[12px] text-[var(--ink-muted)] mt-1">Runs across 8 sources. Takes 12 seconds on average.</div>
+      </div>
+      <button class="shrink-0 caps-lg bg-[var(--gold)] text-black px-5 py-3 rounded-sm font-semibold">Scan Now</button>
+    </div>
+  </div>
+
+  <!-- Loading state preview -->
+  <div class="mx-5 mb-4">
+    <div class="border border-[var(--rule)] rounded-sm p-5 bg-[var(--bg-2)]">
+      <div class="caps text-[var(--gold)] mb-2">Now Scanning</div>
+      <div class="serif italic text-[22px] leading-tight mb-3">"Filtering out the corporate fluff…"</div>
+      <div class="flex gap-1">
+        <div class="h-0.5 flex-1 bg-[var(--gold)]/80"></div>
+        <div class="h-0.5 flex-1 bg-[var(--gold)]/50"></div>
+        <div class="h-0.5 flex-1 bg-[var(--gold)]/30"></div>
+        <div class="h-0.5 flex-1 bg-[var(--rule)]"></div>
+        <div class="h-0.5 flex-1 bg-[var(--rule)]"></div>
+      </div>
+      <div class="mono text-[10px] text-[var(--ink-dim)] mt-2">sources scanned: 3 of 8</div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="mx-5 my-6 border border-[var(--rule)] rounded-sm p-8 text-center bg-[var(--bg-2)]">
+    <div class="serif italic text-[28px] leading-none text-[var(--gold)] mb-3">—</div>
+    <div class="serif text-[22px] leading-tight mb-2">Nothing fresh today.</div>
+    <div class="text-[13px] text-[var(--ink-muted)] max-w-xs mx-auto">The wire is quiet. Scan to check again, or take the win and close the laptop.</div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="px-5 py-10 text-center">
+    <div class="rule mb-8"></div>
+    <div class="masthead-mark mb-4 mx-auto">S</div>
+    <div class="caps text-[var(--ink-muted)] mb-1">Sygnalist</div>
+    <div class="serif italic text-[15px] text-[var(--ink-dim)]">Find the signal.</div>
+  </footer>
+
+  <!-- Bottom nav -->
+  <nav class="sticky bottom-0 left-0 right-0 bg-[var(--bg)]/95 backdrop-blur-md border-t border-[var(--rule)]">
+    <div class="max-w-xl mx-auto flex items-center justify-around py-3 px-4">
+      <a class="flex flex-col items-center gap-1 text-[var(--gold)]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+        <span class="caps text-[9px]">Inbox</span>
+      </a>
+      <a class="flex flex-col items-center gap-1 text-[var(--ink-dim)]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5"><path d="M3 5h18M3 12h18M3 19h10"/></svg>
+        <span class="caps text-[9px]">Tracker</span>
+      </a>
+      <a class="flex flex-col items-center gap-1 text-[var(--ink-dim)]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+        <span class="caps text-[9px]">Profile</span>
+      </a>
+    </div>
+  </nav>
+
+</div>
+
+</body>
+</html>
