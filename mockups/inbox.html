@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Sygnalist — Inbox</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0C1016;--bg-el:#151C24;--bg-card:#171F28;--bg-hover:#222D3D;--bg-surf:#11181F;
+--radar-lt:#A9F2C4;--radar-md:#6AD7A3;--radar-dk:#2F8A63;--gold:#FAD76A;
+--text:#FFF;--muted:#B8BFC8;--dim:#9CA3AF;--div:#2A3544;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:#fff;letter-spacing:-0.005em}
+@keyframes pulse-glow{0%,100%{opacity:.65}50%{opacity:1}}.animate-pulse-glow{animation:pulse-glow 2.5s ease-in-out infinite}
+@keyframes dot-pulse{0%,100%{opacity:.65;transform:scale(1)}50%{opacity:1;transform:scale(1.2)}}.animate-dot-pulse{animation:dot-pulse 2.5s ease-in-out infinite}
+@keyframes seam-glow{0%,100%{opacity:.4}50%{opacity:.7}}.animate-seam-glow{animation:seam-glow 14s ease-in-out infinite}
+@keyframes radar-sweep{from{transform:rotate(0)}to{transform:rotate(360deg)}}.radar-sweep-anim{transform-origin:32px 32px;animation:radar-sweep 6s linear infinite}
+@keyframes slide-down{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}.animate-slide-down{animation:slide-down 400ms cubic-bezier(0.16,1,0.3,1)}
+@keyframes gold-pulse{0%,100%{box-shadow:0 0 0 0 rgba(250,215,106,.5)}50%{box-shadow:0 0 40px 8px rgba(250,215,106,.25)}}.gold-pulse{animation:gold-pulse 2.4s ease-in-out infinite}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}.shimmer{background:linear-gradient(90deg,#171F28 25%,#222D3D 50%,#171F28 75%);background-size:200% 100%;animation:shimmer 1.5s ease-in-out infinite}
+@keyframes scan-progress{0%{width:5%}50%{width:75%}100%{width:100%}}.scan-progress{animation:scan-progress 3s ease-in-out infinite}
+.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{scrollbar-width:none}
+.header-scanlines::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(106,215,163,.015) 3px,rgba(106,215,163,.015) 4px);z-index:0}
+.content-bay-texture::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;background-image:repeating-linear-gradient(0deg,rgba(106,215,163,.03) 0px,transparent 1px,transparent 12px),repeating-linear-gradient(90deg,rgba(106,215,163,.03) 0px,transparent 1px,transparent 12px);border-radius:inherit;opacity:.5}
+.content-bay-texture{position:relative}.content-bay-texture>*{position:relative;z-index:1}
+</style></head><body class="min-h-dvh">
+
+<header class="header-scanlines sticky top-0 z-40 bg-[#0C1016]/95 backdrop-blur-md relative">
+<div class="mx-auto flex min-h-[72px] max-w-xl items-center justify-between gap-3 px-5 py-3">
+<div class="flex items-center gap-3">
+<div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0B1512] to-[#0F2A23] ring-1 ring-[#6AD7A3]/25 animate-pulse-glow relative overflow-hidden" style="box-shadow:0 0 32px rgba(106,215,163,.18)">
+<svg viewBox="0 0 64 64" class="h-10 w-10"><circle cx="32" cy="32" r="17" fill="none" stroke="url(#hg)" stroke-width="3.8" opacity=".95"/><circle cx="32" cy="32" r="10" fill="none" stroke="#A9FFB5" stroke-width="2" opacity=".16"/><g class="radar-sweep-anim"><path d="M32 32 L49 22" stroke="url(#hg)" stroke-width="3" stroke-linecap="round" opacity=".85"/><circle cx="49" cy="22" r="2.7" fill="#A9FFB5"/></g><circle cx="32" cy="32" r="4.4" fill="url(#hg)"/><path d="M47.5 15.8 l1.3 2.5 2.5 1.3-2.5 1.3-1.3 2.5-1.3-2.5-2.5-1.3 2.5-1.3z" fill="#FFD77A" opacity=".95"/><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9FFB5"/><stop offset=".55" stop-color="#5EF2C7"/><stop offset="1" stop-color="#39D6FF"/></linearGradient></defs></svg>
+</div>
+<div class="flex flex-col">
+<span class="text-[1.25rem] font-extrabold tracking-[0.14em] text-[#6AD7A3] leading-none" style="text-shadow:0 0 22px rgba(106,215,163,.4)">SYGNALIST</span>
+<span class="text-[0.6875rem] font-semibold uppercase tracking-[0.32em] text-[#9CA3AF] mt-1.5">FIND THE SIGNAL</span>
+</div></div>
+<button class="p-2 rounded-lg text-[#9CA3AF] hover:text-white hover:bg-[#1E2730]">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+</button></div>
+<div class="mx-auto max-w-xl px-5 pb-3">
+<div class="flex items-center gap-3 text-[11px]">
+<span class="font-semibold uppercase tracking-wider text-[#6AD7A3]" style="text-shadow:0 0 12px rgba(106,215,163,.3)">Joshua</span>
+<span class="h-2 w-2 rounded-full bg-[#6AD7A3] animate-dot-pulse"></span>
+<span class="h-4 w-px bg-[#2A3544]"></span>
+<span class="font-mono text-[#9CA3AF] tabular-nums">Last Scan: <span class="text-[#6AD7A3]">4m ago</span></span>
+</div></div>
+<div class="h-px bg-gradient-to-r from-transparent via-[#00ffc3]/40 to-transparent animate-seam-glow"></div>
+</header>
+
+<div class="mx-auto max-w-xl px-3 py-4">
+<div class="content-bay-texture rounded-2xl border border-white/10 bg-gradient-to-b from-[#151C24] to-[#11181F] shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0px_4px_8px_rgba(0,0,0,0.15)] overflow-hidden">
+
+<!-- Filter row -->
+<div class="sticky top-0 z-10 border-b border-[#2A3544] bg-[#151C24]/95 backdrop-blur px-4 py-3">
+<div class="flex items-center gap-3 text-[11px] mb-3">
+<div class="flex items-center gap-1.5">
+<svg viewBox="0 0 24 24" fill="none" stroke="#6AD7A3" stroke-width="2" class="h-4 w-4"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#6AD7A3"/></svg>
+<span class="text-[#9CA3AF]">Open Sygnals</span>
+<span class="font-bold text-white text-[14px]">12</span>
+</div>
+<span class="ml-auto font-mono text-[10px] text-[#9CA3AF]">3 fresh</span>
+</div>
+<div class="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+<button class="shrink-0 rounded-full bg-[#6AD7A3]/15 text-[#6AD7A3] ring-1 ring-[#6AD7A3]/30 px-3 py-1 text-[11px] font-semibold whitespace-nowrap">All · 12</button>
+<button class="shrink-0 rounded-full bg-[#171F28] text-[#9CA3AF] ring-1 ring-[#2A3544] px-3 py-1 text-[11px] font-medium whitespace-nowrap">Customer Success · 6</button>
+<button class="shrink-0 rounded-full bg-[#171F28] text-[#9CA3AF] ring-1 ring-[#2A3544] px-3 py-1 text-[11px] font-medium whitespace-nowrap">Implementation · 4</button>
+<button class="shrink-0 rounded-full bg-[#171F28] text-[#9CA3AF] ring-1 ring-[#2A3544] px-3 py-1 text-[11px] font-medium whitespace-nowrap">Support · 2</button>
+</div>
+<div class="mt-3 flex gap-2">
+<button class="flex-1 flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6AD7A3] to-[#2F8A63] text-[#0C1016] py-2.5 text-[12.5px] font-bold shadow-[0_0_24px_rgba(106,215,163,0.25)] hover:shadow-[0_0_36px_rgba(106,215,163,0.4)] transition-all">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-4 w-4"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+SCAN NOW
+</button>
+<button class="rounded-full bg-[#171F28] ring-1 ring-[#2A3544] p-2.5 text-[#9CA3AF]">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+</button>
+<button class="rounded-full bg-[#171F28] ring-1 ring-[#6AD7A3]/25 px-3 py-2.5 text-[11px] font-semibold text-[#6AD7A3] flex items-center gap-1">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-3.5 w-3.5"><path d="M12 5v14M5 12h14"/></svg>Add
+</button></div></div>
+
+<!-- WIN TOAST -->
+<div class="mx-3 md:mx-4 mt-3 animate-slide-down">
+<div class="relative overflow-hidden rounded-2xl border border-[#FAD76A]/40 bg-gradient-to-r from-[rgba(250,215,106,0.12)] via-[rgba(250,215,106,0.04)] to-transparent p-3.5 gold-pulse">
+<div class="flex items-center gap-3">
+<div class="h-9 w-9 rounded-xl bg-gradient-to-br from-[#FAD76A] to-[#C89A2E] flex items-center justify-center shrink-0" style="box-shadow:0 0 20px rgba(250,215,106,.4)">
+<svg viewBox="0 0 24 24" fill="none" stroke="#0C1016" stroke-width="3" class="h-4 w-4"><path d="M5 12l5 5L20 7"/></svg>
+</div>
+<div class="flex-1 min-w-0">
+<div class="text-[11px] uppercase tracking-[0.18em] font-bold text-[#FAD76A]">Added to Tracker</div>
+<div class="text-[13px] text-white mt-0.5 truncate">Senior CSM, Strategic — Loom</div>
+</div>
+<button class="text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF] hover:text-white px-2">Undo</button>
+</div></div></div>
+
+<!-- Cards -->
+<div class="space-y-3 p-3 md:p-4">
+
+<!-- S-TIER FEATURED (the gold moment) -->
+<div class="group relative rounded-2xl border border-[#FAD76A]/50 bg-gradient-to-br from-[#1E1B12] via-[#171F28] to-[#11181F] overflow-hidden transition-all" style="border-top:2px solid #FAD76A;box-shadow:0 0 40px rgba(250,215,106,0.08), inset 0 1px 0 rgba(255,255,255,0.04)">
+<div class="absolute top-0 right-0 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.22em] text-[#0C1016] bg-gradient-to-l from-[#FAD76A] to-[#C89A2E]" style="border-bottom-left-radius:12px">PRIORITY SIGNAL</div>
+<div class="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#FAD76A]/8 blur-3xl"></div>
+<div class="relative p-4 md:p-5 pt-10">
+<div class="flex items-start justify-between gap-4 mb-3">
+<div class="min-w-0 flex-1">
+<h3 class="text-[1.25rem] font-extrabold leading-[1.15] tracking-tight text-white">Senior Customer Success Manager, Strategic</h3>
+<p class="mt-1 text-[0.9375rem] text-[#B8BFC8] font-medium">Loom</p>
+</div>
+<div class="flex flex-col items-center shrink-0">
+<div class="h-11 w-11 rounded-xl flex items-center justify-center font-extrabold text-[18px]" style="background:linear-gradient(180deg,rgba(250,215,106,.22) 0%,rgba(250,215,106,.06) 100%);border:1px solid #FAD76A;color:#FAD76A;box-shadow:0 0 24px rgba(250,215,106,.3), inset 0 1px 0 rgba(255,255,255,0.1)">S</div>
+<div class="font-mono text-[9px] text-[#FAD76A] mt-1">94</div>
+</div></div>
+<div class="flex flex-wrap gap-1.5 mb-4">
+<span class="inline-flex h-[26px] items-center rounded-full px-3 text-[11px] font-semibold bg-[rgba(0,245,212,0.08)] text-white border border-[rgba(0,245,212,0.2)] font-mono">$165K–$195K</span>
+<span class="inline-flex h-[26px] items-center rounded-full border border-[#2A3544] bg-[#151C24] px-3 text-[11px] text-[#B8BFC8]">Remote, US</span>
+<span class="inline-flex h-[26px] items-center rounded-full border border-[#6AD7A3]/25 bg-[#6AD7A3]/10 px-3 text-[11px] font-semibold text-[#6AD7A3]">CS</span>
+<span class="inline-flex h-[26px] items-center rounded-full border border-[#2A3544] bg-[#151C24] px-2.5 text-[10px] text-[#9CA3AF] font-mono">greenhouse.io</span>
+</div>
+<p class="text-[13.5px] leading-relaxed text-[#B8BFC8] mb-4 italic">Enterprise book of 8 accounts. Renewal + expansion, tight AE pairing. Direct Loom match — comp stretches your floor by $22K.</p>
+<div class="flex items-center gap-2">
+<button class="flex-1 inline-flex h-[40px] items-center justify-center gap-1.5 rounded-full bg-gradient-to-r from-[#FAD76A] to-[#C89A2E] text-[#0C1016] text-[13px] font-bold shadow-[0_0_24px_rgba(250,215,106,0.3)]">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" class="h-4 w-4"><path d="M12 5v14M5 12h14"/></svg>Add to Tracker
+</button>
+<button class="inline-flex h-[40px] items-center gap-1.5 rounded-full border border-[#2A3544] px-4 text-[12.5px] font-medium text-[#B8BFC8]">View</button>
+<button class="inline-flex h-[40px] items-center gap-1 rounded-full border border-[#2A3544] px-3 text-[12.5px] text-[#9CA3AF]">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4"><path d="M18 6L6 18M6 6l12 12"/></svg>
+</button></div></div></div>
+
+<!-- A-tier card -->
+<div class="relative rounded-2xl border border-white/10 bg-[#171F28] overflow-hidden transition-all hover:border-white/15 hover:-translate-y-[1px]" style="border-top:2px solid #6AD7A3">
+<div class="relative p-4">
+<div class="flex items-start justify-between gap-4 mb-2.5">
+<div class="min-w-0 flex-1">
+<h3 class="text-[1rem] font-bold leading-tight text-white">Implementation Consultant, Platform</h3>
+<p class="mt-0.5 text-[13px] text-[#B8BFC8]">Ramp</p>
+</div>
+<div class="flex flex-col items-center shrink-0">
+<div class="h-9 w-9 rounded-lg flex items-center justify-center font-bold text-[15px]" style="background:rgba(106,215,163,.12);border:1px solid rgba(106,215,163,.3);color:#6AD7A3">A</div>
+<div class="font-mono text-[9px] text-[#6AD7A3] mt-0.5">87</div>
+</div></div>
+<div class="flex flex-wrap gap-1.5">
+<span class="inline-flex h-[24px] items-center rounded-full px-2.5 text-[10.5px] font-semibold bg-[rgba(0,245,212,0.08)] text-white border border-[rgba(0,245,212,0.2)] font-mono">$140K–$180K</span>
+<span class="inline-flex h-[24px] items-center rounded-full border border-[#2A3544] bg-[#151C24] px-2.5 text-[10.5px] text-[#B8BFC8]">NYC / Remote</span>
+<span class="inline-flex h-[24px] items-center rounded-full border border-[#6AD7A3]/25 bg-[#6AD7A3]/8 px-2.5 text-[10.5px] font-semibold text-[#6AD7A3]">Impl</span>
+</div></div></div>
+
+<!-- A-tier -->
+<div class="relative rounded-2xl border border-white/10 bg-[#171F28] overflow-hidden" style="border-top:2px solid #6AD7A3">
+<div class="p-4">
+<div class="flex items-start justify-between gap-4 mb-2.5">
+<div class="min-w-0 flex-1">
+<h3 class="text-[1rem] font-bold leading-tight text-white">Technical Account Manager</h3>
+<p class="mt-0.5 text-[13px] text-[#B8BFC8]">Linear</p>
+</div>
+<div class="flex flex-col items-center shrink-0">
+<div class="h-9 w-9 rounded-lg flex items-center justify-center font-bold text-[15px]" style="background:rgba(106,215,163,.12);border:1px solid rgba(106,215,163,.3);color:#6AD7A3">A</div>
+<div class="font-mono text-[9px] text-[#6AD7A3] mt-0.5">85</div>
+</div></div>
+<div class="flex flex-wrap gap-1.5">
+<span class="inline-flex h-[24px] items-center rounded-full px-2.5 text-[10.5px] font-semibold bg-[rgba(0,245,212,0.08)] text-white border border-[rgba(0,245,212,0.2)] font-mono">$155K–$185K</span>
+<span class="inline-flex h-[24px] items-center rounded-full border border-[#2A3544] bg-[#151C24] px-2.5 text-[10.5px] text-[#B8BFC8]">Remote</span>
+<span class="inline-flex h-[24px] items-center rounded-full border border-[#6AD7A3]/25 bg-[#6AD7A3]/8 px-2.5 text-[10.5px] font-semibold text-[#6AD7A3]">CS</span>
+</div></div></div>
+
+<!-- B-tier -->
+<div class="relative rounded-2xl border border-white/10 bg-[#171F28]" style="border-top:2px solid #38BDF8">
+<div class="p-4">
+<div class="flex items-start justify-between gap-4 mb-2.5">
+<div class="min-w-0 flex-1">
+<h3 class="text-[1rem] font-bold leading-tight text-white">Customer Experience Lead</h3>
+<p class="mt-0.5 text-[13px] text-[#B8BFC8]">Notion</p>
+</div>
+<div class="flex flex-col items-center shrink-0">
+<div class="h-9 w-9 rounded-lg flex items-center justify-center font-bold text-[15px]" style="background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);color:#38BDF8">B</div>
+<div class="font-mono text-[9px] text-[#38BDF8] mt-0.5">74</div>
+</div></div>
+<div class="flex flex-wrap gap-1.5">
+<span class="inline-flex h-[24px] items-center rounded-full px-2.5 text-[10.5px] font-semibold bg-[rgba(0,245,212,0.08)] text-white border border-[rgba(0,245,212,0.2)] font-mono">$125K–$155K</span>
+<span class="inline-flex h-[24px] items-center rounded-full border border-[#2A3544] bg-[#151C24] px-2.5 text-[10.5px] text-[#B8BFC8]">SF / Remote</span>
+<span class="inline-flex h-[24px] items-center rounded-full border border-[#6AD7A3]/25 bg-[#6AD7A3]/8 px-2.5 text-[10.5px] font-semibold text-[#6AD7A3]">Support</span>
+</div></div></div>
+
+<!-- C-tier -->
+<div class="relative rounded-2xl border border-white/8 bg-[#151C24] opacity-70" style="border-top:2px solid #9CA3AF">
+<div class="p-4">
+<div class="flex items-start justify-between gap-4 mb-2.5">
+<div class="min-w-0 flex-1">
+<h3 class="text-[1rem] font-bold leading-tight text-white">CS Ops Analyst</h3>
+<p class="mt-0.5 text-[13px] text-[#9CA3AF]">Vercel</p>
+</div>
+<div class="flex flex-col items-center shrink-0">
+<div class="h-9 w-9 rounded-lg flex items-center justify-center font-bold text-[15px]" style="background:rgba(156,163,175,.12);border:1px solid rgba(156,163,175,.3);color:#9CA3AF">C</div>
+<div class="font-mono text-[9px] text-[#9CA3AF] mt-0.5">58</div>
+</div></div>
+<div class="flex flex-wrap gap-1.5">
+<span class="inline-flex h-[24px] items-center rounded-full border border-[#2A3544] bg-[#151C24] px-2.5 text-[10.5px] text-[#B8BFC8] font-mono">$95K–$115K</span>
+<span class="inline-flex h-[24px] items-center rounded-full border border-[#2A3544] bg-[#151C24] px-2.5 text-[10.5px] text-[#B8BFC8]">Remote</span>
+</div></div></div>
+
+<!-- Section: showing scan-in-progress state -->
+<div class="pt-4 mt-2 border-t border-[#2A3544]">
+<div class="text-[10px] uppercase tracking-[0.22em] font-semibold text-[#9CA3AF] mb-3">While scanning</div>
+<div class="rounded-2xl border border-[#6AD7A3]/25 bg-gradient-to-br from-[#0F2A23] to-[#171F28] p-5 relative overflow-hidden">
+<div class="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-[#6AD7A3]/10 blur-3xl"></div>
+<div class="relative flex items-center gap-4">
+<div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0B1512] to-[#0F2A23] ring-1 ring-[#6AD7A3]/30 shrink-0">
+<svg viewBox="0 0 64 64" class="h-10 w-10"><circle cx="32" cy="32" r="17" fill="none" stroke="url(#lg)" stroke-width="3.8" opacity=".95"/><g class="radar-sweep-anim"><path d="M32 32 L49 22" stroke="url(#lg)" stroke-width="3" stroke-linecap="round"/><circle cx="49" cy="22" r="2.5" fill="#A9FFB5"/></g><circle cx="32" cy="32" r="4.4" fill="url(#lg)"/><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9FFB5"/><stop offset=".55" stop-color="#5EF2C7"/><stop offset="1" stop-color="#39D6FF"/></linearGradient></defs></svg>
+</div>
+<div class="flex-1">
+<div class="text-[14px] font-bold text-[#6AD7A3] mb-1" style="text-shadow:0 0 12px rgba(106,215,163,.3)">Filtering out the corporate fluff…</div>
+<div class="text-[11.5px] text-[#9CA3AF] italic">"Not gaslighting. Promise."</div>
+<div class="mt-3 h-1 rounded-full bg-[#11181F] overflow-hidden">
+<div class="h-full rounded-full bg-gradient-to-r from-[#6AD7A3] to-[#A9F2C4] scan-progress" style="box-shadow:0 0 8px rgba(106,215,163,.5)"></div>
+</div>
+<div class="flex items-center justify-between mt-1.5">
+<span class="font-mono text-[9px] text-[#9CA3AF]">3 of 8 sources</span>
+<span class="font-mono text-[9px] text-[#6AD7A3]">12 candidates so far</span>
+</div></div></div></div></div>
+
+<!-- Empty state preview -->
+<div class="pt-4 mt-2 border-t border-[#2A3544]">
+<div class="text-[10px] uppercase tracking-[0.22em] font-semibold text-[#9CA3AF] mb-3">When it's quiet</div>
+<div class="rounded-2xl border border-white/5 bg-[#151C24] p-8 text-center relative overflow-hidden">
+<div class="absolute inset-0 opacity-30" style="background:radial-gradient(circle at 50% 40%,rgba(106,215,163,.12),transparent 60%)"></div>
+<div class="relative">
+<div class="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0B1512] to-[#0F2A23] ring-1 ring-[#6AD7A3]/20 mb-4 animate-pulse-glow">
+<svg viewBox="0 0 64 64" class="h-10 w-10"><circle cx="32" cy="32" r="17" fill="none" stroke="#6AD7A3" stroke-width="3" opacity=".6"/><circle cx="32" cy="32" r="4" fill="#6AD7A3" opacity=".8"/></svg>
+</div>
+<div class="text-[16px] font-bold mb-1.5">The wire is quiet.</div>
+<div class="text-[12.5px] text-[#B8BFC8] max-w-xs mx-auto mb-4">Scan to check again, or take the win and close the laptop.</div>
+<button class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#6AD7A3] to-[#2F8A63] text-[#0C1016] px-5 py-2 text-[12px] font-bold">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-3.5 w-3.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>SCAN NOW
+</button></div></div></div>
+
+</div></div></div>
+
+<!-- Bottom nav -->
+<nav class="sticky bottom-0 left-0 right-0 z-50 border-t border-[#2A3544] bg-[#0C1016]/95 backdrop-blur-md">
+<div class="mx-auto max-w-xl flex items-center justify-around py-2.5">
+<a class="flex flex-col items-center gap-0.5 px-4 py-1.5 text-[#6AD7A3]">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+<span class="text-[11px] font-semibold mt-0.5">Inbox</span>
+</a>
+<a class="flex flex-col items-center gap-0.5 px-4 py-1.5 text-[#9CA3AF]">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+<span class="text-[11px] mt-0.5">Tracker</span>
+</a>
+<a class="flex flex-col items-center gap-0.5 px-4 py-1.5 text-[#9CA3AF]">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
+<span class="text-[11px] mt-0.5">Profile</span>
+</a></div></nav>
+
+</body></html>

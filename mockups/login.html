@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Sygnalist — Login</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Inter',system-ui,sans-serif;background:#0C1016;color:#fff;letter-spacing:-0.005em}
+@keyframes radar-sweep{from{transform:rotate(0)}to{transform:rotate(360deg)}}.radar-sweep-anim{transform-origin:64px 64px;animation:radar-sweep 8s linear infinite}
+@keyframes pulse-glow{0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}.hero-pulse{animation:pulse-glow 3.5s ease-in-out infinite}
+@keyframes ambient-ring{0%{transform:scale(.8);opacity:.6}100%{transform:scale(1.5);opacity:0}}
+.ambient-ring{position:absolute;border-radius:999px;border:1px solid #6AD7A3;animation:ambient-ring 3.5s cubic-bezier(0.16,1,0.3,1) infinite;pointer-events:none}
+.ambient-ring:nth-child(2){animation-delay:1.2s}.ambient-ring:nth-child(3){animation-delay:2.4s}
+@keyframes seam-glow{0%,100%{opacity:.4}50%{opacity:.7}}.animate-seam-glow{animation:seam-glow 14s ease-in-out infinite}
+@keyframes shine{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}.gold-shine::after{content:"";position:absolute;top:0;left:0;bottom:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:shine 4s ease-in-out infinite}
+.input-glow:focus{outline:none;border-color:#6AD7A3;box-shadow:0 0 0 3px rgba(106,215,163,.15),0 0 24px rgba(106,215,163,.15)}
+.grid-bg{background-image:linear-gradient(rgba(106,215,163,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(106,215,163,.025) 1px,transparent 1px);background-size:32px 32px}
+</style></head><body class="min-h-dvh relative overflow-hidden">
+
+<!-- Ambient background -->
+<div class="fixed inset-0 grid-bg pointer-events-none opacity-60"></div>
+<div class="fixed inset-0 pointer-events-none" style="background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(106,215,163,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 50% 100%,rgba(250,215,106,.04) 0%,transparent 60%)"></div>
+
+<div class="relative z-10 min-h-dvh flex flex-col">
+
+<div class="flex-1 flex flex-col justify-center px-6 py-10 max-w-md mx-auto w-full">
+
+<!-- HERO RADAR -->
+<div class="flex flex-col items-center mb-10">
+<div class="relative mb-7">
+<div class="ambient-ring" style="inset:-6px"></div>
+<div class="ambient-ring" style="inset:-6px"></div>
+<div class="ambient-ring" style="inset:-6px"></div>
+<div class="flex h-32 w-32 items-center justify-center rounded-3xl bg-gradient-to-br from-[#0B1512] to-[#0F2A23] ring-1 ring-[#6AD7A3]/30 hero-pulse relative" style="box-shadow:0 0 80px rgba(106,215,163,.25),inset 0 1px 0 rgba(255,255,255,.05)">
+<svg viewBox="0 0 128 128" class="h-24 w-24">
+<circle cx="64" cy="64" r="34" fill="none" stroke="url(#hg)" stroke-width="5.5" opacity=".95"/>
+<circle cx="64" cy="64" r="20" fill="none" stroke="#A9FFB5" stroke-width="3" opacity=".2"/>
+<g class="radar-sweep-anim"><path d="M64 64 L98 44" stroke="url(#hg)" stroke-width="4.5" stroke-linecap="round" opacity=".85"/><circle cx="98" cy="44" r="5" fill="#A9FFB5"/></g>
+<circle cx="64" cy="64" r="8.5" fill="url(#hg)"/>
+<path d="M95 32 l2.5 5 5 2.5-5 2.5-2.5 5-2.5-5-5-2.5 5-2.5z" fill="#FFD77A" opacity=".95"/>
+<defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9FFB5"/><stop offset=".55" stop-color="#5EF2C7"/><stop offset="1" stop-color="#39D6FF"/></linearGradient></defs>
+</svg>
+</div></div>
+<div class="text-[2rem] font-extrabold tracking-[0.14em] text-[#6AD7A3] leading-none mb-3" style="text-shadow:0 0 32px rgba(106,215,163,.4)">SYGNALIST</div>
+<div class="text-[0.75rem] font-semibold uppercase tracking-[0.45em] text-[#B8BFC8]">Find the signal</div>
+<div class="mt-1 h-px w-28 bg-gradient-to-r from-transparent via-[#6AD7A3]/50 to-transparent animate-seam-glow"></div>
+</div>
+
+<!-- Welcome -->
+<div class="text-center mb-7">
+<h1 class="text-[1.5rem] font-extrabold leading-tight mb-2">Welcome back, hunter.</h1>
+<p class="text-[13.5px] leading-relaxed text-[#B8BFC8]">Your signal is waiting. Sign in to pick up where you left off.</p>
+</div>
+
+<!-- FORM -->
+<form class="space-y-3.5">
+<div>
+<label class="block text-[10.5px] uppercase tracking-[0.18em] font-bold text-[#9CA3AF] mb-1.5">Email</label>
+<input type="email" value="joshua@sygnalist.co" class="input-glow w-full h-11 rounded-xl bg-[#151C24] border border-[#2A3544] text-white text-[14px] px-4 transition-all"/>
+</div>
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<label class="block text-[10.5px] uppercase tracking-[0.18em] font-bold text-[#9CA3AF]">Password</label>
+<a class="text-[10.5px] text-[#6AD7A3] font-semibold">Forgot?</a>
+</div>
+<input type="password" value="••••••••••" class="input-glow w-full h-11 rounded-xl bg-[#151C24] border border-[#2A3544] text-white text-[14px] px-4 transition-all"/>
+</div>
+
+<!-- CTA — the gold moment -->
+<button type="button" class="gold-shine relative w-full h-12 rounded-xl mt-4 overflow-hidden font-bold text-[14px] text-[#0C1016] tracking-[0.04em] uppercase" style="background:linear-gradient(180deg,#FAD76A 0%,#E0B935 100%);box-shadow:0 0 32px rgba(250,215,106,.3),inset 0 1px 0 rgba(255,255,255,.25),inset 0 -1px 0 rgba(0,0,0,.15)">
+<span class="relative flex items-center justify-center gap-2">
+Continue
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-4 w-4"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+</span></button>
+
+<!-- Divider -->
+<div class="flex items-center gap-3 pt-3">
+<div class="h-px flex-1 bg-[#2A3544]"></div>
+<span class="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#9CA3AF]">or</span>
+<div class="h-px flex-1 bg-[#2A3544]"></div>
+</div>
+
+<!-- Magic link -->
+<button type="button" class="w-full h-11 rounded-xl border border-[#6AD7A3]/30 bg-[#6AD7A3]/5 text-[#6AD7A3] text-[13px] font-semibold hover:bg-[#6AD7A3]/10 transition-all flex items-center justify-center gap-2">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+Send me a magic link
+</button>
+
+</form>
+
+<!-- Microcopy with brand voice -->
+<div class="mt-8 rounded-xl border border-white/5 bg-[#151C24]/50 p-4">
+<div class="flex items-start gap-2.5">
+<svg viewBox="0 0 24 24" fill="none" stroke="#6AD7A3" stroke-width="2" class="h-4 w-4 mt-0.5 shrink-0" style="filter:drop-shadow(0 0 4px rgba(106,215,163,.4))"><path d="M12 2 L12 6 M12 18 L12 22 M2 12 L6 12 M18 12 L22 12 M4.9 4.9 L7.7 7.7 M16.3 16.3 L19.1 19.1 M4.9 19.1 L7.7 16.3 M16.3 7.7 L19.1 4.9"/></svg>
+<div>
+<div class="text-[11.5px] font-semibold text-[#6AD7A3] mb-0.5">What's new</div>
+<div class="text-[11.5px] leading-relaxed text-[#B8BFC8]">LinkedIn parser, PDF resume upload, and a fresh set of job sources went live this week.</div>
+</div></div></div>
+
+<!-- Access-denied state preview (subtle, below fold if needed) -->
+<div class="mt-3 rounded-xl border border-[#DC2626]/25 bg-[#DC2626]/5 p-3 hidden">
+<div class="flex items-start gap-2.5">
+<svg viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" class="h-4 w-4 mt-0.5 shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16"/></svg>
+<div class="text-[12px] text-[#FCA5A5]">Your email isn't on the beta list. <a class="font-semibold underline">Request access</a>.</div>
+</div></div>
+
+</div>
+
+<!-- FOOTER -->
+<footer class="px-6 py-6 text-center">
+<div class="h-px max-w-xs mx-auto bg-gradient-to-r from-transparent via-[#6AD7A3]/20 to-transparent mb-4"></div>
+<div class="flex items-center justify-center gap-2 mb-2">
+<span class="h-1.5 w-1.5 rounded-full bg-[#6AD7A3]" style="box-shadow:0 0 8px #6AD7A3"></span>
+<span class="text-[10px] uppercase tracking-[0.25em] font-semibold text-[#9CA3AF]">Station Syg · Transmitting</span>
+</div>
+<div class="text-[11px] text-[#9CA3AF]">Direct, tactical, no corporate fluff.</div>
+</footer>
+
+</div>
+</body></html>
