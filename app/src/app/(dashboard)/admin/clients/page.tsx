@@ -242,13 +242,15 @@ export default function AdminClientsPage() {
                       title={editingId === p.id ? "Close editor" : "Edit profile"}
                       onClick={() => setEditingId(editingId === p.id ? null : p.id)}
                     />
-                    <IconButton
-                      icon={Eye}
-                      variant="view"
-                      size="sm"
-                      title="View as client"
-                      onClick={() => window.open(`/inbox?view_as=${p.id}`, "_blank")}
-                    />
+                    <span data-tour="profile-switcher">
+                      <IconButton
+                        icon={Eye}
+                        variant="view"
+                        size="sm"
+                        title="View as client"
+                        onClick={() => window.open(`/inbox?view_as=${p.id}`, "_blank")}
+                      />
+                    </span>
                     {/* Overflow menu */}
                     <OverflowMenu
                       profileId={p.id}

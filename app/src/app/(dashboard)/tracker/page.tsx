@@ -254,7 +254,7 @@ export default function TrackerPage() {
       {/* Controls bar */}
       <div className="sticky top-0 z-10 border-b border-[#2A3544] bg-[#151C24] px-4 md:px-6 py-3 space-y-2">
         {/* Stage pills + controls */}
-        <div ref={pillContainerRef} className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <div ref={pillContainerRef} data-tour="stage-pills" className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           {/* "All" pill */}
           <button
             type="button"
@@ -312,7 +312,7 @@ export default function TrackerPage() {
 
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
             {/* Display mode toggle: Cards | Ops */}
-            <div className="flex rounded-full ring-1 ring-[#2A3544] overflow-hidden">
+            <div data-tour="tracker-views" className="flex rounded-full ring-1 ring-[#2A3544] overflow-hidden">
               <button
                 type="button"
                 onClick={() => setDisplayMode("cards")}

@@ -17,34 +17,35 @@
  * Demo profiles are identified by profile_id starting with "demo-".
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabase: SupabaseClient = null as unknown as SupabaseClient;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(1);
+function initSupabase(): void {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  }
+  supabase = createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
 
 // ─── Fixed UUIDs for deterministic re-runs ────────────────────────────────
 
 const PROFILES = {
-  admin: "00000000-demo-0000-0000-000000000001",
-  luther: "00000000-demo-0000-0000-000000000002",
-  priya: "00000000-demo-0000-0000-000000000003",
-  marcus: "00000000-demo-0000-0000-000000000004",
+  admin: "00000000-de00-0000-0000-000000000001",
+  luther: "00000000-de00-0000-0000-000000000002",
+  priya: "00000000-de00-0000-0000-000000000003",
+  marcus: "00000000-de00-0000-0000-000000000004",
 } as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function uuid(seed: number): string {
-  const hex = seed.toString(16).padStart(12, "0");
-  return `00000000-demo-0001-${hex.slice(0, 4)}-${hex.slice(4)}`;
+  const hex = seed.toString(16).padStart(16, "0");
+  return `00000000-de00-0001-${hex.slice(0, 4)}-${hex.slice(4)}`;
 }
 
 function daysAgo(n: number): string {
@@ -1053,7 +1054,7 @@ const tickets = [
 // ─── User Events (Audit Log) ───────────────────────────────────────────────
 
 function makeEvents() {
-  const events = [];
+  const events: Array<Record<string, unknown>> = [];
   let id = 2001;
 
   const add = (user_id: string, event_type: string, metadata: object, hours: number, success = true) => {
@@ -1302,10 +1303,15 @@ async function insert<T extends object>(table: string, rows: T[], label: string)
   console.log(`  ${label}: ${rows.length} rows`);
 }
 
-async function main() {
+export async function runDemoSeed(opts: { wipeOnly?: boolean } = {}): Promise<void> {
+  initSupabase();
   console.log("\n=== Sygnalist Demo Seed ===\n");
 
   await wipe();
+  if (opts.wipeOnly) {
+    console.log("\n=== Wipe complete ===\n");
+    return;
+  }
 
   console.log("\nSeeding…");
 
@@ -1347,7 +1353,21 @@ async function main() {
   console.log("  All data is hardcoded. No external API calls made.\n");
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+const isMainModule = (() => {
+  try {
+    const argv1 = process.argv[1];
+    if (!argv1) return false;
+    const url = new URL(import.meta.url);
+    return url.pathname === argv1 || url.pathname.endsWith(argv1.replace(/^.*\//, ''));
+  } catch {
+    return false;
+  }
+})();
+
+if (isMainModule) {
+  const wipeOnly = process.env.WIPE_ONLY === '1';
+  runDemoSeed({ wipeOnly }).catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

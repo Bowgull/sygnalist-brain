@@ -306,7 +306,7 @@ export default function OnboardPage() {
   const currentIndex = steps.findIndex((s) => s.key === step);
 
   return (
-    <div className="relative min-h-[80vh]">
+    <div data-tour="resume-parse" className="relative min-h-[80vh]">
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#DC2626] px-4 py-2 text-sm font-medium text-white shadow-lg">

@@ -105,7 +105,7 @@ export default function ViewAsMessagesPage() {
   const receivedCount = messages.filter((m) => m.direction === "received").length;
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div data-tour="message-thread" className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

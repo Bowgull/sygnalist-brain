@@ -137,7 +137,7 @@ export default function AdminLanesPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div data-tour="lanes-list" className="space-y-4">
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#6AD7A3] px-4 py-2 text-[0.8125rem] font-semibold text-[#0C1016] shadow-lg">

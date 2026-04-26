@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useViewAs } from "@/components/view-as/view-as-context";
 import { ArrowLeft, Eye, LogOut } from "lucide-react";
 import FeedbackSheet from "@/components/feedback/feedback-sheet";
+import TourButton from "@/components/tour/tour-button";
 
 function useRelativeTime(iso: string | null) {
   const [text, setText] = useState("");
@@ -178,6 +179,7 @@ export default function Header({
               </>
             )}
           </div>
+          <TourButton />
           <button
             onClick={handleSignOut}
             disabled={signingOut}

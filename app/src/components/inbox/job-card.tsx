@@ -64,7 +64,9 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
                 {job.company}
               </p>
             </div>
-            <TierBadge tier={job.tier} score={job.score} />
+            <span data-tour="goodfit-score">
+              <TierBadge tier={job.tier} score={job.score} />
+            </span>
           </div>
 
           {/* Chips row */}
@@ -90,7 +92,9 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
                 {job.lane_label}
               </span>
             )}
-            <BoardPill url={job.url} source={job.source} />
+            <span data-tour="source-badge">
+              <BoardPill url={job.url} source={job.source} />
+            </span>
           </div>
         </button>
 
@@ -98,6 +102,7 @@ export default function JobCard({ job, onPromote, onDismiss }: JobCardProps) {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
+            data-tour="promote-button"
             onClick={(e) => {
               e.stopPropagation();
               handlePromote();

@@ -7,6 +7,7 @@ import TopTabs from "@/components/layout/top-tabs";
 import MetricsSidebar from "@/components/layout/metrics-sidebar";
 // MobileMetrics removed — desktop sidebar only
 import { ViewAsProvider } from "@/components/view-as/view-as-context";
+import TourProvider from "@/components/tour/tour-provider";
 
 export default async function DashboardLayout({
   children,
@@ -31,6 +32,7 @@ export default async function DashboardLayout({
   return (
     <Suspense>
       <ViewAsProvider>
+        <TourProvider>
         <div className="flex min-h-dvh flex-col">
           <Header displayName={profile?.display_name} role={profile?.role} />
 
@@ -52,6 +54,7 @@ export default async function DashboardLayout({
 
           <BottomNav isAdmin={isAdmin} />
         </div>
+        </TourProvider>
       </ViewAsProvider>
     </Suspense>
   );

@@ -476,7 +476,7 @@ export default function AdminLogsPage() {
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3">
+    <div data-tour="logs-panel" className="space-y-3">
       {/* Tab pills */}
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-none after:content-[''] after:shrink-0 after:w-2">
         {(["activity", "errors", "fetches", "tickets"] as LogType[]).map((t) => (

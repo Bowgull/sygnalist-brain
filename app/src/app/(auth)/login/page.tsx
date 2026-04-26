@@ -13,6 +13,10 @@ function logAuth(event: string, method?: string, error?: string, email?: string)
   }).catch(() => {});
 }
 
+const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "demo@bridgefour.xyz";
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "demo-readonly-2026";
+
 export default function LoginPage() {
   return (
     <Suspense>
@@ -22,8 +26,8 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(isDemo ? DEMO_EMAIL : "");
+  const [password, setPassword] = useState(isDemo ? DEMO_PASSWORD : "");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [denied, setDenied] = useState(false);
@@ -194,11 +198,18 @@ function LoginForm() {
               >
                 {loading
                   ? "Checking access..."
+                  : isDemo
+                  ? "Sign in to demo"
                   : mode === "password"
                   ? "Sign In"
                   : "Send Sign-In Link"}
               </button>
             </form>
+            {isDemo && (
+              <p className="mt-3 text-center text-[11px] font-mono text-[#9CA3AF]">
+                Demo. Credentials pre-filled.
+              </p>
+            )}
 
             {message && (
               <div className="mt-4 text-center text-sm">

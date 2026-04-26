@@ -191,6 +191,7 @@ export default function InboxPage() {
           <div className="ml-auto flex items-center gap-1.5 shrink-0">
             <button
               type="button"
+              data-tour="scan-button"
               onClick={handleScan}
               disabled={scanning || profileLocked}
               title={profileLocked ? "Scan disabled (profile inactive)" : "Scan for new roles"}
@@ -228,7 +229,7 @@ export default function InboxPage() {
       </div>
 
       {/* Job list */}
-      <div className="space-y-3 md:space-y-4 p-3 md:p-6">
+      <div data-tour="inbox-list" className="space-y-3 md:space-y-4 p-3 md:p-6">
         {loading ? (
           <>
             <SkeletonCard />

@@ -16,6 +16,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
+    "driver.js": "^1.4.0",
     "lucide-react": "^1.7.0",
     "mammoth": "^1.12.0",
     "next": "16.2.2",
