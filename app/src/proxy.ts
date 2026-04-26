@@ -1,7 +1,10 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { checkDemoGate } from "@/lib/demo-gate";
 
 export async function proxy(request: NextRequest) {
+  const blocked = checkDemoGate(request);
+  if (blocked) return blocked;
   return await updateSession(request);
 }
 
