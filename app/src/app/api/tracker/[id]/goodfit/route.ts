@@ -1,8 +1,10 @@
 import { requireAuth, json, error } from "@/lib/api-helpers";
 import { logError } from "@/lib/logger";
 import { sanitizeGoodFitVoice, parseGoodFitResponse } from "@/lib/text/sanitize-goodfit";
+import { pickDemoGoodFit, demoDelay } from "@/lib/demo-fixtures";
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
+const DEMO_MODE = process.env.DEMO_MODE === "true";
 const MAX_RETRIES = 3;
 
 /** POST /api/tracker/:id/goodfit - generate or retrieve GoodFit assessment */
@@ -37,6 +39,16 @@ export async function POST(
   // Return existing if already generated
   if (entry.good_fit) {
     return json({ good_fit: entry.good_fit, cached: true });
+  }
+
+  if (DEMO_MODE) {
+    await demoDelay(900, 2200);
+    const goodFit = pickDemoGoodFit();
+    await supabase
+      .from("tracker_entries")
+      .update({ good_fit: goodFit, good_fit_updated_at: new Date().toISOString() })
+      .eq("id", id);
+    return json({ good_fit: goodFit, cached: false, demo: true });
   }
 
   // Try to get the full job description from global_job_bank (has description_snippet)

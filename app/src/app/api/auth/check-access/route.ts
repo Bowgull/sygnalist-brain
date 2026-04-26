@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     .select("id, status")
     .ilike("email", email)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (dbErr || !data) {
     await logFailure("auth.access_denied", `Access denied: no profile found for ${email}`, {

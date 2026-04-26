@@ -1,5 +1,8 @@
 import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { logEvent, logError } from "@/lib/logger";
+import { DEMO_GMAIL_JOBS, demoDelay } from "@/lib/demo-fixtures";
+
+const DEMO_MODE = process.env.DEMO_MODE === "true";
 
 /**
  * POST /api/admin/gmail-ingest - Safe Gmail ingest.
@@ -24,11 +27,42 @@ export async function POST() {
   const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
   const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
 
+  const service = getServiceClient();
+
+  if (DEMO_MODE) {
+    await demoDelay(1500, 2800);
+    let inserted = 0;
+    for (const j of DEMO_GMAIL_JOBS) {
+      const { error: insertErr } = await service.from("jobs_inbox").insert({
+        job_id: `gmail_demo_${crypto.randomUUID().slice(0, 8)}`,
+        title: j.title,
+        company: j.company,
+        url: j.url,
+        source: j.source,
+        location: j.location,
+        work_mode: null,
+        enrichment_status: "NEW",
+        review_status: "pending",
+        gmail_message_id: null,
+        email_received_at: new Date().toISOString(),
+      });
+      if (!insertErr) inserted++;
+    }
+    return json({
+      messages_scanned: DEMO_GMAIL_JOBS.length,
+      messages_skipped: 0,
+      jobs_found: DEMO_GMAIL_JOBS.length,
+      jobs_new: inserted,
+      jobs_duplicate: DEMO_GMAIL_JOBS.length - inserted,
+      queue_remaining: 0,
+      backlog_detected: false,
+      demo: true,
+    });
+  }
+
   if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
     return error("Gmail API credentials not configured. Set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, and GMAIL_REFRESH_TOKEN.", 500);
   }
-
-  const service = getServiceClient();
 
   try {
     // --- Step 1: Get access token ---

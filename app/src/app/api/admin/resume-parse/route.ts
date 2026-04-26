@@ -2,6 +2,9 @@ import { requireAdmin, json, error, getServiceClient } from "@/lib/api-helpers";
 import { extractText } from "@/lib/resume/extract-text";
 import { parseWithAI, validateParsedResult } from "@/lib/resume/parse";
 import { matchLanes } from "@/lib/resume/match-lanes";
+import { DEMO_PARSED_RESUME, demoDelay } from "@/lib/demo-fixtures";
+
+const DEMO_MODE = process.env.DEMO_MODE === "true";
 
 /**
  * POST /api/admin/resume-parse - Parse a resume with AI
@@ -65,6 +68,19 @@ export async function POST(request: Request) {
 
   const service = getServiceClient();
   const startTime = Date.now();
+
+  if (DEMO_MODE) {
+    await demoDelay(1500, 3000);
+    await service.from("resume_parse_logs").insert({
+      user_id: profile.id,
+      file_name: fileName,
+      file_size: fileSize,
+      success: true,
+      openai_response_time_ms: Date.now() - startTime,
+      model: "demo-fixture",
+    });
+    return json({ ...DEMO_PARSED_RESUME, demo: true });
+  }
 
   try {
     const rawParsed = await parseWithAI(resumeText);

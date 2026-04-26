@@ -43,13 +43,27 @@ function LoginForm() {
   }, [searchParams]);
 
   async function checkAccess(userEmail: string): Promise<boolean> {
-    const res = await fetch("/api/auth/check-access", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: userEmail }),
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch("/api/auth/check-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
+        signal: ctrl.signal,
+      });
+      const data = await res.json();
+      return data.allowed === true;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error(`${label} timed out. Try again.`)), ms);
+      p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
     });
-    const data = await res.json();
-    return data.allowed === true;
   }
 
   async function handlePasswordLogin(e: React.FormEvent) {
@@ -58,28 +72,60 @@ function LoginForm() {
     setMessage("");
     setDenied(false);
 
-    const allowed = await checkAccess(email);
-    if (!allowed) {
-      setDenied(true);
-      setLoading(false);
-      return;
-    }
+    try {
+      if (isDemo) {
+        const res = await withTimeout(
+          fetch("/api/demo/login", { method: "POST" }),
+          10000,
+          "Demo sign in"
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) {
+          setMessage(data?.detail ?? "Demo sign-in failed. Try again.");
+          logAuth("login_failed", "demo", data?.error ?? "unknown", email);
+          return;
+        }
+        logAuth("login", "demo", undefined, email);
+        document.cookie = `syg_session_start=${Math.floor(Date.now() / 1000)};path=/;max-age=259200;samesite=lax`;
+        window.location.assign(data.redirect ?? "/inbox");
+        return;
+      }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      const hint = error.message === "Invalid login credentials"
-        ? "Wrong email or password. Haven't set up your password yet?"
-        : error.message;
-      setMessage(hint);
-      logAuth("login_failed", "password", error.message, email);
-    } else {
+      const allowed = await checkAccess(email);
+      if (!allowed) {
+        setDenied(true);
+        return;
+      }
+
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        12000,
+        "Sign in"
+      );
+      if (error) {
+        const hint = error.message === "Invalid login credentials"
+          ? "Wrong email or password. Haven't set up your password yet?"
+          : error.message;
+        setMessage(hint);
+        logAuth("login_failed", "password", error.message, email);
+        return;
+      }
+
       logAuth("login", "password", undefined, email);
-      // Set session start cookie for 3-day expiry
       document.cookie = `syg_session_start=${Math.floor(Date.now() / 1000)};path=/;max-age=259200;samesite=lax`;
-      router.replace("/inbox");
-      return;
+      try { router.replace("/inbox"); } catch { /* fall through to hard nav */ }
+      setTimeout(() => {
+        if (window.location.pathname.startsWith("/login")) {
+          window.location.assign("/inbox");
+        }
+      }, 400);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Network error. Try again.";
+      setMessage(msg);
+      logAuth("login_failed", "password", msg, email);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handleMagicLink(e: React.FormEvent) {
@@ -88,25 +134,31 @@ function LoginForm() {
     setMessage("");
     setDenied(false);
 
-    const allowed = await checkAccess(email);
-    if (!allowed) {
-      setDenied(true);
-      setLoading(false);
-      return;
-    }
+    try {
+      const allowed = await checkAccess(email);
+      if (!allowed) {
+        setDenied(true);
+        return;
+      }
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/callback` },
-    });
-    if (error) {
-      setMessage(error.message);
-      logAuth("login_failed", "magic", error.message, email);
-    } else {
-      setMessage("Check your email - we just sent you a sign-in link.");
-      logAuth("magic_link_sent", "magic", undefined, email);
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/callback` },
+      });
+      if (error) {
+        setMessage(error.message);
+        logAuth("login_failed", "magic", error.message, email);
+      } else {
+        setMessage("Check your email - we just sent you a sign-in link.");
+        logAuth("magic_link_sent", "magic", undefined, email);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Network error. Try again.";
+      setMessage(msg);
+      logAuth("login_failed", "magic", msg, email);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
