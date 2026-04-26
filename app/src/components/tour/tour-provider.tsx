@@ -27,6 +27,7 @@ export default function TourProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!isDemo) return;
     if (typeof window === "undefined") return;
+    if (window.self !== window.top) return; // skip auto-prompt inside iframe
     if (window.sessionStorage.getItem(SESSION_KEY) === "1") return;
     setPickerOpen(true);
   }, []);
