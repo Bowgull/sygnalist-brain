@@ -1,6 +1,11 @@
 # Lindz Birthday (separate project, lives outside this repo)
 lindz-bday/
 
+# Environment variables (never commit real secrets)
+.env
+.env.local
+.env*.local
+
 # Clasp credentials (environment-specific)
 .clasp.json
 
