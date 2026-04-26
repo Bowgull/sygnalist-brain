@@ -68,7 +68,7 @@ const profiles = [
     auth_user_id: null,
     profile_id: "demo-admin",
     display_name: "Demo Admin",
-    email: "admin@sygnalist-demo.co",
+    email: "demo@bridgefour.xyz",
     role: "admin",
     status: "active",
     current_city: "Toronto",
